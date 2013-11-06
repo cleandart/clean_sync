@@ -9,8 +9,8 @@
 library clean_sync;
 
 import 'dart:async';
-import "../../clean_server/lib/clean_server.dart";
-import "../../clean_data/lib/clean_data.dart";
+import "package:clean_server/clean_server.dart";
+import "package:clean_data/clean_data.dart";
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
