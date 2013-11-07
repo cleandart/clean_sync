@@ -5,3 +5,4 @@ dependencies:
     git: https://github.com/hleumas/clean_data
   clean_server:
     git: https://github.com/hleumas/clean_server
+  mongo_dart: any
