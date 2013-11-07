@@ -6,7 +6,7 @@
  * A library for data subscription and synchronization in single page applications.
  */
 
-library clean_sync;
+library clean_sync_client;
 
 import 'dart:async';
 import "package:clean_server/clean_server.dart";
