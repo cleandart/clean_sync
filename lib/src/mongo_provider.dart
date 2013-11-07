@@ -108,8 +108,8 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future<List<Map>> data() {
-    return all();
+  Future<Map> data() {
+    return all().then((d) => {'data': d, 'version': _maxVersion});
   }
 
   Future<List<Map>> diffFromVersion(num version) {
