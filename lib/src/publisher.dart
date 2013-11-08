@@ -42,15 +42,15 @@ class Publisher {
   }
 }
 
-var default_publisher = new Publisher();
+final PUBLISHER = new Publisher();
 void publish(String c, DataGenerator dg) {
-  default_publisher.publish(c, dg);
+  PUBLISHER.publish(c, dg);
 }
 
 bool isPublished(String collection) {
-  return default_publisher.isPublished(collection);
+  return PUBLISHER.isPublished(collection);
 }
 
 Future handleSyncRequest(request) {
-  return default_publisher.handleSyncRequest(request);
+  return PUBLISHER.handleSyncRequest(request);
 }
