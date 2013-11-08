@@ -3,10 +3,11 @@
 // BSD-style license that can be found in the LICENSE file.
 
 /**
- * A library for data subscription and synchronization in single page applications.
+ * A library for data subscription and synchronization in single page
+ * applications.
  */
 
-library clean_sync_client;
+library client;
 
 import 'dart:async';
 import "package:clean_server/clean_server.dart";

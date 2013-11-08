@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-part of clean_sync_server;
+part of server;
 
 abstract class DataProvider {
   /// Returns collection of items in the following form:
