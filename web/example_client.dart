@@ -2,8 +2,8 @@ import 'dart:html';
 import 'dart:async';
 import 'dart:math';
 import "package:clean_data/clean_data.dart";
-import "package:clean_sync/clean_sync_client.dart";
-import "package:clean_server/clean_server.dart";
+import "package:clean_sync/client.dart";
+import "package:clean_ajax/clean_ajax.dart";
 
 void main() {
 

@@ -1,4 +1,4 @@
-import 'package:clean_sync/clean_sync_server.dart';
+import 'package:clean_sync/server.dart';
 import 'package:clean_backend/clean_backend.dart';
 import 'package:static_file_handler/static_file_handler.dart';
 
