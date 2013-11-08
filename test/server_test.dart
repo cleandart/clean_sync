@@ -9,16 +9,42 @@ import "package:unittest/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 
-class DataProviderMock extends Mock implements DataProvider {}
+class DataProviderMock extends Mock implements DataProvider {
+  final futureMock = new FutureMock();
+
+  DataProviderMock() {
+    when(callsTo("data")).alwaysReturn(futureMock);
+    when(callsTo("diffFromVersion")).alwaysReturn(futureMock);
+    when(callsTo("add")).alwaysReturn(futureMock);
+    when(callsTo("change")).alwaysReturn(futureMock);
+    when(callsTo("remove")).alwaysReturn(futureMock);
+  }
+}
 class FutureMock extends Mock implements Future {}
 
 void main() {
   group("Publisher", () {
 
-    test("publish collection.", () {
-      // given
-      var publisher = new Publisher();
+    Publisher publisher;
+    Map request, args;
+    DataProviderMock dataProvider;
+    var generator, _generator;
 
+    void verifyGeneratorCalledOnceWithArgs(args) {
+      _generator.getLogs().verify(happenedOnce);
+      expect(_generator.getLogs().first.args.first, equals(args));
+    }
+
+    setUp((){
+      publisher = new Publisher();
+      args = {"long": true};
+      dataProvider = new DataProviderMock();
+      _generator = new Mock()
+          ..when(callsTo("handle")).alwaysReturn(dataProvider);
+      generator = (args) => _generator.handle(args);
+    });
+
+    test("publish collection.", () {
       // when
       publisher.publish("months", null);
 
@@ -29,35 +55,88 @@ void main() {
 
     test("handle get data.", () {
       // given
-      var publisher = new Publisher();
-      var args = {"long": true};
-      var request = {"args": {
+      request = {"args": {
         "action": "get_data",
         "collection": "months",
         "args": args}
       };
-      var data = new FutureMock();
-      var dataProvider = new DataProviderMock()
-          ..when(callsTo('data')).alwaysReturn(data);
-      var dataGenerator = new Mock()
-          ..when(callsTo('handle')).alwaysReturn(dataProvider);
-      publisher.publish("months", (args) => dataGenerator.handle(args));
+      publisher.publish("months", generator);
 
       // when
       var result = publisher.handleSyncRequest(request);
 
       // then
-      dataGenerator.getLogs().verify(happenedOnce);
-      expect(dataGenerator.getLogs().first.args.first, equals(args));
-
+      verifyGeneratorCalledOnceWithArgs(args);
       dataProvider.getLogs(callsTo('data')).verify(happenedOnce);
-
-      expect(result, equals(data));
+      expect(result, equals(dataProvider.futureMock));
     });
 
     test("handle get diff.", () {
-      //
+      // given
+      request = {"args": {
+        "action": "get_diff",
+        "collection": "months",
+        "args": args}
+      };
+
+      // when
+      var result = publisher.handleSyncRequest(request);
+
+      //then
+      verifyGeneratorCalledOnceWithArgs(args);
+      dataProvider.getLogs(callsTo('diffFromVersion')).verify(happenedOnce);
+      expect(result, equals(dataProvider.futureMock));
     });
 
+    test("handle add.", () {
+      // given
+      request = {"args": {
+        "action": "add",
+        "collection": "months",
+        "args": args}
+      };
+
+      // when
+      var result = publisher.handleSyncRequest(request);
+
+      //then
+      verifyGeneratorCalledOnceWithArgs(args);
+      dataProvider.getLogs(callsTo('add')).verify(happenedOnce);
+      expect(result, equals(dataProvider.futureMock));
+    });
+
+    test("handle change.", () {
+      // given
+      request = {"args": {
+        "action": "change",
+        "collection": "months",
+        "args": args}
+      };
+
+      // when
+      var result = publisher.handleSyncRequest(request);
+
+      //then
+      verifyGeneratorCalledOnceWithArgs(args);
+      dataProvider.getLogs(callsTo('change')).verify(happenedOnce);
+      expect(result, equals(dataProvider.futureMock));
+    });
+
+    test("handle remove.", () {
+      // given
+      request = {"args": {
+        "action": "remove",
+        "collection": "months",
+        "args": args}
+      };
+
+      // when
+      var result = publisher.handleSyncRequest(request);
+
+      //then
+      verifyGeneratorCalledOnceWithArgs(args);
+      dataProvider.getLogs(callsTo('remove')).verify(happenedOnce);
+      expect(result, equals(dataProvider.futureMock));
+    });
   });
 }
