@@ -1,8 +1,11 @@
 name: clean_sync
 description: A sample command-line application
 dependencies:
+  clean_ajax:
+    path: ../clean_ajax
   clean_data:
     git: https://github.com/hleumas/clean_data
-  clean_server:
-    git: https://github.com/hleumas/clean_server
   mongo_dart: any
+dev_dependencies:
+  clean_backend:
+    path: ../clean_backend/
