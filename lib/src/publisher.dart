@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-part of clean_sync_server;
+part of server;
 
 typedef DataProvider DataGenerator(Map args);
 Map<String, DataGenerator> _publishedCollections = {};
@@ -42,15 +42,15 @@ class Publisher {
   }
 }
 
-var default_publisher = new Publisher();
+final PUBLISHER = new Publisher();
 void publish(String c, DataGenerator dg) {
-  default_publisher.publish(c, dg);
+  PUBLISHER.publish(c, dg);
 }
 
 bool isPublished(String collection) {
-  return default_publisher.isPublished(collection);
+  return PUBLISHER.isPublished(collection);
 }
 
 Future handleSyncRequest(request) {
-  return default_publisher.handleSyncRequest(request);
+  return PUBLISHER.handleSyncRequest(request);
 }
