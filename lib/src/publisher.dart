@@ -17,7 +17,6 @@ class Publisher {
   }
 
   Future handleSyncRequest(request) {
-    print('lala');
     Map data = request['args'];
     print("REQUEST:  ${data}");
 

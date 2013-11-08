@@ -14,11 +14,11 @@ class Subscription {
   num _version = -1;
   String _author;
 
-  Subscription(String collection, Server server, DataCollection data, String author, [Map args]) {
+  Subscription(String collection, Server server, String author, [Map args]) {
     this.collection = collection;
     this._server = server;
     this._author = author;
-    this.data = data;
+    this.data = new DataCollection();
 
     if (args != null) {
       this.args = args;
@@ -42,7 +42,8 @@ class Subscription {
 
         event["change"].changedItems.forEach((Data data, ChangeSet changeSet) {
           Map change = {};
-          changeSet.changedItems.forEach((k, Change v) => change[k] = v.newValue);
+          changeSet.changedItems.
+            forEach((k, Change v) => change[k] = v.newValue);
 
           _server.sendRequest(() => new Request("", {
             "action" : "change",
@@ -70,14 +71,8 @@ class Subscription {
       "action" : "get_data",
       "collection" : collection
     })).then((response) {
-      _version = response["version"];
-
-      for (Map record in response["data"]) {
-        data.add(new Data.fromMap(record), author : _author);
-      }
-
+      _handleResponse(response);
       print("Got initial data, synced to version ${_version}");
-
       return _version;
     });
   }
@@ -88,12 +83,31 @@ class Subscription {
         "action" : "get_diff",
         "collection" : collection,
         "version" : _version
-      })).then((List<Map> diff) {
-        diff.forEach((change) {
-          _applyChange(change);
-        });
+      })).then((response) {
+        _handleResponse(response);
       });
     });
+  }
+
+  void _handleResponse(Map response) {
+    // TODO: use clean(author: _author instead)
+    if(response.containsKey('data')) {
+      var toDelete=[];
+      for (var d in data) {
+        toDelete.add(d);
+      }
+      for (var d in toDelete) {
+        data.remove(d, author: _author);
+      }
+      for (Map record in response['data']) {
+        this.data.add(new Data.fromMap(record), author : _author);
+      }
+      _version = response['version'];
+    } else if(response.containsKey('diff') && response['diff'] != null) {
+      response['diff'].forEach((change) {
+        _applyChange(change);
+      });
+    }
   }
 
   void _applyChange(Map change) {
