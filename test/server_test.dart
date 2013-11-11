@@ -22,8 +22,6 @@ class DataProviderMock extends Mock implements DataProvider {
 }
 class FutureMock extends Mock implements Future {}
 
-typedef DataProvider generatorType(var args);
-
 void main() {
   group("Publisher", () {
 
@@ -31,8 +29,9 @@ void main() {
     Map request, args;
     var _id, data, author;
     DataProviderMock dataProvider;
-    generatorType generator;
     var _generator;
+
+    DataProvider generator(args) => _generator.handle(args);
 
     void verifyGeneratorCalledOnceWithArgs(args) {
       _generator.getLogs().verify(happenedOnce);
@@ -48,7 +47,6 @@ void main() {
       dataProvider = new DataProviderMock();
       _generator = new Mock()
           ..when(callsTo("handle")).alwaysReturn(dataProvider);
-       generator = (args) => _generator.handle(args);
     });
 
     test("publish collection.", () {
