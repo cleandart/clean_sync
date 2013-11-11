@@ -5,7 +5,7 @@
 part of server;
 
 class DiffNotPossibleException implements Exception {
-  String cause;
+  final String cause;
   DiffNotPossibleException(this.cause);
 }
 
