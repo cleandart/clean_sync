@@ -10,6 +10,12 @@ class DiffNotPossibleException implements Exception {
 }
 
 class MongoProvider implements DataProvider {
+  final String QUERY = "\$query";
+  final String GT = "\$gt";
+  final String LT = "\$lt";
+  final String ORDERBY = "\$orderby";
+  final String OR = "\$or";
+
   Db _db;
   Future _conn; // connection to database _db
   String _collectionName;
@@ -114,90 +120,70 @@ class MongoProvider implements DataProvider {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
 
-    Map beforeSelector = {"\$query" : {"version" : {"\$gt" : version}, "before" : {"\$gt" : {}}}, "\$orderby" : {"version" : 1}};
-    Map afterSelector = {"\$query" : {"version" : {"\$gt" : version}, "after" : {"\$gt" : {}}}, "\$orderby" : {"version" : 1}};
+    // selects records that fulfilled _selector before change
+    Map beforeSelector =
+      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
+    // selects records that fulfill _selector after change
+    Map afterSelector =
+      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
+    // selects records that fulfill _selector before or after change
+    Map beforeOrAfterSelector =
+      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
 
     _selector.forEach((k, v) {
-      beforeSelector["\$query"]["before.${k}"] = v;
-      afterSelector["\$query"]["after.${k}"] = v;
+      beforeSelector[QUERY]["before.${k}"] = v;
+      afterSelector[QUERY]["after.${k}"] = v;
+      beforeOrAfterSelector[QUERY][OR] =
+          [{"before.${k}" : v}, {"after.${k}" : v}];
     });
 
-    return _conn.then((_) {
-      return Future.wait([
-        _collectionHistory.find(beforeSelector).toList(),
-        _collectionHistory.find(afterSelector).toList(),
-      ]).then((responses) {
-        List before = responses[0];
-        List after = responses[1];
-        List diff = [];
+    List before, after, beforeOrAfter, diff;
 
-        int i = 0;
-        int j = 0;
+    return _conn.then((_) =>
+        _collectionHistory.find(beforeOrAfterSelector).toList())
+      .then((result) {
+        beforeOrAfter = result;
+        return Future.wait([
+          _collectionHistory.find(beforeSelector).toList(),
+          _collectionHistory.find(afterSelector).toList()]);})
+      .then((results) {
+          before = results[0];
+          after = results[1];
+          diff = [];
 
-        while (i < before.length && j < after.length) {
-          if (before[i]["version"] < after[j]["version"]) {
-            diff.add({
-              "action" : "remove",
-              "_id" : before[i]["before"]["_id"],
-              "version" : before[i]["version"],
-              "author" : before[i]["author"],
-              "collection" : _collectionName
-            });
-
-            i++;
-          }
-          else if (before[i]["version"] == after[j]["version"]) {
-            diff.add({
-              "action" : "change",
-              "_id" : before[i]["before"]["_id"],
-              "data" : before[i]["change"],
-              "version" : before[i]["version"],
-              "author" : before[i]["author"],
-              "collection" : _collectionName
-            });
-
-            i++;
-            j++;
-          }
-          else {
-            diff.add({
-              "action" : "add",
-              "data" : after[j]["after"],
-              "version" : after[j]["version"],
-              "author" : after[j]["author"],
-              "collection" : _collectionName
-            });
-
-            j++;
-          }
-        }
-
-        while (i < before.length) {
-          diff.add({
-            "action" : "remove",
-            "_id" : before[i]["before"]["_id"],
-            "version" : before[i]["version"],
-            "author" : before[i]["author"],
-            "collection" : _collectionName
+          beforeOrAfter.forEach((record) {
+            if(before.contains(record) && after.contains(record)) {
+              // record was changed
+              diff.add({
+                "action" : "change",
+                "_id" : record["before"]["_id"],
+                "data" : record["change"],
+                "version" : record["version"],
+                "author" : record["author"],
+                "collection" : _collectionName
+              });
+            } else if(before.contains(record)) {
+              // record was removed
+              diff.add({
+                "action" : "remove",
+                "_id" : record["before"]["_id"],
+                "version" : record["version"],
+                "author" : record["author"],
+                "collection" : _collectionName
+              });
+            } else {
+              // record was added
+              diff.add({
+                "action" : "add",
+                "data" : record["after"],
+                "version" : record["version"],
+                "author" : record["author"],
+                "collection" : _collectionName
+              });
+            }
           });
 
-          i++;
-        }
-
-        while (j < after.length) {
-          diff.add({
-            "action" : "add",
-            "data" : after[j]["after"],
-            "version" : after[j]["version"],
-            "author" : after[j]["author"],
-            "collection" : _collectionName
-          });
-
-          j++;
-        }
-
-        return diff;
+          return diff;
       });
-    });
   }
 }
