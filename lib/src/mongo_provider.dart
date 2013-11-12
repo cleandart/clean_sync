@@ -4,6 +4,11 @@
 
 part of server;
 
+class DiffNotPossibleException implements Exception {
+  final String cause;
+  DiffNotPossibleException(this.cause);
+}
+
 class MongoProvider implements DataProvider {
   String _mongoUrl;
   String _collectionName;
@@ -112,7 +117,20 @@ class MongoProvider implements DataProvider {
     return all().then((d) => {'data': d, 'version': _maxVersion});
   }
 
-  Future<List<Map>> diffFromVersion(num version) {
+  Future<Map> diffFromVersion(num version) {
+    try{
+      return _diffFromVersion(version).then((d) => {'diff': d});
+    } on DiffNotPossibleException catch(e) {
+      return data().then((d) {
+        d['diff'] = null;
+        return d;
+      });
+    }
+  }
+
+  Future<List<Map>> _diffFromVersion(num version) {
+    // if (some case not covered so far) {
+    // throw new DiffNotPossibleException('diff not possible');
 
     Map beforeSelector = {"\$query" : {"version" : {"\$gt" : version}, "before" : {"\$gt" : {}}}, "\$orderby" : {"version" : 1}};
     Map afterSelector = {"\$query" : {"version" : {"\$gt" : version}, "after" : {"\$gt" : {}}}, "\$orderby" : {"version" : 1}};
