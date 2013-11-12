@@ -10,111 +10,93 @@ class DiffNotPossibleException implements Exception {
 }
 
 class MongoProvider implements DataProvider {
-  String _mongoUrl;
+  Db _db;
+  Future _conn; // connection to database _db
   String _collectionName;
   Map _selector = {};
-  static num _maxVersion;
 
-  num get maxVersion => _maxVersion;
+  Future<int> get _maxVersion => _collectionHistory.count();
+  DbCollection get _collection => _db.collection(_collectionName);
+  DbCollection get _collectionHistory =>
+      _db.collection("${_collectionName}_history");
 
-  MongoProvider(this._mongoUrl, [this._collectionName]);
+  MongoProvider(this._db, this._conn);
 
-  Future initialize(List collections) {
-    return _query((db) {
-      return Future.wait(collections.map((String collection) {
-        return this.collection(collection)._collectionHistory(db).count();
-      }).toList());
-    }).then((versions) => _maxVersion = versions.reduce((value, element) => value = (element > value) ? element : value));
-  }
-
-  MongoProvider collection(String collection) {
-    return new MongoProvider(_mongoUrl, collection);
-  }
-
-  DbCollection _collection(Db db) {
-    return db.collection(_collectionName);
-  }
-
-  DbCollection _collectionHistory(Db db) {
-    return db.collection("${_collectionName}_history");
-  }
-
-  num _nextVersion() {
-    return ++_maxVersion;
+  MongoProvider collection(String collectionName) {
+    var mp = new MongoProvider(_db, _conn);
+    mp._collectionName = collectionName;
+    return mp;
   }
 
   MongoProvider find(Map params) {
-    _selector.addAll(params);
-    return this;
+    var mp = new MongoProvider(_db, _conn);
+      if(_collectionName != null) {
+      mp = mp.collection(_collectionName);
+    }
+    mp._selector.addAll(this._selector);
+    mp._selector.addAll(params);
+    return mp;
   }
 
-  Future<List> all() {
-    return _query((db) {
-      return _collection(db).find(_selector).toList();
-    });
-  }
-
-  Future _query(query) {
-    Db db = new Db(_mongoUrl);
-    Future result = db.open().then((_) => db).then(query);
-    result.then((_) => db.close());
-    return result;
+  Future<Map> data() {
+    return Future.wait
+        ([_conn.then((_) => _collection.find(_selector).toList()), _maxVersion])
+        .then((results) => {'data': results[0], 'version': results[1]});
   }
 
   Future add(num _id, Map data, String author) {
-    return _query((db) {
-      return _collectionHistory(db).insert({
+    return Future.wait([_conn, _maxVersion]).then((results) {
+      var nextVersion = results[1] + 1;
+      return _collectionHistory.insert({
         "before" : {},
         "after" : data,
         "change" : {},
         "action" : "add",
         "author" : author,
-        "version" : _nextVersion()
+        "version" : nextVersion
       }).then((_) {
-        return _collection(db).insert(data);
+        return _collection.insert(data);
       });
     });
   }
 
   Future change(num id, Map data, String author) {
-    return _query((db) {
-      return _collection(db).findOne({"_id" : id}).then((Map record) {
+    return Future.wait([_conn, _maxVersion]).then((results) {
+      var nextVersion = results[1] + 1;
+      return _collection.findOne({"_id" : id}).then((Map record) {
         Map newRecord = new Map.from(record);
         newRecord.addAll(data);
 
-        return _collectionHistory(db).insert({
+        return _collectionHistory.insert({
           "before" : record,
           "after" : newRecord,
           "change" : data,
           "action" : "change",
           "author" : author,
-          "version" : _nextVersion()
+          "version" : nextVersion
         }).then((_) {
-          return _collection(db).save(newRecord);
+          return _collection.save(newRecord);
         });
       });
     });
   }
 
   Future remove(num id, String author) {
-    return _query((db) {
-      return _collection(db).findOne({"_id" : id}).then((Map record) {
-        return _collectionHistory(db).insert({
+    return Future.wait([_conn, _maxVersion]).then((results) {
+      var nextVersion = results[1] + 1;
+      return _collection.findOne({"_id" : id}).then((Map record) {
+        return _collectionHistory.insert({
           "before" : record,
           "after" : {},
           "change" : {},
           "action" : "remove",
           "author" : author,
-          "version" : _nextVersion()
+          "version" : nextVersion
         }).then((_) {
-          return _collection(db).remove({"_id" : record["_id"]});
+          return _collection.remove({"_id" : record["_id"]});
         });
       });
     });
-  }
-
-  Future<Map> data() {
-    return all().then((d) => {'data': d, 'version': _maxVersion});
   }
 
   Future<Map> diffFromVersion(num version) {
@@ -140,10 +122,10 @@ class MongoProvider implements DataProvider {
       afterSelector["\$query"]["after.${k}"] = v;
     });
 
-    return _query((db) {
+    return _conn.then((_) {
       return Future.wait([
-        _collectionHistory(db).find(beforeSelector).toList(),
-        _collectionHistory(db).find(afterSelector).toList(),
+        _collectionHistory.find(beforeSelector).toList(),
+        _collectionHistory.find(afterSelector).toList(),
       ]).then((responses) {
         List before = responses[0];
         List after = responses[1];
