@@ -10,14 +10,14 @@ import "package:clean_sync/server.dart";
 import "dart:async";
 
 class DataProviderMock extends Mock implements DataProvider {
-  final futureMock = new FutureMock();
+  final responseFuture = new FutureMock();
 
   DataProviderMock() {
-    when(callsTo("data")).alwaysReturn(futureMock);
-    when(callsTo("diffFromVersion")).alwaysReturn(futureMock);
-    when(callsTo("add")).alwaysReturn(futureMock);
-    when(callsTo("change")).alwaysReturn(futureMock);
-    when(callsTo("remove")).alwaysReturn(futureMock);
+    when(callsTo("data")).alwaysReturn(responseFuture);
+    when(callsTo("diffFromVersion", anything)).alwaysReturn(responseFuture);
+    when(callsTo("add")).alwaysReturn(responseFuture);
+    when(callsTo("change")).alwaysReturn(responseFuture);
+    when(callsTo("remove")).alwaysReturn(responseFuture);
   }
 }
 class FutureMock extends Mock implements Future {}
@@ -27,8 +27,11 @@ void main() {
 
     Publisher publisher;
     Map request, args;
+    var _id, data, author;
     DataProviderMock dataProvider;
-    var generator, _generator;
+    var _generator;
+
+    DataProvider generator(args) => _generator.handle(args);
 
     void verifyGeneratorCalledOnceWithArgs(args) {
       _generator.getLogs().verify(happenedOnce);
@@ -38,10 +41,12 @@ void main() {
     setUp((){
       publisher = new Publisher();
       args = {"long": true};
+      _id = 7;
+      data = {"data": "some data"};
+      author = "someone";
       dataProvider = new DataProviderMock();
       _generator = new Mock()
           ..when(callsTo("handle")).alwaysReturn(dataProvider);
-      generator = (args) => _generator.handle(args);
     });
 
     test("publish collection.", () {
@@ -68,7 +73,7 @@ void main() {
       // then
       verifyGeneratorCalledOnceWithArgs(args);
       dataProvider.getLogs(callsTo('data')).verify(happenedOnce);
-      expect(result, equals(dataProvider.futureMock));
+      expect(result, equals(dataProvider.responseFuture));
     });
 
     test("handle get diff.", () {
@@ -76,6 +81,7 @@ void main() {
       request = {"args": {
         "action": "get_diff",
         "collection": "months",
+        "version": 5,
         "args": args}
       };
 
@@ -84,8 +90,10 @@ void main() {
 
       //then
       verifyGeneratorCalledOnceWithArgs(args);
-      dataProvider.getLogs(callsTo('diffFromVersion')).verify(happenedOnce);
-      expect(result, equals(dataProvider.futureMock));
+      var callToDiff = dataProvider.getLogs(callsTo('diffFromVersion'));
+      callToDiff.verify(happenedOnce);
+      expect(callToDiff.first.args.first, equals(5));
+      expect(result, equals(dataProvider.responseFuture));
     });
 
     test("handle add.", () {
@@ -93,6 +101,9 @@ void main() {
       request = {"args": {
         "action": "add",
         "collection": "months",
+        "_id": _id,
+        "data": data,
+        "author": author,
         "args": args}
       };
 
@@ -101,8 +112,12 @@ void main() {
 
       //then
       verifyGeneratorCalledOnceWithArgs(args);
-      dataProvider.getLogs(callsTo('add')).verify(happenedOnce);
-      expect(result, equals(dataProvider.futureMock));
+      var callToDiff = dataProvider.getLogs(callsTo('add'));
+      callToDiff.verify(happenedOnce);
+      expect(callToDiff.first.args[0], equals(_id));
+      expect(callToDiff.first.args[1], equals(data));
+      expect(callToDiff.first.args[2], equals(author));
+      expect(result, equals(dataProvider.responseFuture));
     });
 
     test("handle change.", () {
@@ -110,6 +125,9 @@ void main() {
       request = {"args": {
         "action": "change",
         "collection": "months",
+        "_id": _id,
+        "data": data,
+        "author": author,
         "args": args}
       };
 
@@ -118,8 +136,12 @@ void main() {
 
       //then
       verifyGeneratorCalledOnceWithArgs(args);
-      dataProvider.getLogs(callsTo('change')).verify(happenedOnce);
-      expect(result, equals(dataProvider.futureMock));
+      var callToDiff = dataProvider.getLogs(callsTo('change'));
+      callToDiff.verify(happenedOnce);
+      expect(callToDiff.first.args[0], equals(_id));
+      expect(callToDiff.first.args[1], equals(data));
+      expect(callToDiff.first.args[2], equals(author));
+      expect(result, equals(dataProvider.responseFuture));
     });
 
     test("handle remove.", () {
@@ -127,6 +149,8 @@ void main() {
       request = {"args": {
         "action": "remove",
         "collection": "months",
+        "_id": _id,
+        "author": author,
         "args": args}
       };
 
@@ -135,8 +159,11 @@ void main() {
 
       //then
       verifyGeneratorCalledOnceWithArgs(args);
-      dataProvider.getLogs(callsTo('remove')).verify(happenedOnce);
-      expect(result, equals(dataProvider.futureMock));
+      var callToDiff = dataProvider.getLogs(callsTo('remove'));
+      callToDiff.verify(happenedOnce);
+      expect(callToDiff.first.args[0], equals(_id));
+      expect(callToDiff.first.args[1], equals(author));
+      expect(result, equals(dataProvider.responseFuture));
     });
   });
 }
