@@ -7,7 +7,7 @@
  * applications.
  */
 
-library client;
+library clean_sync.client;
 
 import 'dart:async';
 import "package:clean_ajax/client.dart";
