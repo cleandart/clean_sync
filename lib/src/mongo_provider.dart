@@ -49,11 +49,31 @@ class MongoProvider implements DataProvider {
     return mp;
   }
 
+  /**
+   * Returns data and version of this data. The following approach is used to
+   * ensure consistency: 1. obtain version; 2. obtain data; 3. obtain version
+   * again, if it differs from previously obtained version, go to step 2,
+   * otherwise return data and version.
+   */
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
-    return Future.wait
-        ([_collection.find(selector).toList(), _maxVersion])
-        .then((results) => {'data': results[0], 'version': results[1]});
+    List data;
+    int version;
+    Function getDataAndVersion;
+    getDataAndVersion = (_) {
+      return _collection.find(selector).toList().then((d) {
+        data = d;
+        return _maxVersion;
+      }).then((int v) {
+        if(v == version){
+          return {'data': data, 'version': version};
+        } else {
+          version = v;
+          return getDataAndVersion();
+        }
+      });
+    };
+    return _maxVersion.then((v) {version=v;}).then(getDataAndVersion);
   }
 
   Future add(num _id, Map data, String author) {
@@ -165,10 +185,8 @@ class MongoProvider implements DataProvider {
           _collectionHistory.find(beforeSelector).toList(),
           _collectionHistory.find(afterSelector).toList()]);})
       .then((results) {
-
           before = new Set.from(results[0].map((d) => d['_id']));
           after = new Set.from(results[1].map((d) => d['_id']));
-
           diff = [];
 
           beforeOrAfter.forEach((record) {
@@ -201,7 +219,6 @@ class MongoProvider implements DataProvider {
               });
             }
           });
-
           return diff;
       });
   }
