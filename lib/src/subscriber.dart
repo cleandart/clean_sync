@@ -8,14 +8,15 @@ class Subscriber {
 
   Map<String, Subscription> _subscribedCollections = {};
   Server _server;
-  String _author;
+  String _author_prefix;
 
-  Subscriber(this._server, this._author);
+  Subscriber(this._server, this._author_prefix);
 
   Subscription subscribe(String collection, [Map args]) {
 
+    String author = _author_prefix + collection;
     Subscription subscription = new Subscription(collection, _server,
-      _author, args);
+      author, args);
 
     _subscribedCollections[collection] = subscription;
 

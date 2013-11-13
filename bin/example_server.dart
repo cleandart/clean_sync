@@ -15,19 +15,19 @@ void main() {
    * url = 'mongodb://clean:clean@127.0.0.1:27017/clean';
    */
   Db db = new Db('mongodb://127.0.0.1:27017/clean');
-  Future conn = db.open();
-
-  var mongo = new MongoProvider(db, conn);
-  publish('persons', (_) {
-    return mongo.collection("persons");
+  db.open().then((_) {
+    var mongodb = new MongoDatabase(db);
+    publish('persons', (_) {
+      return mongodb.collection("persons");
+    });
+      publish('personsOlderThan24', (_) {
+      return mongodb.collection("persons").find({"age" : {'\$gt' : 24}});
+    });
+    StaticFileHandler fileHandler =
+        new StaticFileHandler.serveFolder('/home/marcelka/projects/clean_sync/web/');
+    RequestHandler requestHandler = new RequestHandler();
+    requestHandler.registerDefaultExecutor(handleSyncRequest);
+    new Backend(fileHandler, requestHandler, host: '127.0.0.1', port: 8080)
+        ..listen();
   });
-    publish('personsOlderThan24', (_) {
-    return mongo.collection("persons").find({"age" : {'\$gt' : 24}});
-  });
-  StaticFileHandler fileHandler =
-      new StaticFileHandler.serveFolder('/home/marcelka/projects/clean_sync/web/');
-  RequestHandler requestHandler = new RequestHandler();
-  requestHandler.registerDefaultExecutor(handleSyncRequest);
-  new Backend(fileHandler, requestHandler, host: '127.0.0.1', port: 8080)
-      ..listen();
 }

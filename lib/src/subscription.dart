@@ -111,7 +111,7 @@ class Subscription {
   }
 
   void _applyChange(Map change) {
-    if (change["author"] != _author || change["collection"] != collection) {
+    if (change["author"] != _author) {
       if (change["action"] == "add") {
         data.add(new Data.fromMap(change["data"]), author: _author);
       }

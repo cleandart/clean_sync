@@ -10,37 +10,39 @@ class DiffNotPossibleException implements Exception {
    String toString() => msg == null ? 'DiffNotPossible' : msg;
 }
 
+const String QUERY = "\$query";
+const String GT = "\$gt";
+const String LT = "\$lt";
+const String ORDERBY = "\$orderby";
+const String OR = "\$or";
 
-class MongoProvider implements DataProvider {
-  final String QUERY = "\$query";
-  final String GT = "\$gt";
-  final String LT = "\$lt";
-  final String ORDERBY = "\$orderby";
-  final String OR = "\$or";
-
+class MongoDatabase {
   Db _db;
-  Future _conn; // connection to database _db
-  String _collectionName;
-  Map _selector = {};
-
-  Future<int> get _maxVersion => _collectionHistory.count();
-  DbCollection get _collection => _db.collection(_collectionName);
-  DbCollection get _collectionHistory =>
-      _db.collection("${_collectionName}_history");
-
-  MongoProvider(this._db, this._conn);
+  MongoDatabase(this._db);
 
   MongoProvider collection(String collectionName) {
-    var mp = new MongoProvider(_db, _conn);
-    mp._collectionName = collectionName;
+    DbCollection collection = _db.collection(collectionName);
+    DbCollection collectionHistory =
+        _db.collection("${collectionName}_history");
+    var mp = new MongoProvider(collection, collectionHistory);
     return mp;
   }
 
+  void ensureIndex(String collectionName){
+
+  }
+}
+
+class MongoProvider implements DataProvider {
+  DbCollection _collection, _collectionHistory;
+  Map _selector = {}; //change to List
+
+  Future<int> get _maxVersion => _collectionHistory.count();
+
+  MongoProvider(this._collection, this._collectionHistory);
+
   MongoProvider find(Map params) {
-    var mp = new MongoProvider(_db, _conn);
-      if(_collectionName != null) {
-      mp = mp.collection(_collectionName);
-    }
+    var mp = new MongoProvider(_collection, _collectionHistory);
     mp._selector.addAll(this._selector);
     mp._selector.addAll(params);
     return mp;
@@ -48,13 +50,13 @@ class MongoProvider implements DataProvider {
 
   Future<Map> data() {
     return Future.wait
-        ([_conn.then((_) => _collection.find(_selector).toList()), _maxVersion])
+        ([_collection.find(_selector).toList(), _maxVersion])
         .then((results) => {'data': results[0], 'version': results[1]});
   }
 
   Future add(num _id, Map data, String author) {
-    return Future.wait([_conn, _maxVersion]).then((results) {
-      var nextVersion = results[1] + 1;
+    return _maxVersion.then((version) {
+      var nextVersion = version + 1;
       return _collectionHistory.insert({
         "before" : {},
         "after" : data,
@@ -69,8 +71,8 @@ class MongoProvider implements DataProvider {
   }
 
   Future change(num id, Map data, String author) {
-    return Future.wait([_conn, _maxVersion]).then((results) {
-      var nextVersion = results[1] + 1;
+    return _maxVersion.then((version) {
+      var nextVersion = version + 1;
       return _collection.findOne({"_id" : id}).then((Map record) {
         Map newRecord = new Map.from(record);
         newRecord.addAll(data);
@@ -90,8 +92,8 @@ class MongoProvider implements DataProvider {
   }
 
   Future remove(num id, String author) {
-    return Future.wait([_conn, _maxVersion]).then((results) {
-      var nextVersion = results[1] + 1;
+    return _maxVersion.then((version) {
+      var nextVersion = version + 1;
       return _collection.findOne({"_id" : id}).then((Map record) {
         return _collectionHistory.insert({
           "before" : record,
@@ -141,14 +143,15 @@ class MongoProvider implements DataProvider {
 
     List before, after, beforeOrAfter, diff;
 
-    return _conn.then((_) =>
-        _collectionHistory.find(beforeOrAfterSelector).toList())
+    return _collectionHistory.find(beforeOrAfterSelector).toList()
       .then((result) {
         beforeOrAfter = result;
         return Future.wait([
           _collectionHistory.find(beforeSelector).toList(),
           _collectionHistory.find(afterSelector).toList()]);})
       .then((results) {
+        //before, after to set
+
           before = results[0];
           after = results[1];
           diff = [];
@@ -162,7 +165,6 @@ class MongoProvider implements DataProvider {
                 "data" : record["change"],
                 "version" : record["version"],
                 "author" : record["author"],
-                "collection" : _collectionName
               });
             } else if(before.contains(record)) {
               // record was removed
@@ -171,16 +173,15 @@ class MongoProvider implements DataProvider {
                 "_id" : record["before"]["_id"],
                 "version" : record["version"],
                 "author" : record["author"],
-                "collection" : _collectionName
               });
             } else {
               // record was added
               diff.add({
                 "action" : "add",
+                "_id" : record["after"]["_id"],
                 "data" : record["after"],
                 "version" : record["version"],
                 "author" : record["author"],
-                "collection" : _collectionName
               });
             }
           });
