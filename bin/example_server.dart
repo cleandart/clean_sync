@@ -15,7 +15,8 @@ void main() {
    * url = 'mongodb://clean:clean@127.0.0.1:27017/clean';
    */
   Db db = new Db('mongodb://127.0.0.1:27017/clean');
-  db.open().then((_) {
+  db.open().then((_) =>
+    db.createIndex('persons_history', key: 'version', unique: true)).then((_) {
     var mongodb = new MongoDatabase(db);
     publish('persons', (_) {
       return mongodb.collection("persons");

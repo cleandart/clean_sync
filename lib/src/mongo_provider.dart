@@ -29,9 +29,9 @@ class MongoDatabase {
     return mp;
   }
 
-  void ensureIndex(String collectionName){
-
-  }
+//  void createIndex(String collectionName, {key, keys, unique: false}){
+//    _db.createIndex(collectionName, key: key, unique: unique);
+//  }
 }
 
 class MongoProvider implements DataProvider {
@@ -172,10 +172,12 @@ class MongoProvider implements DataProvider {
 
     // selects records that fulfilled _selector before change
     Map beforeSelector =
-      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
+      {QUERY : {"version" : {GT : version}, "before" : {GT: {}}},
+       ORDERBY : {"version" : 1}};
     // selects records that fulfill _selector after change
     Map afterSelector =
-      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
+      {QUERY : {"version" : {GT : version}, "after" : {GT: {}}},
+       ORDERBY : {"version" : 1}};
     // selects records that fulfill _selector before or after change
     Map beforeOrAfterSelector =
       {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
