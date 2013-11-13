@@ -88,14 +88,22 @@ class MongoProvider implements DataProvider {
         "version" : nextVersion
       }).then((_) {
         return _collection.insert(data);
+      },
+      onError: (e) {
+        if(e['code'] == 11000) {
+          // duplicate key error index
+          return add(_id, data, author);
+        } else {
+          throw(e);
+        }
       });
     });
   }
 
-  Future change(num id, Map data, String author) {
+  Future change(num _id, Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
-      return _collection.findOne({"_id" : id}).then((Map record) {
+      return _collection.findOne({"_id" : _id}).then((Map record) {
         Map newRecord = new Map.from(record);
         newRecord.addAll(data);
 
@@ -108,15 +116,23 @@ class MongoProvider implements DataProvider {
           "version" : nextVersion
         }).then((_) {
           return _collection.save(newRecord);
+        },
+        onError: (e) {
+          if(e['code'] == 11000) {
+            // duplicate key error index
+            return change(_id, data, author);
+          } else {
+            throw(e);
+          }
         });
       });
     });
   }
 
-  Future remove(num id, String author) {
+  Future remove(num _id, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
-      return _collection.findOne({"_id" : id}).then((Map record) {
+      return _collection.findOne({"_id" : _id}).then((Map record) {
         return _collectionHistory.insert({
           "before" : record,
           "after" : {},
@@ -126,6 +142,14 @@ class MongoProvider implements DataProvider {
           "version" : nextVersion
         }).then((_) {
           return _collection.remove({"_id" : record["_id"]});
+        },
+        onError: (e) {
+          if(e['code'] == 11000) {
+            // duplicate key error index
+            return remove(_id, author);
+          } else {
+            throw(e);
+          }
         });
       });
     });
