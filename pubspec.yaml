@@ -2,10 +2,13 @@ name: clean_sync
 description: Part of the clean framework that handles server-client synchronization.
 dependencies:
   clean_ajax:
-    path: /home/marcelka/projects/clean_ajax
+    git:
+      ref: rebuilding_arch
+      url: https://github.com/cleandart/clean_ajax
   clean_data:
-    git: https://github.com/hleumas/clean_data
+    git: https://github.com/cleandart/clean_data
   mongo_dart: any
+  unittest: any
 dev_dependencies:
   clean_backend:
-    path: /home/marcelka/projects/clean_backend
+    git: https://github.com/cleandart/clean_backend
