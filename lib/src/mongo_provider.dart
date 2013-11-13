@@ -15,6 +15,7 @@ const String GT = "\$gt";
 const String LT = "\$lt";
 const String ORDERBY = "\$orderby";
 const String OR = "\$or";
+const String AND = "\$and";
 
 class MongoDatabase {
   Db _db;
@@ -35,7 +36,7 @@ class MongoDatabase {
 
 class MongoProvider implements DataProvider {
   DbCollection _collection, _collectionHistory;
-  Map _selector = {}; //change to List
+  List<Map> _selectorList = [];
 
   Future<int> get _maxVersion => _collectionHistory.count();
 
@@ -43,14 +44,15 @@ class MongoProvider implements DataProvider {
 
   MongoProvider find(Map params) {
     var mp = new MongoProvider(_collection, _collectionHistory);
-    mp._selector.addAll(this._selector);
-    mp._selector.addAll(params);
+    mp._selectorList = new List.from(this._selectorList);
+    mp._selectorList.add(params);
     return mp;
   }
 
   Future<Map> data() {
+    Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
     return Future.wait
-        ([_collection.find(_selector).toList(), _maxVersion])
+        ([_collection.find(selector).toList(), _maxVersion])
         .then((results) => {'data': results[0], 'version': results[1]});
   }
 
@@ -134,14 +136,27 @@ class MongoProvider implements DataProvider {
     Map beforeOrAfterSelector =
       {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
 
-    _selector.forEach((k, v) {
-      beforeSelector[QUERY]["before.${k}"] = v;
-      afterSelector[QUERY]["after.${k}"] = v;
-      beforeOrAfterSelector[QUERY][OR] =
-          [{"before.${k}" : v}, {"after.${k}" : v}];
-    });
+    if(!_selectorList.isEmpty){
+      List<Map> _beforeSelector = [];
+      List<Map> _afterSelector = [];
+      _selectorList.forEach((item) {
+        Map itemB = {};
+        Map itemA = {};
+        item.forEach((key, val) {
+          itemB["before.${key}"] = val;
+          itemA["after.${key}"] = val;
+        });
+        _beforeSelector.add(itemB);
+        _afterSelector.add(itemA);
+      });
+      beforeSelector[QUERY][AND] = _beforeSelector;
+      afterSelector[QUERY][AND] = _afterSelector;
+      beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
+                                          {AND: _afterSelector}];
+    }
 
-    List before, after, beforeOrAfter, diff;
+    Set before, after;
+    List beforeOrAfter, diff;
 
     return _collectionHistory.find(beforeOrAfterSelector).toList()
       .then((result) {
@@ -150,14 +165,15 @@ class MongoProvider implements DataProvider {
           _collectionHistory.find(beforeSelector).toList(),
           _collectionHistory.find(afterSelector).toList()]);})
       .then((results) {
-        //before, after to set
 
-          before = results[0];
-          after = results[1];
+          before = new Set.from(results[0].map((d) => d['_id']));
+          after = new Set.from(results[1].map((d) => d['_id']));
+
           diff = [];
 
           beforeOrAfter.forEach((record) {
-            if(before.contains(record) && after.contains(record)) {
+            if(before.contains(record['_id']) && after.contains(record['_id']))
+            {
               // record was changed
               diff.add({
                 "action" : "change",
@@ -166,7 +182,7 @@ class MongoProvider implements DataProvider {
                 "version" : record["version"],
                 "author" : record["author"],
               });
-            } else if(before.contains(record)) {
+            } else if(before.contains(record['_id'])) {
               // record was removed
               diff.add({
                 "action" : "remove",
