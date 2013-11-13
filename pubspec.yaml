@@ -1,11 +1,14 @@
 name: clean_sync
-description: A sample command-line application
+description: Part of the clean framework that handles server-client synchronization.
 dependencies:
+  clean_ajax:
+    git:
+      ref: rebuilding_arch
+      url: https://github.com/cleandart/clean_ajax
   clean_data:
     git: https://github.com/cleandart/clean_data
   mongo_dart: any
+  unittest: any
 dev_dependencies:
-  clean_ajax:
-    path: ../clean_ajax
   clean_backend:
-    path: ../clean_backend
+    git: https://github.com/cleandart/clean_backend
