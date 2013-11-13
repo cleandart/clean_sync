@@ -3,11 +3,11 @@ import 'dart:async';
 import 'dart:math';
 import "package:clean_data/clean_data.dart";
 import "package:clean_sync/client.dart";
-import "package:clean_ajax/clean_ajax.dart";
+import "package:clean_ajax/client.dart";
 
 void main() {
 
-  Server server = new Server("http://localhost:8080/resources");
+  Server server = new Server("http://127.0.0.1:8080/resources");
   Random random = new Random();
   Subscriber subscriber = new Subscriber(server, "author${random.nextInt(100)}");
 
