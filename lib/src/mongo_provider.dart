@@ -5,9 +5,11 @@
 part of server;
 
 class DiffNotPossibleException implements Exception {
-  final String cause;
-  DiffNotPossibleException(this.cause);
+   final String msg;
+   const DiffNotPossibleException([this.msg]);
+   String toString() => msg == null ? 'DiffNotPossible' : msg;
 }
+
 
 class MongoProvider implements DataProvider {
   String _mongoUrl;
