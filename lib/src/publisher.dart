@@ -6,8 +6,16 @@ part of clean_sync.server;
 
 typedef DataProvider DataGenerator(Map args);
 Map<String, DataGenerator> _publishedCollections = {};
+final int MAX = pow(2,16) - 1;
+final Random random = new Random();
 
 class Publisher {
+  int counter;
+
+  Publisher() {
+    counter = 0;
+  }
+
   void publish(String collection, DataGenerator callback) {
     _publishedCollections[collection] = callback;
   }
@@ -37,7 +45,14 @@ class Publisher {
     else if (data["action"] == "remove") {
       return dp.remove(data['_id'], data['author']);
     }
-  // return new Future.value({"action" : data["action"]});
+  }
+
+  String getServerPrefix() {
+    String prefix =
+        new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
+        random.nextInt(MAX).toRadixString(36) + counter.toRadixString(36);
+    counter = (counter + 1) % MAX;
+    return prefix;
   }
 }
 
@@ -52,4 +67,8 @@ bool isPublished(String collection) {
 
 Future handleSyncRequest(request) {
   return PUBLISHER.handleSyncRequest(request);
+}
+
+String getServerPrefix() {
+  return PUBLISHER.getServerPrefix();
 }

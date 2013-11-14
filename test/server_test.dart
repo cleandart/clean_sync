@@ -167,5 +167,14 @@ void main() {
       expect(callToDiff.first.args[1], equals(author));
       expect(result, equals(dataProvider.responseFuture));
     });
+
+    test("get server prefix.", () {
+      // when
+      String prefix1 = publisher.getServerPrefix();
+      String prefix2 = publisher.getServerPrefix();
+
+      //then
+      expect(prefix1 == prefix2, isFalse);
+    });
   });
 }

@@ -7,7 +7,8 @@ import "package:clean_ajax/client.dart";
 
 void main() {
 
-  Server server = new Server("http://127.0.0.1:8080/resources", new Duration(milliseconds:100));
+  Server server = new Server("http://127.0.0.1:8080/resources",
+      new Duration(milliseconds: 100));
   Random random = new Random();
   Subscriber subscriber = new Subscriber(server, "author${random.nextInt(100)}");
 
