@@ -13,8 +13,9 @@ class Subscriber {
   Subscriber(this._server, this._author);
 
   Subscription subscribe(String collection, [Map args]) {
-    DataCollection data = new DataCollection();
-    Subscription subscription = new Subscription(collection, _server, data, _author, args);
+
+    Subscription subscription = new Subscription(collection, _server,
+      _author, args);
 
     _subscribedCollections[collection] = subscription;
 

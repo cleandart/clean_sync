@@ -17,8 +17,7 @@ class Publisher {
   }
 
   Future handleSyncRequest(request) {
-    print('lala');
-    Map data = request['args'];
+    Map data = request.args;
     print("REQUEST:  ${data}");
 
     DataProvider dp = _publishedCollections[data['collection']](data['args']);

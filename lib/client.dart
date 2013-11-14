@@ -10,7 +10,7 @@
 library client;
 
 import 'dart:async';
-import "package:clean_ajax/clean_ajax.dart";
+import "package:clean_ajax/client.dart";
 import "package:clean_data/clean_data.dart";
 
 part 'src/subscription.dart';
