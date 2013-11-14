@@ -100,7 +100,7 @@ class Subscription {
         data.remove(d, author: _author);
       }
       for (Map record in response['data']) {
-        this.data.add(new Data.fromMap(record), author : _author);
+        this.data.add(new Data.from(record), author : _author);
       }
       _version = response['version'];
     } else if(response.containsKey('diff') && response['diff'] != null) {
@@ -113,7 +113,7 @@ class Subscription {
   void _applyChange(Map change) {
     if (change["author"] != _author) {
       if (change["action"] == "add") {
-        data.add(new Data.fromMap(change["data"]), author: _author);
+        data.add(new Data.from(change["data"]), author: _author);
       }
       else if (change["action"] == "change") {
         Data record = data.firstWhere((d) => d["_id"] == change["_id"]);

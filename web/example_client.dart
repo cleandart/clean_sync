@@ -61,7 +61,7 @@ void main() {
     InputElement name = querySelector("#name");
     InputElement age = querySelector("#age");
 
-    persons.data.add(new Data.fromMap({
+    persons.data.add(new Data.from({
       "_id" : int.parse(id.value),
       "name" : name.value,
       "age" : int.parse(age.value)
