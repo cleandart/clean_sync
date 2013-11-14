@@ -28,6 +28,10 @@ class Publisher {
     Map data = request.args;
     print("REQUEST:  ${data}");
 
+    if (data["action"] == "get_id_prefix") {
+      return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
+    }
+
     DataProvider dp = _publishedCollections[data['collection']](data['args']);
 
     if (data["action"] == "get_data") {
@@ -47,7 +51,7 @@ class Publisher {
     }
   }
 
-  String getServerPrefix() {
+  String getIdPrefix() {
     String prefix =
         new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
         random.nextInt(MAX).toRadixString(36) + counter.toRadixString(36);
@@ -67,8 +71,4 @@ bool isPublished(String collection) {
 
 Future handleSyncRequest(request) {
   return PUBLISHER.handleSyncRequest(request);
-}
-
-String getServerPrefix() {
-  return PUBLISHER.getServerPrefix();
 }
