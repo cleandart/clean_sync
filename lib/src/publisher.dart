@@ -16,7 +16,7 @@ class Publisher {
     return _publishedCollections.keys.contains(collection);
   }
 
-  Future handleSyncRequest(request) {
+  Future handleSyncRequest(ClientRequest request) {
     Map data = request.args;
     print("REQUEST:  ${data}");
 
