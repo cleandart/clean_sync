@@ -6,20 +6,32 @@ part of clean_sync.client;
 
 class Subscriber {
 
-  Map<String, Subscription> _subscribedCollections = {};
+//  Map<String, Subscription> _subscribedCollections = {};
   Server _server;
-  String _author_prefix;
+  String _idPrefix;
+  int _nextSubscriptionId;
 
-  Subscriber(this._server, this._author_prefix);
+  Subscriber(this._server) {
+    _nextSubscriptionId = 0;
+  }
+
+  Future init() {
+    return _server.sendRequest(
+        () => new ClientRequest("", {"action" : "get_id_prefix"}))
+      .then((response) {
+        _idPrefix = response['id_prefix'];
+        print("Got ID prefix: ${_idPrefix}");
+        return true;
+      });
+  }
 
   Subscription subscribe(String collection, [Map args]) {
-
-    String author = _author_prefix + collection;
-    Subscription subscription = new Subscription(collection, _server,
-      author, args);
-
-    _subscribedCollections[collection] = subscription;
-
+    int subscriptionId = _nextSubscriptionId;
+    _nextSubscriptionId++;
+    String author = _idPrefix + '-' + subscriptionId.toRadixString(36);
+    Subscription subscription = new Subscription(collection, _server, author,
+        args);
+    //_subscribedCollections[collection] = subscription;
     return subscription;
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:html';
 import 'dart:async';
-import 'dart:math';
 import "package:clean_data/clean_data.dart";
 import "package:clean_sync/client.dart";
 import "package:clean_ajax/client.dart";
@@ -9,66 +8,68 @@ void main() {
 
   Server server = new Server("http://127.0.0.1:8080/resources",
       new Duration(milliseconds: 100));
-  Random random = new Random();
-  Subscriber subscriber = new Subscriber(server, "author${random.nextInt(100)}");
+  Subscriber subscriber = new Subscriber(server);
 
-  Subscription persons = subscriber.subscribe("persons");
-  Subscription personsOlderThan24 = subscriber.subscribe("personsOlderThan24");
+  subscriber.init().then((_) {
 
-  persons.data.onChange.listen((event) {
-    event.addedItems.forEach((person) {
-      UListElement list = querySelector('#list');
+    Subscription persons = subscriber.subscribe("persons");
+    Subscription personsOlderThan24 = subscriber.subscribe("personsOlderThan24");
 
-      LIElement li = new LIElement()
-        ..className = "_id-${person["_id"]}"
-        ..text = "#${person["_id"]} ${person["name"]} (${person["age"]})"
-        ..dataset["_id"] = person["_id"].toString()
-        ..onClick.listen((MouseEvent event) {
-          LIElement e = event.toElement;
-          int _id = int.parse(e.dataset["_id"]);
-          Data pers = persons.data.firstWhere((d) => d["_id"] == _id);
+    persons.data.onChange.listen((event) {
+      event.addedItems.forEach((person) {
+        UListElement list = querySelector('#list');
 
-          if (pers != null) {
-            persons.data.remove(pers);
-          }
-        });
+        LIElement li = new LIElement()
+          ..className = "_id-${person["_id"]}"
+          ..text = "#${person["_id"]} ${person["name"]} (${person["age"]})"
+          ..dataset["_id"] = person["_id"].toString()
+          ..onClick.listen((MouseEvent event) {
+            LIElement e = event.toElement;
+            int _id = int.parse(e.dataset["_id"]);
+            Data pers = persons.data.firstWhere((d) => d["_id"] == _id);
 
-      list.children.add(li);
+            if (pers != null) {
+              persons.data.remove(pers);
+            }
+          });
+
+        list.children.add(li);
+      });
+
+      event.removedItems.forEach((person) {
+        querySelector('#list > li._id-${person["_id"]}').remove();
+      });
     });
 
-    event.removedItems.forEach((person) {
-      querySelector('#list > li._id-${person["_id"]}').remove();
+    personsOlderThan24.data.onChange.listen((event) {
+      event.addedItems.forEach((person) {
+        UListElement list = querySelector('#list2');
+
+        LIElement li = new LIElement()
+          ..className = "_id-${person["_id"]}"
+          ..text = "#${person["_id"]} ${person["name"]} (${person["age"]})";
+
+        list.children.add(li);
+      });
+
+      event.removedItems.forEach((person) {
+        querySelector('#list2 > li._id-${person["_id"]}').remove();
+      });
     });
-  });
 
-  personsOlderThan24.data.onChange.listen((event) {
-    event.addedItems.forEach((person) {
-      UListElement list = querySelector('#list2');
+    querySelector('#send').onClick.listen((_) {
+      InputElement id = querySelector("#_id");
+      InputElement name = querySelector("#name");
+      InputElement age = querySelector("#age");
 
-      LIElement li = new LIElement()
-        ..className = "_id-${person["_id"]}"
-        ..text = "#${person["_id"]} ${person["name"]} (${person["age"]})";
+      persons.data.add(new Data.from({
+        "_id" : int.parse(id.value),
+        "name" : name.value,
+        "age" : int.parse(age.value)
+      }));
 
-      list.children.add(li);
+      name.value = '';
+      age.value = '';
     });
-
-    event.removedItems.forEach((person) {
-      querySelector('#list2 > li._id-${person["_id"]}').remove();
-    });
-  });
-
-  querySelector('#send').onClick.listen((_) {
-    InputElement id = querySelector("#_id");
-    InputElement name = querySelector("#name");
-    InputElement age = querySelector("#age");
-
-    persons.data.add(new Data.from({
-      "_id" : int.parse(id.value),
-      "name" : name.value,
-      "age" : int.parse(age.value)
-    }));
-
-    name.value = '';
-    age.value = '';
   });
 }
