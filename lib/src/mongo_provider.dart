@@ -19,7 +19,30 @@ const String AND = "\$and";
 
 class MongoDatabase {
   Db _db;
-  MongoDatabase(this._db);
+  Future _conn;
+  List<Future> init = [];
+
+  MongoDatabase(String url) {
+    _db = new Db(url);
+    _conn = _db.open(); // open connection to database
+    init.add(_conn);
+  }
+
+  void create_collection(String collectionName) {
+    init.add(_conn.then((_) =>
+        _db.createIndex("${collectionName}_history", key: 'version',
+        unique: true)));
+  }
+
+  // TODO: keys can be also provided to mongo_dart createIndex function
+  void createIndex(String collectionName, String key, {unique: false}){
+    ["before", "after"].forEach((w) {
+      init.add(_conn.then((_) => _db.createIndex("${collectionName}_history",
+          key: w + '.' + key, unique: unique)));
+    });
+    init.add(_conn.then((_) =>
+        _db.createIndex(collectionName, key: key, unique: unique)));
+  }
 
   MongoProvider collection(String collectionName) {
     DbCollection collection = _db.collection(collectionName);
@@ -28,10 +51,6 @@ class MongoDatabase {
     var mp = new MongoProvider(collection, collectionHistory);
     return mp;
   }
-
-//  void createIndex(String collectionName, {key, keys, unique: false}){
-//    _db.createIndex(collectionName, key: key, unique: unique);
-//  }
 }
 
 class MongoProvider implements DataProvider {

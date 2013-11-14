@@ -1,7 +1,6 @@
 import 'package:clean_sync/server.dart';
 import 'package:clean_backend/clean_backend.dart';
 import 'package:static_file_handler/static_file_handler.dart';
-import 'package:mongo_dart/mongo_dart.dart';
 import 'dart:async';
 import 'package:clean_ajax/server.dart';
 
@@ -14,10 +13,9 @@ void main() {
    * If authentification would be used:
    * url = 'mongodb://clean:clean@127.0.0.1:27017/clean';
    */
-  Db db = new Db('mongodb://127.0.0.1:27017/clean');
-  db.open().then((_) =>
-    db.createIndex('persons_history', key: 'version', unique: true)).then((_) {
-    var mongodb = new MongoDatabase(db);
+  MongoDatabase mongodb = new MongoDatabase('mongodb://127.0.0.1:27017/clean');
+  mongodb.create_collection('persons');
+  Future.wait(mongodb.init).then((_) {
     publish('persons', (_) {
       return mongodb.collection("persons");
     });
@@ -27,7 +25,7 @@ void main() {
     StaticFileHandler fileHandler =
         new StaticFileHandler.serveFolder('../web/');
     MultiRequestHandler requestHandler = new MultiRequestHandler();
-    requestHandler.registerDefaultExecutor(handleSyncRequest);
+    requestHandler.registerDefaultHandler(handleSyncRequest);
     new Backend(fileHandler, requestHandler, host: '127.0.0.1', port: 8080)
         ..listen();
   });
