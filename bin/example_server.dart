@@ -19,8 +19,8 @@ void main() {
     return mongo.collection("persons").find({"age" : {'\$gt' : 24}});
   });
   StaticFileHandler fileHandler =
-      new StaticFileHandler.serveFolder('/home/marcelka/projects/clean_sync/web/');
-  RequestHandler requestHandler = new RequestHandler();
+      new StaticFileHandler.serveFolder('../web/');
+  MultiRequestHandler requestHandler = new MultiRequestHandler();
   requestHandler.registerDefaultExecutor(handleSyncRequest);
   mongo.initialize(['persons']).then((_) {
       new Backend(fileHandler, requestHandler, host: '127.0.0.1', port: 8080)
