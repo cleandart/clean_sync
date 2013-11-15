@@ -6,35 +6,34 @@ part of clean_sync.client;
 
 class Subscription {
 
-  Server _server;
+  Connection _server;
   Timer _timer;
-  String collection;
-  DataCollection data;
+  String collectionName;
+  IdGenerator _idGenerator;
+  DataCollection collection;
   Map args = {};
   num _version = -1;
   String _author;
 
-  Subscription(String collection, Server server, String author, [Map args]) {
-    this.collection = collection;
-    this._server = server;
-    this._author = author;
-    this.data = new DataCollection();
-
-    if (args != null) {
-      this.args = args;
-    }
+  Subscription(this.collection, this._server, this._author, this._idGenerator,
+      [this.args]) {
+    this.collection = new DataCollection();
 
     _setupListeners();
     _requestInitialData().then((_) => _setupDiffPolling());
   }
 
   void _setupListeners() {
-    data.onChangeSync.listen((event) {
+    collection.onBeforeAdd.listen((data) {
+      data["_id"] = _idGenerator.next();
+    });
+
+    collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
           _server.sendRequest(() => new ClientRequest("", {
             "action" : "add",
-            "collection" : collection,
+            "collection" : collectionName,
             "data" : data,
             "author" : _author
           }));
@@ -47,7 +46,7 @@ class Subscription {
 
           _server.sendRequest(() => new ClientRequest("", {
             "action" : "change",
-            "collection" : collection,
+            "collection" : collectionName,
             "_id" : data["_id"],
             "data" : change,
             "author" : _author
@@ -57,7 +56,7 @@ class Subscription {
         event["change"].removedItems.forEach((data) {
           _server.sendRequest(() => new ClientRequest("", {
             "action" : "remove",
-            "collection" : collection,
+            "collection" : collectionName,
             "_id" : data["_id"],
             "author" : _author
           }));
@@ -69,7 +68,7 @@ class Subscription {
   Future _requestInitialData() {
     return _server.sendRequest(() => new ClientRequest("", {
       "action" : "get_data",
-      "collection" : collection
+      "collection" : collectionName
     })).then((response) {
       _handleResponse(response);
       print("Got initial data, synced to version ${_version}");
@@ -81,7 +80,7 @@ class Subscription {
     _timer = new Timer.periodic(new Duration(seconds: 2), (_) {
       _server.sendRequest(() => new ClientRequest("", {
         "action" : "get_diff",
-        "collection" : collection,
+        "collection" : collectionName,
         "version" : _version
       })).then((response) {
         _handleResponse(response);
@@ -93,14 +92,14 @@ class Subscription {
     // TODO: use clean(author: _author instead)
     if(response.containsKey('data')) {
       var toDelete=[];
-      for (var d in data) {
+      for (var d in collection) {
         toDelete.add(d);
       }
       for (var d in toDelete) {
-        data.remove(d, author: _author);
+        collection.remove(d, author: _author);
       }
       for (Map record in response['data']) {
-        this.data.add(new Data.from(record), author : _author);
+        this.collection.add(new Data.from(record), author : _author);
       }
       _version = response['version'];
     } else if(response.containsKey('diff') && response['diff'] != null) {
@@ -113,20 +112,20 @@ class Subscription {
   void _applyChange(Map change) {
     if (change["author"] != _author) {
       if (change["action"] == "add") {
-        data.add(new Data.from(change["data"]), author: _author);
+        collection.add(new Data.from(change["data"]), author: _author);
       }
       else if (change["action"] == "change") {
-        Data record = data.firstWhere((d) => d["_id"] == change["_id"]);
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
 
         if (record != null) {
           record.addAll( change["data"], author: _author);
         }
       }
       else if (change["action"] == "remove") {
-        Data record = data.firstWhere((d) => d["_id"] == change["_id"]);
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
 
         if (record != null) {
-          data.remove(record, author: _author);
+          collection.remove(record, author: _author);
         }
       }
     }

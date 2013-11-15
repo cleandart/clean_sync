@@ -6,16 +6,16 @@ import "package:clean_ajax/client.dart";
 
 void main() {
 
-  Server server = new Server("http://127.0.0.1:8080/resources",
+  Connection connection = new Connection("http://127.0.0.1:8080/resources",
       new Duration(milliseconds: 100));
-  Subscriber subscriber = new Subscriber(server);
+  Subscriber subscriber = new Subscriber(connection);
 
   subscriber.init().then((_) {
 
     Subscription persons = subscriber.subscribe("persons");
     Subscription personsOlderThan24 = subscriber.subscribe("personsOlderThan24");
 
-    persons.data.onChange.listen((event) {
+    persons.collection.onChange.listen((event) {
       event.addedItems.forEach((person) {
         UListElement list = querySelector('#list');
 
@@ -26,10 +26,10 @@ void main() {
           ..onClick.listen((MouseEvent event) {
             LIElement e = event.toElement;
             int _id = int.parse(e.dataset["_id"]);
-            Data pers = persons.data.firstWhere((d) => d["_id"] == _id);
+            Data pers = persons.collection.firstWhere((d) => d["_id"] == _id);
 
             if (pers != null) {
-              persons.data.remove(pers);
+              persons.collection.remove(pers);
             }
           });
 
@@ -41,7 +41,7 @@ void main() {
       });
     });
 
-    personsOlderThan24.data.onChange.listen((event) {
+    personsOlderThan24.collection.onChange.listen((event) {
       event.addedItems.forEach((person) {
         UListElement list = querySelector('#list2');
 
@@ -62,7 +62,7 @@ void main() {
       InputElement name = querySelector("#name");
       InputElement age = querySelector("#age");
 
-      persons.data.add(new Data.from({
+      persons.collection.add(new Data.from({
         "_id" : int.parse(id.value),
         "name" : name.value,
         "age" : int.parse(age.value)
