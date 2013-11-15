@@ -1,6 +1,5 @@
 import 'package:clean_sync/server.dart';
 import 'package:clean_backend/clean_backend.dart';
-import 'package:static_file_handler/static_file_handler.dart';
 import 'dart:async';
 import 'package:clean_ajax/server.dart';
 
@@ -22,11 +21,16 @@ void main() {
     publish('personsOlderThan24', (_) {
       return mongodb.collection("persons").find({"age" : {'\$gt' : 24}});
     });
-    StaticFileHandler fileHandler =
-        new StaticFileHandler.serveFolder('../web/');
-    MultiRequestHandler requestHandler = new MultiRequestHandler();
-    requestHandler.registerDefaultHandler(handleSyncRequest);
-    new Backend(fileHandler, requestHandler, host: '127.0.0.1', port: 8080)
-        ..listen();
+
+    var backend = new Backend(host: '127.0.0.1', port: 8080);
+    backend.listen().then((_) {
+      backend.addDefaultHttpHeader('Access-Control-Allow-Origin','*');
+
+      MultiRequestHandler requestHandler = new MultiRequestHandler();
+      requestHandler.registerDefaultHandler(handleSyncRequest);
+
+      backend.addView(r'/resources', requestHandler.handleHttpRequest);
+      backend.addStaticView(new RegExp(r'/.*'), '../web/');
+    });;
   });
 }

@@ -6,7 +6,7 @@ part of clean_sync.client;
 
 class Subscription {
 
-  Connection _server;
+  Connection _connection;
   Timer _timer;
   String collectionName;
   IdGenerator _idGenerator;
@@ -15,23 +15,26 @@ class Subscription {
   num _version = -1;
   String _author;
 
-  Subscription(this.collection, this._server, this._author, this._idGenerator,
-      [this.args]) {
-    this.collection = new DataCollection();
-
+  Subscription(this.collectionName, this._connection, this._author,
+      this._idGenerator, [this.args]) {
+    collection = new DataCollection();
     _setupListeners();
     _requestInitialData().then((_) => _setupDiffPolling());
   }
 
   void _setupListeners() {
     collection.onBeforeAdd.listen((data) {
-      data["_id"] = _idGenerator.next();
+      // if data["_id"] is null, it was added by this client and _id should be
+      // assigned
+      if(data["_id"] == null) {
+        data["_id"] = _idGenerator.next();
+      }
     });
 
     collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("", {
             "action" : "add",
             "collection" : collectionName,
             "data" : data,
@@ -44,7 +47,7 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("", {
             "action" : "change",
             "collection" : collectionName,
             "_id" : data["_id"],
@@ -54,7 +57,7 @@ class Subscription {
         });
 
         event["change"].removedItems.forEach((data) {
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("", {
             "action" : "remove",
             "collection" : collectionName,
             "_id" : data["_id"],
@@ -66,7 +69,7 @@ class Subscription {
   }
 
   Future _requestInitialData() {
-    return _server.sendRequest(() => new ClientRequest("", {
+    return _connection.sendRequest(() => new ClientRequest("", {
       "action" : "get_data",
       "collection" : collectionName
     })).then((response) {
@@ -78,7 +81,7 @@ class Subscription {
 
   void _setupDiffPolling() {
     _timer = new Timer.periodic(new Duration(seconds: 2), (_) {
-      _server.sendRequest(() => new ClientRequest("", {
+      _connection.sendRequest(() => new ClientRequest("", {
         "action" : "get_diff",
         "collection" : collectionName,
         "version" : _version
@@ -116,22 +119,18 @@ class Subscription {
       }
       else if (change["action"] == "change") {
         Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-
         if (record != null) {
-          record.addAll( change["data"], author: _author);
+          record.addAll(change["data"], author: _author);
         }
       }
       else if (change["action"] == "remove") {
         Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-
         if (record != null) {
           collection.remove(record, author: _author);
         }
       }
     }
-
     print("applying: ${change}");
-
     _version = change["version"];
   }
 
