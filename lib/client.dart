@@ -15,3 +15,4 @@ import "package:clean_data/clean_data.dart";
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
+part 'src/id_generator.dart';
