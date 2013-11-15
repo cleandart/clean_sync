@@ -7,10 +7,11 @@
  * applications.
  */
 
-library server;
+library clean_sync.server;
 
 import 'dart:async';
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:clean_ajax/server.dart';
 
 part 'src/publisher.dart';
 part 'src/data_provider.dart';

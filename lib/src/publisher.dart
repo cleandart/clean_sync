@@ -2,7 +2,7 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-part of server;
+part of clean_sync.server;
 
 typedef DataProvider DataGenerator(Map args);
 Map<String, DataGenerator> _publishedCollections = {};
@@ -16,7 +16,7 @@ class Publisher {
     return _publishedCollections.keys.contains(collection);
   }
 
-  Future handleSyncRequest(request) {
+  Future handleSyncRequest(ClientRequest request) {
     Map data = request.args;
     print("REQUEST:  ${data}");
 

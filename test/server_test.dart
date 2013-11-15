@@ -8,6 +8,7 @@ import "package:unittest/unittest.dart";
 import "package:unittest/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
+import 'package:clean_ajax/server.dart';
 
 class DataProviderMock extends Mock implements DataProvider {
   final responseFuture = new FutureMock();
@@ -26,7 +27,8 @@ void main() {
   group("Publisher", () {
 
     Publisher publisher;
-    Map request, args;
+    ClientRequest request;
+    Map args;
     var _id, data, author;
     DataProviderMock dataProvider;
     var _generator;
@@ -60,11 +62,11 @@ void main() {
 
     test("handle get data.", () {
       // given
-      request = {"args": {
+      request = new ClientRequest(null, {
         "action": "get_data",
         "collection": "months",
-        "args": args}
-      };
+        "args": args
+      });
       publisher.publish("months", generator);
 
       // when
@@ -78,12 +80,12 @@ void main() {
 
     test("handle get diff.", () {
       // given
-      request = {"args": {
+      request = new ClientRequest(null, {
         "action": "get_diff",
         "collection": "months",
         "version": 5,
-        "args": args}
-      };
+        "args": args
+      });
 
       // when
       var result = publisher.handleSyncRequest(request);
@@ -98,14 +100,14 @@ void main() {
 
     test("handle add.", () {
       // given
-      request = {"args": {
+      request = new ClientRequest(null, {
         "action": "add",
         "collection": "months",
         "_id": _id,
         "data": data,
         "author": author,
-        "args": args}
-      };
+        "args": args
+      });
 
       // when
       var result = publisher.handleSyncRequest(request);
@@ -122,14 +124,14 @@ void main() {
 
     test("handle change.", () {
       // given
-      request = {"args": {
+      request = new ClientRequest(null, {
         "action": "change",
         "collection": "months",
         "_id": _id,
         "data": data,
         "author": author,
-        "args": args}
-      };
+        "args": args
+      });
 
       // when
       var result = publisher.handleSyncRequest(request);
@@ -146,13 +148,13 @@ void main() {
 
     test("handle remove.", () {
       // given
-      request = {"args": {
+      request = new ClientRequest(null, {
         "action": "remove",
         "collection": "months",
         "_id": _id,
         "author": author,
-        "args": args}
-      };
+        "args": args
+      });
 
       // when
       var result = publisher.handleSyncRequest(request);
