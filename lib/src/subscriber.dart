@@ -30,7 +30,7 @@ class Subscriber {
 
   Future init() {
     return _connection.sendRequest(
-        () => new ClientRequest("", {"action" : "get_id_prefix"}))
+        () => new ClientRequest("sync", {"action" : "get_id_prefix"}))
       .then((response) {
         _idPrefix = response['id_prefix'];
         _subscriptionIdGenerator.prefix = _idPrefix;

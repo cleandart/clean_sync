@@ -34,7 +34,7 @@ class Subscription {
     collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
-          _connection.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
             "data" : data,
@@ -47,7 +47,7 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
-          _connection.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
             "_id" : data["_id"],
@@ -57,7 +57,7 @@ class Subscription {
         });
 
         event["change"].removedItems.forEach((data) {
-          _connection.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
             "_id" : data["_id"],
@@ -69,7 +69,7 @@ class Subscription {
   }
 
   Future _requestInitialData() {
-    return _connection.sendRequest(() => new ClientRequest("", {
+    return _connection.sendRequest(() => new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : collectionName
     })).then((response) {
@@ -81,7 +81,7 @@ class Subscription {
 
   void _setupDiffPolling() {
     _timer = new Timer.periodic(new Duration(seconds: 2), (_) {
-      _connection.sendRequest(() => new ClientRequest("", {
+      _connection.sendRequest(() => new ClientRequest("sync", {
         "action" : "get_diff",
         "collection" : collectionName,
         "version" : _version

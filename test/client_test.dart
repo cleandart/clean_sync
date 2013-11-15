@@ -4,19 +4,14 @@
 
 library client_test;
 
-import "package:unittest/unittest.dart";
-import "package:unittest/mock.dart";
+import 'package:unittest/unittest.dart';
+import 'package:unittest/mock.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
+import 'package:clean_data/clean_data.dart';
 import 'dart:async';
 
-class ConnectionMock extends Mock implements Connection {
-  ConnectionMock(){
-    this.when(callsTo('sendRequest'))
-      .alwaysReturn(new Future.value({'id_prefix': 'prefix'}));
-  }
-}
-
+class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
 void main() {
@@ -28,6 +23,8 @@ void main() {
 
     setUp(() {
       connection = new ConnectionMock();
+      connection.when(callsTo('sendRequest', anything))
+        .alwaysReturn(new Future.value({'id_prefix': 'prefix'}));
       subscriptionIdGenerator = new IdGeneratorMock();
       dataIdGenerator = new IdGeneratorMock();
       subscriptionFactory = new Mock();
@@ -84,5 +81,107 @@ void main() {
             equals(['months', connection, 'prefix-1', dataIdGenerator, args]));
       });
     });
+  });
+
+
+  group("Subscription", () {
+    ConnectionMock connection;
+    IdGeneratorMock idGenerator;
+    Subscription months;
+    Data january;
+    Future futureData = new Future.value({});
+
+    setUp(() {
+      connection = new ConnectionMock();
+      connection.when(callsTo('sendRequest')).alwaysReturn(futureData);
+      idGenerator = new IdGeneratorMock();
+    });
+
+    test("assign id to data.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      months = new Subscription('months', connection, 'author', idGenerator);
+      january = new Data.from({'name': 'January', 'order': 1});
+
+      // when
+      months.collection.add(january);
+
+      // then
+      expect(months.collection.first['_id'], equals('prefix-1'));
+    });
+
+//    test("request initial data and handle response.", () {
+//      // given
+//      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+//      connection = new ConnectionMock();
+//      futureData = new Future.value({'data': [{'_id': '21',
+//        'name': 'February', 'order': 2}]});
+//      connection.when(callsTo('sendRequest'))
+//        .alwaysReturn(futureData);
+//
+//      // when
+//      months = new Subscription('months', connection, 'author', idGenerator);
+//
+//      // then
+//      var request = connection.getLogs().first.args[0]();
+//      expect(request.type, equals("sync"));
+//      expect(request.args, equals({"action": "get_data",
+//                                   "collection": "months"}));
+//
+//      expect(months.collection.length, equals(1));
+//      expect(months.collection.first.containsValue("February"), isTrue);
+//    });
+
+    test("send add-request.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      months = new Subscription('months', connection, 'author', idGenerator);
+      january = new Data.from({'name': 'January', 'order': 1});
+
+      // when
+      months.collection.add(january);
+
+      // then
+      var request = connection.getLogs().last.args[0]();
+      expect(request.type, equals("sync"));
+      expect(request.args, equals({"action": "add", "collection": "months",
+                                  "data": january, "author": "author"}));
+    });
+
+    test("send change-request.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      months = new Subscription('months', connection, 'author', idGenerator);
+      january = new Data.from({'name': 'January', 'order': 1});
+
+      // when
+      months.collection.add(january);
+      january.addAll({'length': 31});
+
+      // then
+      var request = connection.getLogs().last.args[0]();
+      expect(request.type, equals("sync"));
+      expect(request.args, equals({"action": "change", "collection": "months",
+                                   "_id": "prefix-1", "data": {'length': 31},
+                                   "author": "author"}));
+    });
+
+    test("send remove-request.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      months = new Subscription('months', connection, 'author', idGenerator);
+      january = new Data.from({'_id': '12', 'name': 'January', 'order': 1});
+
+      // when
+      months.collection.remove(january);
+
+      // then
+      var request = connection.getLogs().last.args[0]();
+      expect(request.type, equals("sync"));
+      expect(request.args, equals({"action": "remove", "collection": "months",
+                                   "_id": "12", "author": "author"}));
+    });
+
+
   });
 }
