@@ -168,20 +168,26 @@ void main() {
       expect(result, equals(dataProvider.responseFuture));
     });
 
-    test("get server prefix.", () {
+    test("handle get server prefix.", () {
       request = new ClientRequest(null, {
         "action": "get_id_prefix",
       });
 
       // when
       Future<Map> result = publisher.handleSyncRequest(request);
+
+      //then
+      expect(result, completion(isMap));
+      expect(result, completion(contains('id_prefix')));
+    });
+
+    test("get server prefix returns different values.", () {
       String prefix1 = publisher.getIdPrefix();
       String prefix2 = publisher.getIdPrefix();
 
       //then
       expect(prefix1 == prefix2, isFalse);
-      expect(result, completion(isMap));
-      expect(result, completion(contains('id_prefix')));
     });
+
   });
 }

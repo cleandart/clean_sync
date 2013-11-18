@@ -4,34 +4,49 @@
 
 part of clean_sync.client;
 
+final _defaultSubscriptionFactory =
+    (collectionName, connection, author, idGenerator, args) =>
+        new Subscription(collectionName, connection, author, idGenerator, args);
+
+class MissingIdPrefixException implements Exception {
+   final String msg;
+   const MissingIdPrefixException([this.msg]);
+   String toString() => msg == null ? 'DiffNotPossible' : msg;
+}
+
 class Subscriber {
+  Connection _connection;
+  String _idPrefix = null;
+  final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
+  final _subscriptionFactory;
 
-//  Map<String, Subscription> _subscribedCollections = {};
-  Server _server;
-  String _idPrefix;
-  int _nextSubscriptionId;
+  Subscriber.config(this._connection, this._dataIdGenerator,
+           this._subscriptionIdGenerator, this._subscriptionFactory);
 
-  Subscriber(this._server) {
-    _nextSubscriptionId = 0;
-  }
+  Subscriber(this._connection)
+      : _dataIdGenerator = new IdGenerator(),
+        _subscriptionIdGenerator = new IdGenerator(),
+        _subscriptionFactory = _defaultSubscriptionFactory;
 
   Future init() {
-    return _server.sendRequest(
-        () => new ClientRequest("", {"action" : "get_id_prefix"}))
+    return _connection.sendRequest(
+        () => new ClientRequest("sync", {"action" : "get_id_prefix"}))
       .then((response) {
         _idPrefix = response['id_prefix'];
-        print("Got ID prefix: ${_idPrefix}");
+        _subscriptionIdGenerator.prefix = _idPrefix;
+        _dataIdGenerator.prefix = _idPrefix;
         return true;
       });
   }
 
-  Subscription subscribe(String collection, [Map args]) {
-    int subscriptionId = _nextSubscriptionId;
-    _nextSubscriptionId++;
-    String author = _idPrefix + '-' + subscriptionId.toRadixString(36);
-    Subscription subscription = new Subscription(collection, _server, author,
-        args);
-    //_subscribedCollections[collection] = subscription;
+  Subscription subscribe(String collectionName, [Map args]) {
+    if(_idPrefix == null) {
+      throw new MissingIdPrefixException(
+          "init() has to be called and completed first.");
+    }
+    String author = _subscriptionIdGenerator.next();
+    var subscription = _subscriptionFactory(collectionName, _connection, author,
+      _dataIdGenerator, args);
     return subscription;
   }
 }

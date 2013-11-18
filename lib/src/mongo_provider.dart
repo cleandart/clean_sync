@@ -95,7 +95,7 @@ class MongoProvider implements DataProvider {
     return _maxVersion.then((v) {version=v;}).then(getDataAndVersion);
   }
 
-  Future add(num _id, Map data, String author) {
+  Future add(String _id, Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
       return _collectionHistory.insert({
@@ -119,7 +119,7 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future change(num _id, Map data, String author) {
+  Future change(String _id, Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
       return _collection.findOne({"_id" : _id}).then((Map record) {
@@ -148,7 +148,7 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future remove(num _id, String author) {
+  Future remove(String _id, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
       return _collection.findOne({"_id" : _id}).then((Map record) {

@@ -21,5 +21,5 @@ popd
 
 pushd $DIR/..
 echo `pwd` Is this
-dart --enable-type-checks --enable-asserts test/server_test.dart $@
+dart --enable-type-checks --enable-asserts test/test_all.dart $@
 popd

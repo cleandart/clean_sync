@@ -6,35 +6,37 @@ part of clean_sync.client;
 
 class Subscription {
 
-  Server _server;
+  Connection _connection;
   Timer _timer;
-  String collection;
-  DataCollection data;
+  String collectionName;
+  IdGenerator _idGenerator;
+  DataCollection collection;
   Map args = {};
   num _version = -1;
   String _author;
 
-  Subscription(String collection, Server server, String author, [Map args]) {
-    this.collection = collection;
-    this._server = server;
-    this._author = author;
-    this.data = new DataCollection();
-
-    if (args != null) {
-      this.args = args;
-    }
-
+  Subscription(this.collectionName, this._connection, this._author,
+      this._idGenerator, [this.args]) {
+    collection = new DataCollection();
     _setupListeners();
     _requestInitialData().then((_) => _setupDiffPolling());
   }
 
   void _setupListeners() {
-    data.onChangeSync.listen((event) {
+    collection.onBeforeAdd.listen((data) {
+      // if data["_id"] is null, it was added by this client and _id should be
+      // assigned
+      if(data["_id"] == null) {
+        data["_id"] = _idGenerator.next();
+      }
+    });
+
+    collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "add",
-            "collection" : collection,
+            "collection" : collectionName,
             "data" : data,
             "author" : _author
           }));
@@ -45,9 +47,9 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "change",
-            "collection" : collection,
+            "collection" : collectionName,
             "_id" : data["_id"],
             "data" : change,
             "author" : _author
@@ -55,9 +57,9 @@ class Subscription {
         });
 
         event["change"].removedItems.forEach((data) {
-          _server.sendRequest(() => new ClientRequest("", {
+          _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "remove",
-            "collection" : collection,
+            "collection" : collectionName,
             "_id" : data["_id"],
             "author" : _author
           }));
@@ -67,9 +69,9 @@ class Subscription {
   }
 
   Future _requestInitialData() {
-    return _server.sendRequest(() => new ClientRequest("", {
+    return _connection.sendRequest(() => new ClientRequest("sync", {
       "action" : "get_data",
-      "collection" : collection
+      "collection" : collectionName
     })).then((response) {
       _handleResponse(response);
       print("Got initial data, synced to version ${_version}");
@@ -79,9 +81,9 @@ class Subscription {
 
   void _setupDiffPolling() {
     _timer = new Timer.periodic(new Duration(seconds: 2), (_) {
-      _server.sendRequest(() => new ClientRequest("", {
+      _connection.sendRequest(() => new ClientRequest("sync", {
         "action" : "get_diff",
-        "collection" : collection,
+        "collection" : collectionName,
         "version" : _version
       })).then((response) {
         _handleResponse(response);
@@ -93,14 +95,14 @@ class Subscription {
     // TODO: use clean(author: _author instead)
     if(response.containsKey('data')) {
       var toDelete=[];
-      for (var d in data) {
+      for (var d in collection) {
         toDelete.add(d);
       }
       for (var d in toDelete) {
-        data.remove(d, author: _author);
+        collection.remove(d, author: _author);
       }
       for (Map record in response['data']) {
-        this.data.add(new Data.from(record), author : _author);
+        this.collection.add(new Data.from(record), author : _author);
       }
       _version = response['version'];
     } else if(response.containsKey('diff') && response['diff'] != null) {
@@ -113,26 +115,22 @@ class Subscription {
   void _applyChange(Map change) {
     if (change["author"] != _author) {
       if (change["action"] == "add") {
-        data.add(new Data.from(change["data"]), author: _author);
+        collection.add(new Data.from(change["data"]), author: _author);
       }
       else if (change["action"] == "change") {
-        Data record = data.firstWhere((d) => d["_id"] == change["_id"]);
-
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
         if (record != null) {
-          record.addAll( change["data"], author: _author);
+          record.addAll(change["data"], author: _author);
         }
       }
       else if (change["action"] == "remove") {
-        Data record = data.firstWhere((d) => d["_id"] == change["_id"]);
-
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
         if (record != null) {
-          data.remove(record, author: _author);
+          collection.remove(record, author: _author);
         }
       }
     }
-
     print("applying: ${change}");
-
     _version = change["version"];
   }
 
