@@ -19,7 +19,7 @@ void main() {
     publish('persons', (_) {
       return mongodb.collection("persons");
     });
-      publish('personsOlderThan24', (_) {
+    publish('personsOlderThan24', (_) {
       return mongodb.collection("persons").find({"age" : {'\$gt' : 24}});
     });
     StaticFileHandler fileHandler =

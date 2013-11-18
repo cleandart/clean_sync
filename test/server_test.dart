@@ -167,5 +167,21 @@ void main() {
       expect(callToDiff.first.args[1], equals(author));
       expect(result, equals(dataProvider.responseFuture));
     });
+
+    test("get server prefix.", () {
+      request = new ClientRequest(null, {
+        "action": "get_id_prefix",
+      });
+
+      // when
+      Future<Map> result = publisher.handleSyncRequest(request);
+      String prefix1 = publisher.getIdPrefix();
+      String prefix2 = publisher.getIdPrefix();
+
+      //then
+      expect(prefix1 == prefix2, isFalse);
+      expect(result, completion(isMap));
+      expect(result, completion(contains('id_prefix')));
+    });
   });
 }
