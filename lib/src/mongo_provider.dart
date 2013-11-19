@@ -54,15 +54,15 @@ class MongoDatabase {
 }
 
 class MongoProvider implements DataProvider {
-  DbCollection _collection, _collectionHistory;
+  final DbCollection collection, _collectionHistory;
   List<Map> _selectorList = [];
 
   Future<int> get _maxVersion => _collectionHistory.count();
 
-  MongoProvider(this._collection, this._collectionHistory);
+  MongoProvider(this.collection, this._collectionHistory);
 
   MongoProvider find(Map params) {
-    var mp = new MongoProvider(_collection, _collectionHistory);
+    var mp = new MongoProvider(collection, _collectionHistory);
     mp._selectorList = new List.from(this._selectorList);
     mp._selectorList.add(params);
     return mp;
@@ -80,7 +80,7 @@ class MongoProvider implements DataProvider {
     int version;
     Function getDataAndVersion;
     getDataAndVersion = (_) {
-      return _collection.find(selector).toList().then((d) {
+      return collection.find(selector).toList().then((d) {
         data = d;
         return _maxVersion;
       }).then((int v) {
@@ -106,7 +106,7 @@ class MongoProvider implements DataProvider {
         "author" : author,
         "version" : nextVersion
       }).then((_) {
-        return _collection.insert(data);
+        return collection.insert(data);
       },
       onError: (e) {
         if(e['code'] == 11000) {
@@ -122,7 +122,7 @@ class MongoProvider implements DataProvider {
   Future change(String _id, Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
-      return _collection.findOne({"_id" : _id}).then((Map record) {
+      return collection.findOne({"_id" : _id}).then((Map record) {
         Map newRecord = new Map.from(record);
         newRecord.addAll(data);
 
@@ -134,7 +134,7 @@ class MongoProvider implements DataProvider {
           "author" : author,
           "version" : nextVersion
         }).then((_) {
-          return _collection.save(newRecord);
+          return collection.save(newRecord);
         },
         onError: (e) {
           if(e['code'] == 11000) {
@@ -151,7 +151,7 @@ class MongoProvider implements DataProvider {
   Future remove(String _id, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
-      return _collection.findOne({"_id" : _id}).then((Map record) {
+      return collection.findOne({"_id" : _id}).then((Map record) {
         return _collectionHistory.insert({
           "before" : record,
           "after" : {},
@@ -160,7 +160,7 @@ class MongoProvider implements DataProvider {
           "author" : author,
           "version" : nextVersion
         }).then((_) {
-          return _collection.remove({"_id" : record["_id"]});
+          return collection.remove({"_id" : record["_id"]});
         },
         onError: (e) {
           if(e['code'] == 11000) {
