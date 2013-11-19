@@ -17,27 +17,38 @@ const String ORDERBY = "\$orderby";
 const String OR = "\$or";
 const String AND = "\$and";
 
+const String VERSION_FIELD_NAME = '__clean_version';
+const String LOCK_COLLECTION_NAME = '__clean_lock';
+final Function historyCollectionName =
+  (collectionName) => "__clean_${collectionName}_history";
+
 class MongoDatabase {
   Db _db;
   Future _conn;
   List<Future> init = [];
+  DbCollection _lock;
 
   MongoDatabase(String url) {
     _db = new Db(url);
     _conn = _db.open(); // open connection to database
     init.add(_conn);
+    init.add(_conn.then((_) {
+      _lock = _db.collection(LOCK_COLLECTION_NAME);
+      return true;
+      }));
   }
 
   void create_collection(String collectionName) {
     init.add(_conn.then((_) =>
-        _db.createIndex("${collectionName}_history", key: 'version',
+        _db.createIndex(historyCollectionName(collectionName), key: 'version',
         unique: true)));
   }
 
   // TODO: keys can be also provided to mongo_dart createIndex function
   void createIndex(String collectionName, String key, {unique: false}){
     ["before", "after"].forEach((w) {
-      init.add(_conn.then((_) => _db.createIndex("${collectionName}_history",
+      init.add(_conn.then((_) =>
+          _db.createIndex(historyCollectionName(collectionName),
           key: w + '.' + key, unique: unique)));
     });
     init.add(_conn.then((_) =>
@@ -47,131 +58,103 @@ class MongoDatabase {
   MongoProvider collection(String collectionName) {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
-        _db.collection("${collectionName}_history");
-    var mp = new MongoProvider(collection, collectionHistory);
+        _db.collection(historyCollectionName(collectionName));
+    var mp = new MongoProvider(collection, collectionHistory, _lock);
     return mp;
   }
 }
 
 class MongoProvider implements DataProvider {
-  final DbCollection collection, _collectionHistory;
+  final DbCollection collection, _collectionHistory, _lock;
   List<Map> _selectorList = [];
 
   Future<int> get _maxVersion => _collectionHistory.count();
 
-  MongoProvider(this.collection, this._collectionHistory);
+  MongoProvider(this.collection, this._collectionHistory, this._lock);
 
   MongoProvider find(Map params) {
-    var mp = new MongoProvider(collection, _collectionHistory);
+    var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._selectorList = new List.from(this._selectorList);
     mp._selectorList.add(params);
     return mp;
   }
 
   /**
-   * Returns data and version of this data. The following approach is used to
-   * ensure consistency: 1. obtain version; 2. obtain data; 3. obtain version
-   * again, if it differs from previously obtained version, go to step 2,
-   * otherwise return data and version.
+   * Returns data and version of this data.
    */
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
-    List data;
-    int version;
-    Function getDataAndVersion;
-    getDataAndVersion = (_) {
-      return collection.find(selector).toList().then((d) {
-        data = d;
-        return _maxVersion;
-      }).then((int v) {
-        if(v == version){
-          return {'data': data, 'version': version};
-        } else {
-          version = v;
-          return getDataAndVersion();
-        }
-      });
-    };
-    return _maxVersion.then((v) {version=v;}).then(getDataAndVersion);
+    return collection.find(selector).toList().then((data) {
+      var version = data.length == 0 ? 0 :
+        data.map((item) => item['__clean_version']).reduce(max);
+      return {'data': data, 'version': version};
+    });
   }
 
   Future add(Map data, String author) {
-    return _maxVersion.then((version) {
-      var nextVersion = version + 1;
-      return _collectionHistory.insert({
-        "before" : {},
-        "after" : data,
-        "change" : {},
-        "action" : "add",
-        "author" : author,
-        "version" : nextVersion
-      }).then((_) {
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        data[VERSION_FIELD_NAME] = nextVersion;
         return collection.insert(data);
-      },
-      onError: (e) {
-        if(e['code'] == 11000) {
-          // duplicate key error index
-          return add(data, author);
-        } else {
-          throw(e);
-        }
-      });
-    });
+      }).then((_) =>
+        _collectionHistory.insert({
+          "before" : {},
+          "after" : data,
+          "change" : {},
+          "action" : "add",
+          "author" : author,
+          "version" : nextVersion
+        })).then((_) => _release_locks());
   }
 
   Future change(Map data, String author) {
-    return _maxVersion.then((version) {
-      var nextVersion = version + 1;
-      return collection.findOne({"_id" : data['_id']}).then((Map record) {
-        Map newRecord = new Map.from(record);
-        newRecord.addAll(data);
-
-        return _collectionHistory.insert({
-          "before" : record,
-          "after" : newRecord,
-          "change" : data,
-          "action" : "change",
-          "author" : author,
-          "version" : nextVersion
-        }).then((_) {
-          return collection.save(newRecord);
-        },
-        onError: (e) {
-          if(e['code'] == 11000) {
-            // duplicate key error index
-            return change(data, author);
-          } else {
-            throw(e);
-          }
-        });
-      });
-    });
+    num nextVersion;
+    Map newRecord;
+    return _get_locks().then((_) => collection.findOne({"_id" : data['_id']}))
+      .then((Map record) {
+        if(record == null) {
+          return true;
+        } else {
+          return _maxVersion.then((version) {
+            nextVersion = version + 1;
+            newRecord = new Map.from(record);
+            newRecord.addAll(data);
+            newRecord[VERSION_FIELD_NAME] = nextVersion;
+            return collection.save(newRecord);
+          }).then((_) =>
+            _collectionHistory.insert({
+              "before" : record,
+              "after" : newRecord,
+              "change" : data,
+              "action" : "change",
+              "author" : author,
+              "version" : nextVersion
+            }));
+        }
+      }).then((_) => _release_locks());
   }
 
   Future remove(String _id, String author) {
-    return _maxVersion.then((version) {
-      var nextVersion = version + 1;
-      return collection.findOne({"_id" : _id}).then((Map record) {
-        return _collectionHistory.insert({
-          "before" : record,
-          "after" : {},
-          "change" : {},
-          "action" : "remove",
-          "author" : author,
-          "version" : nextVersion
-        }).then((_) {
-          return collection.remove({"_id" : record["_id"]});
-        },
-        onError: (e) {
-          if(e['code'] == 11000) {
-            // duplicate key error index
-            return remove(_id, author);
-          } else {
-            throw(e);
-          }
-        });
-      });
-    });
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        return collection.findOne({'_id': _id});
+      }).then((record) {
+        if (record == null) {
+          return true;
+        } else {
+          return collection.remove({'_id': _id}).then((_) =>
+            _collectionHistory.insert({
+              "before" : record,
+              "after" : {},
+              "change" : {},
+              "action" : "remove",
+              "author" : author,
+              "version" : nextVersion
+          }));
+        }
+      }).then((_) => _release_locks());
   }
 
   Future<Map> diffFromVersion(num version) {
@@ -266,5 +249,25 @@ class MongoProvider implements DataProvider {
           });
           return diff;
       });
+  }
+
+  Future _get_locks() {
+    print(collection.collectionName);
+    return _lock.insert({'_id': collection.collectionName}).then(
+      (_) => _lock.insert({'_id': _collectionHistory.collectionName}),
+      onError: (e) {
+        if(e['code'] == 11000) {
+          // duplicate key error index
+          return _get_locks();
+        } else {
+          throw(e);
+        }
+      }).then((_) => true);
+  }
+
+  Future _release_locks() {
+    return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
+    _lock.remove({'_id': collection.collectionName})).then((_) =>
+    true);
   }
 }
