@@ -7,7 +7,7 @@ part of clean_sync.server;
 typedef DataProvider DataGenerator(Map args);
 Map<String, DataGenerator> _publishedCollections = {};
 final int MAX = pow(2,16) - 1;
-final Random random = new Random();
+final int prefix_random_part = new Random().nextInt(MAX);
 
 class Publisher {
   int counter;
@@ -41,10 +41,10 @@ class Publisher {
       return dp.diffFromVersion(data["version"]);
     }
     else if (data["action"] == "add") {
-      return dp.add(data['_id'], data['data'], data['author']);
+      return dp.add(data['data'], data['author']);
     }
     else if (data["action"] == "change") {
-      return dp.change(data['_id'], data['data'], data['author']);
+      return dp.change(data['data'], data['author']);
     }
     else if (data["action"] == "remove") {
       return dp.remove(data['_id'], data['author']);
@@ -54,7 +54,7 @@ class Publisher {
   String getIdPrefix() {
     String prefix =
         new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
-        random.nextInt(MAX).toRadixString(36) + counter.toRadixString(36);
+        prefix_random_part.toRadixString(36) + counter.toRadixString(36);
     counter = (counter + 1) % MAX;
     return prefix;
   }

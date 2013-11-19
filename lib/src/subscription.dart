@@ -14,12 +14,13 @@ class Subscription {
   Map args = {};
   num _version = -1;
   String _author;
+  bool _stopped = true;
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataCollection();
     _setupListeners();
-    _requestInitialData().then((_) => _setupDiffPolling());
+    startGettingData();
   }
 
   void _setupListeners() {
@@ -50,7 +51,6 @@ class Subscription {
           _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
-            "_id" : data["_id"],
             "data" : change,
             "author" : _author
           }));
@@ -68,27 +68,36 @@ class Subscription {
     });
   }
 
-  Future _requestInitialData() {
-    return _connection.sendRequest(() => new ClientRequest("sync", {
+  Future startGettingData() {
+    _stopped = false;
+    // request initial data
+    _connection.sendRequest(() => new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : collectionName
     })).then((response) {
       _handleResponse(response);
       print("Got initial data, synced to version ${_version}");
-      return _version;
+      if(!_stopped){
+        _requestDiff();
+      }
     });
   }
 
-  void _setupDiffPolling() {
-    _timer = new Timer.periodic(new Duration(seconds: 2), (_) {
-      _connection.sendRequest(() => new ClientRequest("sync", {
+  void stopGettingData() {
+    _stopped = true;
+  }
+
+  void _requestDiff() {
+    _connection.sendRequest(() => new ClientRequest("sync", {
         "action" : "get_diff",
         "collection" : collectionName,
         "version" : _version
       })).then((response) {
         _handleResponse(response);
+        if(!_stopped){
+          _requestDiff();
+        }
       });
-    });
   }
 
   void _handleResponse(Map response) {
@@ -132,10 +141,6 @@ class Subscription {
     }
     print("applying: ${change}");
     _version = change["version"];
-  }
-
-  void close() {
-    _timer.cancel();
   }
 
   Stream onClose() {

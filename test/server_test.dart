@@ -116,9 +116,8 @@ void main() {
       verifyGeneratorCalledOnceWithArgs(args);
       var callToDiff = dataProvider.getLogs(callsTo('add'));
       callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args[0], equals(_id));
-      expect(callToDiff.first.args[1], equals(data));
-      expect(callToDiff.first.args[2], equals(author));
+      expect(callToDiff.first.args[0], equals(data));
+      expect(callToDiff.first.args[1], equals(author));
       expect(result, equals(dataProvider.responseFuture));
     });
 
@@ -140,9 +139,8 @@ void main() {
       verifyGeneratorCalledOnceWithArgs(args);
       var callToDiff = dataProvider.getLogs(callsTo('change'));
       callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args[0], equals(_id));
-      expect(callToDiff.first.args[1], equals(data));
-      expect(callToDiff.first.args[2], equals(author));
+      expect(callToDiff.first.args[0], equals(data));
+      expect(callToDiff.first.args[1], equals(author));
       expect(result, equals(dataProvider.responseFuture));
     });
 
