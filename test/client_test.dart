@@ -97,6 +97,10 @@ void main() {
       idGenerator = new IdGeneratorMock();
     });
 
+    tearDown(() {
+      months.stopGettingData();
+    });
+
     test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
