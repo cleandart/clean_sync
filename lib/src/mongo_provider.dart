@@ -95,7 +95,7 @@ class MongoProvider implements DataProvider {
     return _maxVersion.then((v) {version=v;}).then(getDataAndVersion);
   }
 
-  Future add(String _id, Map data, String author) {
+  Future add(Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
       return _collectionHistory.insert({
@@ -111,7 +111,7 @@ class MongoProvider implements DataProvider {
       onError: (e) {
         if(e['code'] == 11000) {
           // duplicate key error index
-          return add(_id, data, author);
+          return add(data, author);
         } else {
           throw(e);
         }
@@ -119,10 +119,10 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future change(String _id, Map data, String author) {
+  Future change(Map data, String author) {
     return _maxVersion.then((version) {
       var nextVersion = version + 1;
-      return collection.findOne({"_id" : _id}).then((Map record) {
+      return collection.findOne({"_id" : data['_id']}).then((Map record) {
         Map newRecord = new Map.from(record);
         newRecord.addAll(data);
 
@@ -139,7 +139,7 @@ class MongoProvider implements DataProvider {
         onError: (e) {
           if(e['code'] == 11000) {
             // duplicate key error index
-            return change(_id, data, author);
+            return change(data, author);
           } else {
             throw(e);
           }

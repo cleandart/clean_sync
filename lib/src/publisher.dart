@@ -41,10 +41,10 @@ class Publisher {
       return dp.diffFromVersion(data["version"]);
     }
     else if (data["action"] == "add") {
-      return dp.add(data['_id'], data['data'], data['author']);
+      return dp.add(data['data'], data['author']);
     }
     else if (data["action"] == "change") {
-      return dp.change(data['_id'], data['data'], data['author']);
+      return dp.change(data['data'], data['author']);
     }
     else if (data["action"] == "remove") {
       return dp.remove(data['_id'], data['author']);

@@ -50,7 +50,6 @@ class Subscription {
           _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
-            "_id" : data["_id"],
             "data" : change,
             "author" : _author
           }));

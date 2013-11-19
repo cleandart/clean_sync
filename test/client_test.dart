@@ -162,7 +162,7 @@ void main() {
       var request = connection.getLogs().last.args[0]();
       expect(request.type, equals("sync"));
       expect(request.args, equals({"action": "change", "collection": "months",
-                                   "_id": "prefix-1", "data": {'length': 31},
+                                   "data": {'length': 31},
                                    "author": "author"}));
     });
 

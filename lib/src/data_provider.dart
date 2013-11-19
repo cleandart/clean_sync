@@ -14,7 +14,7 @@ abstract class DataProvider {
    *  {'diff': null, 'data': [List<Map>] data, 'version': [num] version_num}
    */
   Future<Map> diffFromVersion(num version);
-  Future add(String id, Map data, String author);
-  Future change(String id, Map data, String author);
+  Future add(Map data, String author);
+  Future change(Map data, String author);
   Future remove(String id, String author);
 }
