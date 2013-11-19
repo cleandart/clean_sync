@@ -44,15 +44,30 @@ class MongoDatabase {
         unique: true)));
   }
 
-  // TODO: keys can be also provided to mongo_dart createIndex function
-  void createIndex(String collectionName, String key, {unique: false}){
-    ["before", "after"].forEach((w) {
-      init.add(_conn.then((_) =>
-          _db.createIndex(historyCollectionName(collectionName),
-          key: w + '.' + key, unique: unique)));
+  /**
+   * Creates index on chosen collection and corresponding indexes on collection
+   * history. keys is a map in form {field_name: 1 or -1} with 1/-1 specifying
+   * ascending/descending order (same as the map passed to mongo function
+   * ensureIndex).
+   */
+  void createIndex(String collectionName, Map keys, {unique: false})
+  {
+    Map beforeKeys = {};
+    Map afterKeys = {};
+    keys.forEach((key, val) {
+      beforeKeys['before.$key'] = val;
+      afterKeys['after.$key'] = val;
     });
+    beforeKeys['version'] = 1;
+    afterKeys['version'] = 1;
     init.add(_conn.then((_) =>
-        _db.createIndex(collectionName, key: key, unique: unique)));
+        _db.createIndex(historyCollectionName(collectionName),
+            keys: beforeKeys, unique: unique)));
+    init.add(_conn.then((_) =>
+        _db.createIndex(historyCollectionName(collectionName),
+            keys: afterKeys, unique: unique)));
+    init.add(_conn.then((_) =>
+        _db.createIndex(collectionName, keys: keys, unique: unique)));
   }
 
   MongoProvider collection(String collectionName) {
