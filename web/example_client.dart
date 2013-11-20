@@ -22,7 +22,7 @@ LIElement createListElement(person, persons) {
 }
 
 void main() {
-  Connection connection = new Connection("http://127.0.0.1:8080/resources",
+  Connection connection = createHttpConnection("http://127.0.0.1:8080/resources",
       new Duration(milliseconds: 100));
   Subscriber subscriber = new Subscriber(connection);
 

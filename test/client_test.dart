@@ -13,6 +13,7 @@ import 'dart:async';
 
 class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
+class CommunicatorMock extends Mock implements Communicator {}
 
 void main() {
   group("Subscriber", () {
@@ -88,57 +89,93 @@ void main() {
     ConnectionMock connection;
     IdGeneratorMock idGenerator;
     Subscription months;
-    Data january;
-    Future futureData = new Future.value({});
+    Data january, february;
+    CommunicatorMock communicator;
+    DataCollection collection;
 
     setUp(() {
       connection = new ConnectionMock();
-      connection.when(callsTo('sendRequest')).alwaysReturn(futureData);
       idGenerator = new IdGeneratorMock();
+      communicator = new CommunicatorMock();
+      collection = new DataCollection();
+    });
+
+    tearDown(() {
+      months.dispose();
     });
 
     test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription('months', connection, 'author', idGenerator);
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
       january = new Data.from({'name': 'January', 'order': 1});
 
       // when
+      months.start();
       months.collection.add(january);
 
       // then
       expect(months.collection.first['_id'], equals('prefix-1'));
     });
 
-//    test("request initial data and handle response.", () {
-//      // given
-//      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-//      connection = new ConnectionMock();
-//      futureData = new Future.value({'data': [{'_id': '21',
-//        'name': 'February', 'order': 2}]});
-//      connection.when(callsTo('sendRequest'))
-//        .alwaysReturn(futureData);
-//
-//      // when
-//      months = new Subscription('months', connection, 'author', idGenerator);
-//
-//      // then
-//      var request = connection.getLogs().first.args[0]();
-//      expect(request.type, equals("sync"));
-//      expect(request.args, equals({"action": "get_data",
-//                                   "collection": "months"}));
-//
-//      expect(months.collection.length, equals(1));
-//      expect(months.collection.first.containsValue("February"), isTrue);
-//    });
+    test("handle data response.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      List<Map> data = [{'_id': '21', 'name': 'February', 'order': 2}];
+      connection = new ConnectionMock();
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
+
+      // when
+      months.handleData(data);
+
+      // then
+      expect(months.collection.length, equals(1));
+      expect(months.collection.first.containsValue("February"), isTrue);
+    });
+
+    test("handle diff response.", () {
+      // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
+      Map marchMapBefore = {'_id': '31', 'name': 'February', 'order': 3};
+      Map marchMapAfter = {'_id': '31', 'name': 'March', 'order': 3,
+                           'length': 31};
+      Map aprilMap = {'_id': '41', 'name': 'April', 'length': 30};
+      january = new Data.from({'_id': '11', 'name': 'January', 'order': 1});
+      february = new Data.from(marchMapBefore);
+      collection.add(january);
+      collection.add(february);
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
+      List<Map> diff = [
+        {'action': 'add', 'data': aprilMap},
+        {'action': 'change', '_id': '31',
+         'data': {'_id': '31', 'name': 'March', 'length': 31}},
+        {'action': 'remove', '_id': '11'},
+        ];
+
+      // when
+      months.handleDiff(diff);
+      months.collection.addIndex(['_id']);
+
+      // then
+      expect(months.collection.length, equals(2));
+      expect(months.collection.findBy('_id', '41').first.toJson(),
+          equals(aprilMap));
+      expect(months.collection.findBy('_id', '31').first.toJson(),
+          equals(marchMapAfter));
+    });
 
     test("send add-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription('months', connection, 'author', idGenerator);
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
       january = new Data.from({'name': 'January', 'order': 1});
 
       // when
+      months.start();
       months.collection.add(january);
 
       // then
@@ -151,11 +188,13 @@ void main() {
     test("send change-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription('months', connection, 'author', idGenerator);
       january = new Data.from({'name': 'January', 'order': 1});
+      collection.add(january);
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
 
       // when
-      months.collection.add(january);
+      months.start();
       january.addAll({'length': 31});
 
       // then
@@ -169,19 +208,21 @@ void main() {
     test("send remove-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription('months', connection, 'author', idGenerator);
       january = new Data.from({'_id': '12', 'name': 'January', 'order': 1});
+      collection.add(january);
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
 
       // when
+      months.start();
       months.collection.remove(january);
 
       // then
-      var request = connection.getLogs().last.args[0]();
+      var request = connection.getLogs().first.args[0]();
       expect(request.type, equals("sync"));
       expect(request.args, equals({"action": "remove", "collection": "months",
                                    "_id": "12", "author": "author"}));
     });
-
 
   });
 }

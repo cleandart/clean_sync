@@ -12,7 +12,9 @@ library clean_sync.client;
 import 'dart:async';
 import "package:clean_ajax/client.dart";
 import "package:clean_data/clean_data.dart";
+import 'dart:math';
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
+part 'src/communicator.dart';
 part 'src/id_generator.dart';
