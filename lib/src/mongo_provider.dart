@@ -10,6 +10,14 @@ class DiffNotPossibleException implements Exception {
    String toString() => msg == null ? 'DiffNotPossible' : msg;
 }
 
+class MongoException implements Exception {
+   final Map mongoError;
+   final String msg;
+   const MongoException(this.mongoError, [this.msg]);
+   String toString() =>
+       msg == null ? 'MongoError: $mongoError' : '$msg MongoError: $mongoError';
+}
+
 const String QUERY = "\$query";
 const String GT = "\$gt";
 const String LT = "\$lt";
@@ -120,16 +128,25 @@ class MongoProvider implements DataProvider {
           "action" : "add",
           "author" : author,
           "version" : nextVersion
-        })).then((_) => _release_locks());
+        }),
+      onError: (e) {
+        print(e);
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        throw new MongoException(e);
+      }
+      ).then((_) => _release_locks());
   }
 
   Future change(Map data, String author) {
     num nextVersion;
     Map newRecord;
-    return _get_locks().then((_) => collection.findOne({"_id" : data['_id']}))
+    String _id = data['_id'];
+    return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          return true;
+          throw new MongoException(null,
+              'Change was not applied, document with id $_id does not exist.');
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
@@ -147,7 +164,14 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
             }));
         }
-      }).then((_) => _release_locks());
+      },
+      onError: (e) {
+        print(e);
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        throw new MongoException(e);
+      }
+      ).then((_) => _release_locks());
   }
 
   Future remove(String _id, String author) {
@@ -169,7 +193,14 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
           }));
         }
-      }).then((_) => _release_locks());
+      },
+      onError: (e) {
+        print(e);
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        throw new MongoException(e);
+      }
+      ).then((_) => _release_locks());
   }
 
   Future<Map> diffFromVersion(num version) {
