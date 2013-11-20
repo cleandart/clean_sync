@@ -5,34 +5,35 @@
 part of clean_sync.client;
 
 class Subscription {
-
-  Connection _connection;
-  Timer _timer;
   String collectionName;
-  IdGenerator _idGenerator;
   DataCollection collection;
-  Map args = {};
-  num _version = -1;
+  Connection _connection;
+  Communicator _communicator;
   String _author;
-  bool _stopped = true;
+  IdGenerator _idGenerator;
+  Map args = {};
+  List<StreamSubscription> _subscriptions = [];
+
+  Subscription.config(this.collectionName, this.collection, this._connection,
+      this._communicator, this._author, this._idGenerator, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataCollection();
-    _setupListeners();
-    startGettingData();
+    _communicator = new Communicator(_connection, collectionName,
+        this.handleData, this.handleDiff);
   }
 
   void _setupListeners() {
-    collection.onBeforeAdd.listen((data) {
+    _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
       if(data["_id"] == null) {
         data["_id"] = _idGenerator.next();
       }
-    });
+    }));
 
-    collection.onChangeSync.listen((event) {
+    _subscriptions.add(collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
           _connection.sendRequest(() => new ClientRequest("sync", {
@@ -65,60 +66,37 @@ class Subscription {
           }));
         });
       }
-    });
+    }));
   }
 
-  Future startGettingData() {
-    _stopped = false;
-    // request initial data
-    _connection.sendRequest(() => new ClientRequest("sync", {
-      "action" : "get_data",
-      "collection" : collectionName
-    })).then((response) {
-      _handleResponse(response);
-      print("Got initial data, synced to version ${_version}");
-      if(!_stopped){
-        _requestDiff();
-      }
-    });
+  void start() {
+    _setupListeners();
+    _communicator.start();
   }
 
-  void stopGettingData() {
-    _stopped = true;
+  void dispose() {
+    _communicator.stop();
+    _subscriptions.forEach((s) {s.cancel();});
   }
 
-  void _requestDiff() {
-    _connection.sendRequest(() => new ClientRequest("sync", {
-        "action" : "get_diff",
-        "collection" : collectionName,
-        "version" : _version
-      })).then((response) {
-        _handleResponse(response);
-        if(!_stopped){
-          _requestDiff();
-        }
-      });
-  }
-
-  void _handleResponse(Map response) {
+  void handleData(List<Map> data) {
     // TODO: use clean(author: _author instead)
-    if(response.containsKey('data')) {
-      var toDelete=[];
-      for (var d in collection) {
-        toDelete.add(d);
-      }
-      for (var d in toDelete) {
-        collection.remove(d, author: _author);
-      }
-      for (Map record in response['data']) {
-        this.collection.add(new Data.from(record), author : _author);
-      }
-      _version = response['version'];
-    } else if(response.containsKey('diff') && response['diff'] != null) {
-      response['diff'].forEach((change) {
-        _applyChange(change);
-      });
+    var toDelete=[];
+    for (var d in collection) {
+      toDelete.add(d);
     }
+    for (var d in toDelete) {
+      collection.remove(d, author: _author);
+    }
+    for (Map record in data) {
+      this.collection.add(new Data.from(record), author : _author);
+    }
+  }
+
+  void handleDiff(List<Map> diff) {
+    diff.forEach((change) {
+      _applyChange(change);
+    });
   }
 
   void _applyChange(Map change) {
@@ -140,7 +118,6 @@ class Subscription {
       }
     }
     print("applying: ${change}");
-    _version = change["version"];
   }
 
   Stream onClose() {

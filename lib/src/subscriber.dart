@@ -18,15 +18,15 @@ class Subscriber {
   Connection _connection;
   String _idPrefix = null;
   final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
-  final _subscriptionFactory;
+  final _createSubscription;
 
   Subscriber.config(this._connection, this._dataIdGenerator,
-           this._subscriptionIdGenerator, this._subscriptionFactory);
+           this._subscriptionIdGenerator, this._createSubscription);
 
   Subscriber(this._connection)
       : _dataIdGenerator = new IdGenerator(),
         _subscriptionIdGenerator = new IdGenerator(),
-        _subscriptionFactory = _defaultSubscriptionFactory;
+        _createSubscription = _defaultSubscriptionFactory;
 
   Future init() {
     return _connection.sendRequest(
@@ -45,7 +45,7 @@ class Subscriber {
           "init() has to be called and completed first.");
     }
     String author = _subscriptionIdGenerator.next();
-    var subscription = _subscriptionFactory(collectionName, _connection, author,
+    var subscription = _createSubscription(collectionName, _connection, author,
       _dataIdGenerator, args);
     return subscription;
   }
