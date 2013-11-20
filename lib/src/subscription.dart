@@ -22,6 +22,7 @@ class Subscription {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
         this.handleData, this.handleDiff);
+    start();
   }
 
   void _setupListeners() {
