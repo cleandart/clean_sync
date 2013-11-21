@@ -31,6 +31,6 @@ void main() {
 
       backend.addView(r'/resources', requestHandler.handleHttpRequest);
       backend.addStaticView(new RegExp(r'/.*'), '../web/');
-    });;
+    });
   });
 }
