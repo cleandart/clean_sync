@@ -35,7 +35,7 @@ class Publisher {
     if(!data.containsKey('args')) {
       data['args'] = {};
     }
-    data['args']['_authenticated_user_id'] = request.authenticatedUserId;
+    data['args']['_authenticatedUserId'] = request.authenticatedUserId;
     DataProvider dp = _publishedCollections[data['collection']](data['args']);
 
     if (data["action"] == "get_data") {
