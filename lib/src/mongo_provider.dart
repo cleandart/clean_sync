@@ -133,7 +133,9 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        throw new MongoException(e);
+        _release_locks().then((_) {
+          throw new MongoException(e);
+        });
       }
       ).then((_) => _release_locks());
   }
@@ -169,7 +171,9 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        throw new MongoException(e);
+        _release_locks().then((_) {
+          throw new MongoException(e);
+        });
       }
       ).then((_) => _release_locks());
   }
@@ -198,7 +202,9 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        throw new MongoException(e);
+        _release_locks().then((_) {
+          throw new MongoException(e);
+        });
       }
       ).then((_) => _release_locks());
   }
