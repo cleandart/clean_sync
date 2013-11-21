@@ -32,6 +32,9 @@ class Publisher {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
     }
 
+    if(!data.containsKey('args')) {
+      data['args'] = {};
+    }
     data['args']['_authenticated_user_id'] = request.authenticatedUserId;
     DataProvider dp = _publishedCollections[data['collection']](data['args']);
 
