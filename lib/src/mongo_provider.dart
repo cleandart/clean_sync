@@ -143,10 +143,9 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks());
   }
 
-  Future change(Map data, String author) {
+  Future change(String _id, Map change, String author) {
     num nextVersion;
     Map newRecord;
-    String _id = data['_id'];
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
@@ -156,7 +155,7 @@ class MongoProvider implements DataProvider {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
             newRecord = new Map.from(record);
-            newRecord.addAll(data);
+            newRecord.addAll(change);
             newRecord[VERSION_FIELD_NAME] = nextVersion;
             return collection.save(newRecord);
           }).then((_) =>

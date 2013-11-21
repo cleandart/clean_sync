@@ -15,6 +15,6 @@ abstract class DataProvider {
    */
   Future<Map> diffFromVersion(num version);
   Future add(Map data, String author);
-  Future change(Map data, String author);
+  Future change(String_id, Map change, String author);
   Future remove(String id, String author);
 }
