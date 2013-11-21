@@ -107,6 +107,9 @@ class MongoProvider implements DataProvider {
    */
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
+    if(selector.containsKey(AND)) {
+      selector={'age': null};
+    }
     return collection.find(selector).toList().then((data) {
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
@@ -223,37 +226,30 @@ class MongoProvider implements DataProvider {
   Future<List<Map>> _diffFromVersion(num version) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
-
     // selects records that fulfilled _selector before change
-    Map beforeSelector =
-      {QUERY : {"version" : {GT : version}, "before" : {GT: {}}},
-       ORDERBY : {"version" : 1}};
+    Map beforeSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
     // selects records that fulfill _selector after change
-    Map afterSelector =
-      {QUERY : {"version" : {GT : version}, "after" : {GT: {}}},
-       ORDERBY : {"version" : 1}};
+    Map afterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
     // selects records that fulfill _selector before or after change
-    Map beforeOrAfterSelector =
-      {QUERY : {"version" : {GT : version}}, ORDERBY : {"version" : 1}};
+    Map beforeOrAfterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
 
-    if(!_selectorList.isEmpty){
-      List<Map> _beforeSelector = [];
-      List<Map> _afterSelector = [];
-      _selectorList.forEach((item) {
-        Map itemB = {};
-        Map itemA = {};
-        item.forEach((key, val) {
-          itemB["before.${key}"] = val;
-          itemA["after.${key}"] = val;
-        });
-        _beforeSelector.add(itemB);
-        _afterSelector.add(itemA);
+    // {before: {GT: {}}} to handle selectors like {before.age: null}
+    List<Map> _beforeSelector = [{"version" : {GT : version}}, {"before" : {GT: {}}}];
+    List<Map> _afterSelector = [{"version" : {GT : version}}, {"after" : {GT: {}}}];
+    _selectorList.forEach((item) {
+      Map itemB = {};
+      Map itemA = {};
+      item.forEach((key, val) {
+        itemB["before.${key}"] = val;
+        itemA["after.${key}"] = val;
       });
-      beforeSelector[QUERY][AND] = _beforeSelector;
-      afterSelector[QUERY][AND] = _afterSelector;
-      beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
-                                          {AND: _afterSelector}];
-    }
+      _beforeSelector.add(itemB);
+      _afterSelector.add(itemA);
+    });
+    beforeSelector[QUERY][AND] = _beforeSelector;
+    afterSelector[QUERY][AND] = _afterSelector;
+    beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
+                                        {AND: _afterSelector}];
 
     Set before, after;
     List beforeOrAfter, diff;
@@ -304,7 +300,6 @@ class MongoProvider implements DataProvider {
   }
 
   Future _get_locks() {
-    print(collection.collectionName);
     return _lock.insert({'_id': collection.collectionName}).then(
       (_) => _lock.insert({'_id': _collectionHistory.collectionName}),
       onError: (e) {
