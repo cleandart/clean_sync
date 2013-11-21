@@ -53,7 +53,8 @@ class Subscription {
           _connection.sendRequest(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
-            "data" : change,
+            "_id": data["_id"],
+            "change" : change,
             "author" : _author
           }));
         });

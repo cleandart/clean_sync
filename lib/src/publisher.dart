@@ -48,7 +48,7 @@ class Publisher {
       return dp.add(data['data'], data['author']);
     }
     else if (data["action"] == "change") {
-      return dp.change(data['data'], data['author']);
+      return dp.change(data['_id'], data['change'], data['author']);
     }
     else if (data["action"] == "remove") {
       return dp.remove(data['_id'], data['author']);

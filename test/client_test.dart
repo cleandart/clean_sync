@@ -188,7 +188,7 @@ void main() {
     test("send change-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      january = new Data.from({'name': 'January', 'order': 1});
+      january = new Data.from({'_id': '11', 'name': 'January', 'order': 1});
       collection.add(january);
       months = new Subscription.config('months', collection, connection,
           communicator, 'author', idGenerator);
@@ -201,7 +201,7 @@ void main() {
       var request = connection.getLogs().last.args[0]();
       expect(request.type, equals("sync"));
       expect(request.args, equals({"action": "change", "collection": "months",
-                                   "data": {'length': 31},
+                                   "_id": "11", "change": {'length': 31},
                                    "author": "author"}));
     });
 
