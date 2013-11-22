@@ -128,7 +128,7 @@ void main() {
           communicator, 'author', idGenerator);
 
       // when
-      months.handleData(data);
+      handleData(data, months.collection, 'author');
 
       // then
       expect(months.collection.length, equals(1));
@@ -156,7 +156,7 @@ void main() {
         ];
 
       // when
-      months.handleDiff(diff);
+      handleDiff(diff, months.collection, 'author');
       months.collection.addIndex(['_id']);
 
       // then
