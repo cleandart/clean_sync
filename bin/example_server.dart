@@ -22,9 +22,8 @@ void main() {
     });
     publish('personsOlderThan24', (_) {
       return mongodb.collection("persons").find({"age" : {'\$gt' : 24}});
-//      return mongodb.collection("persons").find({"age" : null});
-    });
-
+      //return mongodb.collection("persons").find({"age" : null});
+   });
     Backend.bind([], new SHA256()).then((backend) {
       MultiRequestHandler requestHandler = new MultiRequestHandler();
       requestHandler.registerDefaultHandler(handleSyncRequest);
@@ -32,12 +31,5 @@ void main() {
       backend.addView(r'/resources', requestHandler.handleHttpRequest);
       backend.addStaticView(new RegExp(r'/.*'), '../web/');
     });
-
-//    var backend = new Backend(host: '127.0.0.1', port: 8080);
-//    backend.listen().then((_) {
-//
-//
-//      backend.addView(r'/resources', requestHandler.handleHttpRequest);
-//    });
   });
 }
