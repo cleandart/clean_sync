@@ -160,7 +160,7 @@ class MongoProvider implements DataProvider {
             _collectionHistory.insert({
               "before" : record,
               "after" : newRecord,
-              "change" : data,
+              "change" : change,
               "action" : "change",
               "author" : author,
               "version" : nextVersion
