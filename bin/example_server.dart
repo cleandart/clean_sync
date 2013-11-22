@@ -16,6 +16,7 @@ void main() {
    */
   MongoDatabase mongodb = new MongoDatabase('mongodb://127.0.0.1:27017/clean');
   mongodb.create_collection('persons');
+  mongodb.createIndex('persons', {'name': 1}, unique: true);
   Future.wait(mongodb.init).then((_) {
     publish('persons', (_) {
       return mongodb.collection("persons");
