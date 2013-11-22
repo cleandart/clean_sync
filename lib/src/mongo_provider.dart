@@ -107,9 +107,7 @@ class MongoProvider implements DataProvider {
    */
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
-    if(selector.containsKey(AND)) {
-      selector={'age': null};
-    }
+    print(selector);
     return collection.find(selector).toList().then((data) {
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
