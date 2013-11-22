@@ -22,32 +22,52 @@ LIElement createListElement(person, persons) {
 }
 
 void main() {
+  Subscription personsDiff, personsDiff24, personsData, personsData24;
+
+  // initialization of these Subscriptions
   Connection connection = createHttpConnection("http://127.0.0.1:8080/resources",
       new Duration(milliseconds: 100));
+  String authorData = 'dataAll';
+  String authorData24 = 'data24';
+  DataCollection personsDataCol = new DataCollection();
+  DataCollection personsDataCol24 = new DataCollection();
+  Communicator communicator = new Communicator(connection, 'persons',
+      (List<Map> data) {handleData(data, personsDataCol, authorData);}, null,
+      'data');
+  Communicator communicator24 = new Communicator(connection,
+      'personsOlderThan24',
+      (List<Map> data) {handleData(data, personsDataCol24, authorData24);},
+      null, 'data');
+
+  personsData = new Subscription.config('persons', personsDataCol, connection,
+      communicator, authorData, new IdGenerator(authorData));
+  personsData24 = new Subscription.config('personsOlderThan24',
+      personsDataCol24, connection, communicator24, authorData24,
+      new IdGenerator(authorData24));
+
   Subscriber subscriber = new Subscriber(connection);
-
   subscriber.init().then((_) {
-    Subscription persons = subscriber.subscribe("persons");
-    Subscription personsOlderThan24 =
-        subscriber.subscribe("personsOlderThan24");
+    personsDiff = subscriber.subscribe("persons");
+    personsDiff24 = subscriber.subscribe("personsOlderThan24");
+    personsData.start();
+    personsData24.start();
 
-    persons.collection.onChange.listen((event) {
-      event.addedItems.forEach((person) {
-        UListElement list = querySelector('#list');
-        list.children.add(createListElement(person, persons));
-      });
-      event.removedItems.forEach((person) {
-        querySelector('#list > li._id-${person["_id"]}').remove();
-      });
-    });
+    Map<String, Subscription> map = {
+        '#list-diff': personsDiff,
+        '#list24-diff': personsDiff24,
+        '#list-data': personsData,
+        '#list24-data': personsData24,
+    };
 
-    personsOlderThan24.collection.onChange.listen((event) {
-      event.addedItems.forEach((person) {
-        UListElement list = querySelector('#list2');
-        list.children.add(createListElement(person, personsOlderThan24));
-      });
-      event.removedItems.forEach((person) {
-        querySelector('#list2 > li._id-${person["_id"]}').remove();
+    map.forEach((String sel, Subscription sub) {
+      sub.collection.onChange.listen((event) {
+        event.addedItems.forEach((person) {
+          UListElement list = querySelector(sel);
+          list.children.add(createListElement(person, sub));
+        });
+        event.removedItems.forEach((person) {
+          querySelector('$sel > li._id-${person["_id"]}').remove();
+        });
       });
     });
 
@@ -55,7 +75,7 @@ void main() {
       InputElement name = querySelector("#name");
       InputElement age = querySelector("#age");
 
-      persons.collection.add(new Data.from({
+      personsDiff.collection.add(new Data.from({
         "name" : name.value,
         "age" : int.parse(age.value)
       }));

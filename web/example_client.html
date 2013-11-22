@@ -9,17 +9,34 @@
   <body>
     <h1>Clean test</h1>
     
-    <input type="text" id="name" />
-    <input type="text" id="age" />
+    Name: <input type="text" id="name" />
+    Age: <input type="text" id="age" />
     <button id="send">add</button>
-    <ul id="list">
-      <li>Persons: </li>
-    </ul>
     
-    <ul id="list2">
-      <li>Persons 25+: </li>
-    </ul>
-    <script type="application/dart" src="example_client.dart"></script>
+    <table width="500">
+      <thead>
+        <th>Persons (data)</th>
+        <th>Persons (diff)</th>
+      </thead>
+      <tbody>
+        <tr>
+          <td><ul id="list-data"></ul></td>
+          <td><ul id="list-diff"></ul></td>
+        </tr>
+      </tbody>
+      <thead>
+        <th>Persons 25+ (data)</th>
+        <th>Persons 25+ (diff)</th>
+      </thead>
+      <tbody>
+        <tr>
+          <td><ul id="list24-data"></ul></td>
+          <td><ul id="list24-diff"></ul></td>
+        </tr>
+      </tbody>
+    </table>
+    
+        <script type="application/dart" src="example_client.dart"></script>
     <script src="packages/browser/dart.js"></script>
   </body>
 </html>
