@@ -8,11 +8,12 @@ class Communicator {
   Connection _connection;
   String _collectionName;
   Function _handleData, _handleDiff;
+  String _updateStyle;
   bool _stopped = true;
   num _version;
 
   Communicator(this._connection, this._collectionName, this._handleData,
-      this._handleDiff);
+      this._handleDiff, [this._updateStyle='diff']);
 
   void start() {
     _stopped = false;
@@ -25,7 +26,12 @@ class Communicator {
       _handleData(response['data']);
       print("Got initial data, synced to version ${_version}");
       if(!_stopped) {
-        _requestDiff();
+        if (_updateStyle == 'diff') {
+          _requestDiff();
+        }
+        if (_updateStyle == 'data') {
+          _requestData();
+        }
       }
     });
   }
@@ -36,6 +42,19 @@ class Communicator {
 
   void resume() {
     _requestDiff();
+  }
+
+  void _requestData() {
+    _connection.sendRequest(() => new ClientRequest("sync", {
+      "action" : "get_data",
+      "collection" : _collectionName
+    })).then((response) {
+      _version = response['version'];
+      _handleData(response['data']);
+      if(!_stopped) {
+        _requestData();
+      }
+    });
   }
 
   void _requestDiff() {

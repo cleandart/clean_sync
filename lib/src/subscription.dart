@@ -4,6 +4,50 @@
 
 part of clean_sync.client;
 
+void handleData(List<Map> data, DataCollection collection, String author) {
+  // TODO: use clean(author: _author instead)
+  var toDelete=[];
+  for (var d in collection) {
+    toDelete.add(d);
+  }
+  for (var d in toDelete) {
+    collection.remove(d, author: author);
+  }
+  for (Map record in data) {
+    collection.add(new Data.from(record), author : author);
+  }
+}
+
+void handleDiff(List<Map> diff, DataCollection collection, String author) {
+  diff.forEach((Map change) {
+    if (change["author"] != author) {
+      if (change["action"] == "add") {
+        collection.add(new Data.from(change["data"]), author: author);
+      }
+      else if (change["action"] == "change") {
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
+        if (record != null) {
+          record.addAll(change["data"], author: author);
+        }
+      }
+      else if (change["action"] == "remove") {
+        Data record = collection.firstWhere((d) => d["_id"] == change["_id"],
+            orElse: ()=>null);
+        if(record == null) {
+          var collectionMap = collection.toList().map((DataView d) => d.toJson());
+          throw new Exception(
+              'cannot find obj with id ${change["_id"]} in $collectionMap');
+        }
+        //TODO: can result be null?
+        if (record != null) {
+          collection.remove(record, author: author);
+        }
+      }
+    }
+    print("applying: ${change}");
+  });
+}
+
 class Subscription {
   String collectionName;
   DataCollection collection;
@@ -21,7 +65,8 @@ class Subscription {
       this._idGenerator, [this.args]) {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
-        this.handleData, this.handleDiff);
+        (List<Map> data) {handleData(data, collection, _author);},
+        (List<Map> diff) {handleDiff(diff, collection, _author);});
     start();
   }
 
@@ -79,47 +124,6 @@ class Subscription {
   void dispose() {
     _communicator.stop();
     _subscriptions.forEach((s) {s.cancel();});
-  }
-
-  void handleData(List<Map> data) {
-    // TODO: use clean(author: _author instead)
-    var toDelete=[];
-    for (var d in collection) {
-      toDelete.add(d);
-    }
-    for (var d in toDelete) {
-      collection.remove(d, author: _author);
-    }
-    for (Map record in data) {
-      this.collection.add(new Data.from(record), author : _author);
-    }
-  }
-
-  void handleDiff(List<Map> diff) {
-    diff.forEach((change) {
-      _applyChange(change);
-    });
-  }
-
-  void _applyChange(Map change) {
-    if (change["author"] != _author) {
-      if (change["action"] == "add") {
-        collection.add(new Data.from(change["data"]), author: _author);
-      }
-      else if (change["action"] == "change") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-        if (record != null) {
-          record.addAll(change["data"], author: _author);
-        }
-      }
-      else if (change["action"] == "remove") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-        if (record != null) {
-          collection.remove(record, author: _author);
-        }
-      }
-    }
-    print("applying: ${change}");
   }
 
   Stream onClose() {
