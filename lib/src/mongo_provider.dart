@@ -58,8 +58,7 @@ class MongoDatabase {
    * ascending/descending order (same as the map passed to mongo function
    * ensureIndex).
    */
-  void createIndex(String collectionName, Map keys, {unique: false})
-  {
+  void createIndex(String collectionName, Map keys, {unique: false}) {
     Map beforeKeys = {};
     Map afterKeys = {};
     keys.forEach((key, val) {
@@ -70,10 +69,10 @@ class MongoDatabase {
     afterKeys['version'] = 1;
     init.add(_conn.then((_) =>
         _db.createIndex(historyCollectionName(collectionName),
-            keys: beforeKeys, unique: unique)));
+            keys: beforeKeys)));
     init.add(_conn.then((_) =>
         _db.createIndex(historyCollectionName(collectionName),
-            keys: afterKeys, unique: unique)));
+            keys: afterKeys)));
     init.add(_conn.then((_) =>
         _db.createIndex(collectionName, keys: keys, unique: unique)));
   }
