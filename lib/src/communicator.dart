@@ -11,6 +11,7 @@ class Communicator {
   String _updateStyle;
   bool _stopped = true;
   num _version;
+  Completer _initialSync = new Completer();
 
   Communicator(this._connection, this._collectionName, this._handleData,
       this._handleDiff, [this._updateStyle='diff']);
@@ -25,6 +26,8 @@ class Communicator {
       _version = response['version'];
       _handleData(response['data']);
       print("Got initial data, synced to version ${_version}");
+      if (!_initialSync.isCompleted)
+        _initialSync.complete();
       if(!_stopped) {
         if (_updateStyle == 'diff') {
           _requestDiff();

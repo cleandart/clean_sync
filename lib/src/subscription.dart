@@ -56,6 +56,8 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
+
+
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
@@ -115,6 +117,8 @@ class Subscription {
       }
     }));
   }
+
+  Future initialSync() => _communicator._initialSync.future;
 
   void start() {
     _setupListeners();
