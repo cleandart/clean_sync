@@ -56,7 +56,7 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
-
+  Future get initialSync => _communicator._initialSync.future;
 
   List<StreamSubscription> _subscriptions = [];
 
@@ -117,8 +117,6 @@ class Subscription {
       }
     }));
   }
-
-  Future initialSync() => _communicator._initialSync.future;
 
   void start() {
     _setupListeners();
