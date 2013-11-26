@@ -3,7 +3,7 @@ import 'package:clean_backend/clean_backend.dart';
 import 'dart:async';
 import 'package:clean_ajax/server.dart';
 import 'package:crypto/crypto.dart';
-
+import 'package:clean_router/common.dart';
 
 
 void main() {
@@ -26,11 +26,12 @@ void main() {
       //return mongodb.collection("persons").find({"age" : null});
    });
     Backend.bind([], new SHA256()).then((backend) {
+      backend.router.addRoute("static", new Route('/static/*'));
+      backend.router.addRoute("resources", new Route('/resources/'));
       MultiRequestHandler requestHandler = new MultiRequestHandler();
       requestHandler.registerDefaultHandler(handleSyncRequest);
-      backend.addDefaultHttpHeader('Access-Control-Allow-Origin','*');
-      backend.addView(r'/resources', requestHandler.handleHttpRequest);
-      backend.addStaticView(new RegExp(r'/.*'), '../web/');
+      backend.addStaticView('static', '../web/');
+      backend.addView('resources', requestHandler.handleHttpRequest);
     });
   });
 }
