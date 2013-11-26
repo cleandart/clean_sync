@@ -21,17 +21,24 @@ class Subscriber {
   final _createSubscription;
 
   Subscriber.config(this._connection, this._dataIdGenerator,
-           this._subscriptionIdGenerator, this._createSubscription);
+           this._subscriptionIdGenerator, this._createSubscription, [this._idPrefix = null]);
 
-  Subscriber(this._connection)
+  Subscriber(this._connection, {idPrefix: null})
       : _dataIdGenerator = new IdGenerator(),
         _subscriptionIdGenerator = new IdGenerator(),
-        _createSubscription = _defaultSubscriptionFactory;
+        _createSubscription = _defaultSubscriptionFactory,
+        _idPrefix = idPrefix;
 
   Future init() {
-    return _connection.sendRequest(
-        () => new ClientRequest("sync", {"action" : "get_id_prefix"}))
-      .then((response) {
+    Future getPrefixId;
+    if (_idPrefix == null) {
+      getPrefixId = _connection.sendRequest(
+          () => new ClientRequest("sync", {"action" : "get_id_prefix"}));
+    } else {
+      getPrefixId = new Future.value({'id_prefix': _idPrefix});
+    }
+    return
+        getPrefixId.then((response) {
         _idPrefix = response['id_prefix'];
         _subscriptionIdGenerator.prefix = _idPrefix;
         _dataIdGenerator.prefix = _idPrefix;
