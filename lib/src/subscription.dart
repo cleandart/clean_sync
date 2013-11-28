@@ -128,6 +128,11 @@ class Subscription {
     _subscriptions.forEach((s) {s.cancel();});
   }
 
+  void restart() {
+    dispose();
+    start();
+  }
+
   Stream onClose() {
 
   }
