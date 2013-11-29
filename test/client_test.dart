@@ -300,22 +300,22 @@ void main() {
         handleData, handleDiff, 'diff');
     Communicator dataCommunicator = new Communicator(connection, 'months',
         handleData, handleDiff, 'data');
-    Map response_data, response_diff, empty_diff;
+    Map data, diff, emptyDiff;
 
     setUp(() {
       connection = new ConnectionMock();
       handleData = new FunctionMock();
       handleDiff = new FunctionMock();
-      response_data = {'data': 'some_data', 'version': 12};
-      response_diff = {'diff': [{'version': 13}, {'version': 14}]};
-      empty_diff = {'diff': []};
+      data = {'data': 'some_data', 'version': 12};
+      diff = {'diff': [{'version': 13}, {'version': 14}]};
+      emptyDiff = {'diff': []};
     });
 
     test("get_data sent after start.", () {
       // given
       connection.when(callsTo('sendRequest')).thenCall((_) {
         defaultCommunicator.stop();
-        return new Future.value(response_data);
+        return new Future.value(data);
       });
       handleData = new FunctionMock();
       defaultCommunicator = new Communicator(connection, 'months', handleData,
@@ -335,7 +335,7 @@ void main() {
       // given
       connection.when(callsTo('sendRequest')).thenCall((_) {
         defaultCommunicator.stop();
-        return new Future.value(response_data);
+        return new Future.value(data);
       });
       defaultCommunicator = new Communicator(connection, 'months', handleData,
           handleDiff);
@@ -353,10 +353,10 @@ void main() {
     test("get_diff sent with proper version number.", () {
       // given
       connection.when(callsTo('sendRequest')).thenCall((_) {
-        return new Future.value(response_data);
+        return new Future.value(data);
       }).thenCall((_) {
         defaultCommunicator.stop();
-        return new Future.value(empty_diff);
+        return new Future.value(emptyDiff);
       });
       defaultCommunicator = new Communicator(connection, 'months', handleData,
           handleDiff);
@@ -376,10 +376,10 @@ void main() {
     test("handleDiff called properly.", () {
       // given
       connection.when(callsTo('sendRequest')).thenCall((_) {
-        return new Future.value(response_data);
+        return new Future.value(data);
       }).thenCall((_) {
         defaultCommunicator.stop();
-        return new Future.value(response_diff);
+        return new Future.value(diff);
       });
       defaultCommunicator = new Communicator(connection, 'months', handleData,
           handleDiff);
