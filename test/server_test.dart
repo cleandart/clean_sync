@@ -187,6 +187,5 @@ void main() {
       //then
       expect(prefix1 == prefix2, isFalse);
     });
-
   });
 }

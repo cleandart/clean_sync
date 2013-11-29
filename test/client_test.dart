@@ -14,6 +14,7 @@ import 'dart:async';
 class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 class CommunicatorMock extends Mock implements Communicator {}
+class FunctionMock extends Mock implements Function {}
 
 void main() {
   group("Subscriber", () {
@@ -285,6 +286,112 @@ void main() {
       // then
       communicator.getLogs(callsTo('stop')).verify(happenedOnce);
       expect(listenersAreOn(), isFalse);
+    });
+  });
+
+
+
+  group("Communicator", () {
+    ConnectionMock connection;
+    FunctionMock handleData;
+    FunctionMock handleDiff;
+    Communicator defaultCommunicator;
+    Communicator diffCommunicator = new Communicator(connection, 'months',
+        handleData, handleDiff, 'diff');
+    Communicator dataCommunicator = new Communicator(connection, 'months',
+        handleData, handleDiff, 'data');
+    Map response_data, response_diff, empty_diff;
+
+    setUp(() {
+      connection = new ConnectionMock();
+      handleData = new FunctionMock();
+      handleDiff = new FunctionMock();
+      response_data = {'data': 'some_data', 'version': 12};
+      response_diff = {'diff': [{'version': 13}, {'version': 14}]};
+      empty_diff = {'diff': []};
+    });
+
+    test("get_data sent after start.", () {
+      // given
+      connection.when(callsTo('sendRequest')).thenCall((_) {
+        defaultCommunicator.stop();
+        return new Future.value(response_data);
+      });
+      handleData = new FunctionMock();
+      defaultCommunicator = new Communicator(connection, 'months', handleData,
+          handleDiff);
+
+      // when
+      defaultCommunicator.start();
+
+      // then
+      var request = connection.getLogs().first.args.first();
+      expect(request.type, equals('sync'));
+      expect(request.args, equals({'action': 'get_data',
+        'collection': 'months'}));
+    });
+
+    test("handleData called properly.", () {
+      // given
+      connection.when(callsTo('sendRequest')).thenCall((_) {
+        defaultCommunicator.stop();
+        return new Future.value(response_data);
+      });
+      defaultCommunicator = new Communicator(connection, 'months', handleData,
+          handleDiff);
+
+      // when
+      defaultCommunicator.start();
+
+      // then
+      return new Future.delayed(new Duration(milliseconds: 100), () {
+        expect(handleData.getLogs(callsTo('call')).first.args.first,
+            equals('some_data'));
+      });
+    });
+
+    test("get_diff sent with proper version number.", () {
+      // given
+      connection.when(callsTo('sendRequest')).thenCall((_) {
+        return new Future.value(response_data);
+      }).thenCall((_) {
+        defaultCommunicator.stop();
+        return new Future.value(empty_diff);
+      });
+      defaultCommunicator = new Communicator(connection, 'months', handleData,
+          handleDiff);
+
+      // when
+      defaultCommunicator.start();
+
+      // then
+      return new Future.delayed(new Duration(milliseconds: 100), () {
+        var diffRequest = connection.getLogs().last.args.first();
+        expect(diffRequest.type, equals('sync'));
+        expect(diffRequest.args, equals({'action': 'get_diff',
+          'collection': 'months', 'version': 12}));
+      });
+    });
+
+    test("handleDiff called properly.", () {
+      // given
+      connection.when(callsTo('sendRequest')).thenCall((_) {
+        return new Future.value(response_data);
+      }).thenCall((_) {
+        defaultCommunicator.stop();
+        return new Future.value(response_diff);
+      });
+      defaultCommunicator = new Communicator(connection, 'months', handleData,
+          handleDiff);
+
+      // when
+      defaultCommunicator.start();
+
+      // then
+      return new Future.delayed(new Duration(milliseconds: 100), () {
+        expect(handleDiff.getLogs(callsTo('call')).first.args.first,
+            equals([{'version': 13}, {'version': 14}]));
+      });
     });
   });
 }
