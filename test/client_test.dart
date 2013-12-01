@@ -112,6 +112,28 @@ void main() {
     CommunicatorMock communicator;
     DataCollection collection;
 
+    Function listenersAreOn = () {
+      january = new Data.from({'name': 'January', 'order': 1});
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
+      months.collection.add(january);
+      bool onBeforeAddIsOn = months.collection.first['_id'] == ('prefix-123');
+      bool onBeforeChangeIsOn;
+      var sendRequestCall = connection.getLogs().last;
+      if(sendRequestCall == null) {
+        onBeforeChangeIsOn = false;
+      } else {
+        var request = connection.getLogs().last.args[0]();
+        onBeforeChangeIsOn = request.args['data']['_id'] == 'prefix-123';
+      }
+      if(onBeforeAddIsOn && onBeforeChangeIsOn) {
+        return true;
+      } else if (!onBeforeAddIsOn && !onBeforeChangeIsOn) {
+        return false;
+      } else {
+        throw new Exception('Inconsistent state of listeners!');
+      }
+    };
+
     setUp(() {
       connection = new ConnectionMock();
       idGenerator = new IdGeneratorMock();
@@ -243,5 +265,45 @@ void main() {
                                    "_id": "12", "author": "author"}));
     });
 
+    test("start.", () {
+      // given
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
+
+      // when
+      months.start();
+
+      // then
+      communicator.getLogs(callsTo('start')).verify(happenedOnce);
+      expect(listenersAreOn(), isTrue);
+    });
+
+    test("restart.", () {
+      // given
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
+
+      // when
+      months.restart();
+
+      // then
+      communicator.getLogs(callsTo('stop')).verify(happenedOnce);
+      communicator.getLogs(callsTo('start')).verify(happenedOnce);
+      expect(communicator.getLogs().last.methodName, equals('start'));
+      expect(listenersAreOn(), isTrue);
+    });
+
+    test("dispose.", () {
+      // given
+      months = new Subscription.config('months', collection, connection,
+          communicator, 'author', idGenerator);
+
+      // when
+      months.dispose();
+
+      // then
+      communicator.getLogs(callsTo('stop')).verify(happenedOnce);
+      expect(listenersAreOn(), isFalse);
+    });
   });
 }
