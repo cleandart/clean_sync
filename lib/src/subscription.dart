@@ -4,6 +4,43 @@
 
 part of clean_sync.client;
 
+num _defaultCompare(a, b) {
+  return a.compareTo(b);  
+}
+
+_getCompareFunction(bool reverse) {
+  if (reverse) {
+    return (a, b) => -1 * _defaultCompare(a, b);
+  }
+  
+  return _defaultCompare;
+}
+
+_sortBy(Map sortParams) {
+  List<Map> fields = [];
+  
+  sortParams.forEach((field, order) {
+    fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
+  });
+  
+  return (a, b) {
+    String name;
+    num result = 0;
+    
+    for (Map field in fields) {
+      name = field["name"];
+      
+      result = field["comparator"](a[name], b[name]);
+      
+      if (result != 0) {
+        break;
+      }
+    }
+    
+    return result;
+  };
+}
+
 void handleData(List<Map> data, DataCollection collection, String author) {
   // TODO: use clean(author: _author instead)
   var toDelete=[];
@@ -18,7 +55,9 @@ void handleData(List<Map> data, DataCollection collection, String author) {
   }
 }
 
-void handleDiff(List<Map> diff, DataCollection collection, String author) {
+void handleDiff(List<Map> diff, Map sortParams, DataCollection collection, String author) {
+  print(diff);
+  print(sortParams);
   diff.forEach((Map change) {
     if (change["author"] != author) {
       if (change["action"] == "add") {
@@ -46,6 +85,10 @@ void handleDiff(List<Map> diff, DataCollection collection, String author) {
     }
     print("applying: ${change}");
   });
+  
+  if (!sortParams.isEmpty) {
+    // TODO: sort the data
+  }
 }
 
 class Subscription {
@@ -68,7 +111,7 @@ class Subscription {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
         (List<Map> data) {handleData(data, collection, _author);},
-        (List<Map> diff) {handleDiff(diff, collection, _author);});
+        (List<Map> diff, Map sortParams) {handleDiff(diff, sortParams, collection, _author);});
     start();
   }
 

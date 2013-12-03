@@ -24,12 +24,34 @@ const String LT = "\$lt";
 const String ORDERBY = "\$orderby";
 const String OR = "\$or";
 const String AND = "\$and";
+const num ASC = 1;
+const num DESC = -1;
+const num NOLIMIT = 0;
 
 const String VERSION_FIELD_NAME = '__clean_version';
 const String LOCK_COLLECTION_NAME = '__clean_lock';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
+/**
+ * TODO: this function should be tidied up to some utilities class
+ * Creates a new Map out of the given [map] preserving only keys
+ * specified in [keys]
+ * [map] is the Map to be sliced
+ * [keys] is a list of keys to be preserved
+ */
+Map slice(Map map, List keys) {
+  Map result = {};
+  
+  keys.forEach((key) {
+    if (map.containsKey(key)) {
+      result[key] = map[key];
+    }
+  });
+  
+  return result;
+}
+  
 class MongoDatabase {
   Db _db;
   Future _conn;
@@ -97,28 +119,51 @@ class MongoDatabase {
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
   List<Map> _selectorList = [];
+  Map _sortParams = {};
+  num _limit = NOLIMIT;
 
   Future<int> get _maxVersion => _collectionHistory.count();
-
+  Map get _rawSelector => {QUERY: _selectorList.isEmpty ? {} : {AND: _selectorList}, ORDERBY: _sortParams};
+  
   MongoProvider(this.collection, this._collectionHistory, this._lock);
 
+  void _copySelection(MongoProvider mp) {
+    this._sortParams = new Map.from(mp._sortParams);
+    this._selectorList = new List.from(mp._selectorList);
+    this._limit = mp._limit;
+  }
+  
   MongoProvider find(Map params) {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
-    mp._selectorList = new List.from(this._selectorList);
+    mp._copySelection(this);
     mp._selectorList.add(params);
     return mp;
   }
 
+  MongoProvider sort(Map params) {
+    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    mp._copySelection(this);
+    mp._sortParams.addAll(params);
+    return mp;    
+  }
+
+  MongoProvider limit(num value) {
+    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    mp._copySelection(this);
+    mp._limit = value;
+    return mp;    
+  }
+  
   /**
    * Returns data and version of this data.
    */
   Future<Map> data() {
-    Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
-    print(selector);
-    return collection.find(selector).toList().then((data) {
-      var version = data.length == 0 ? 0 :
-        data.map((item) => item['__clean_version']).reduce(max);
-      return {'data': data, 'version': version};
+    //TODO: query from two collections without locking, unsafe
+    return collection.find(where.raw(_rawSelector).limit(_limit)).toList().then((data) {
+      return _maxVersion.then((version) => {'data': data, 'version': version});
+//      var version = data.length == 0 ? 0 :
+//        data.map((item) => item['__clean_version']).reduce(max);
+//      return {'data': data, 'version': version};
     });
   }
 
@@ -218,7 +263,7 @@ class MongoProvider implements DataProvider {
 
   Future<Map> diffFromVersion(num version) {
     try{
-      return _diffFromVersion(version).then((d) => {'diff': d});
+      return _diffFromVersion(version).then((d) => {'diff': d, 'sort' : _sortParams});
     } on DiffNotPossibleException catch(e) {
       return data().then((d) {
         d['diff'] = null;
@@ -276,6 +321,7 @@ class MongoProvider implements DataProvider {
               diff.add({
                 "action" : "change",
                 "_id" : record["before"]["_id"],
+                "before" : record["before"],
                 "data" : record["change"],
                 "version" : record["version"],
                 "author" : record["author"],
@@ -285,6 +331,7 @@ class MongoProvider implements DataProvider {
               diff.add({
                 "action" : "remove",
                 "_id" : record["before"]["_id"],
+                "data" : record["before"],
                 "version" : record["version"],
                 "author" : record["author"],
               });
@@ -299,8 +346,153 @@ class MongoProvider implements DataProvider {
               });
             }
           });
+          
+          if (_limit > NOLIMIT) {
+            return _limitedDiffFromVersion(diff);
+          }
+          
           return diff;
       });
+  }
+  
+  num _defaultCompare(a, b) {
+    return a.compareTo(b);  
+  }
+
+  _getCompareFunction(bool reverse) {
+    if (reverse) {
+      return (a, b) => -1 * _defaultCompare(a, b);
+    }
+    
+    return _defaultCompare;
+  }
+  
+  _sortBy(Map sortParams) {
+    List<Map> fields = [];
+    
+    sortParams.forEach((field, order) {
+      fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
+    });
+    
+    return (a, b) {
+      String name;
+      num result = 0;
+      
+      for (Map field in fields) {
+        name = field["name"];
+        
+        result = field["comparator"](a[name], b[name]);
+        
+        if (result != 0) {
+          break;
+        }
+      }
+      
+      return result;
+    };
+  }
+  
+  void _insertIntoSorted(List<Map> data, Map record, Map sortParams) {
+    data.add(record);
+    data.sort(_sortBy(sortParams));
+  }
+  
+  Future<List<Map>> _limitedDiffFromVersion(List<Map> diff) {
+    return collection.find(where.raw(_rawSelector).limit(_limit + diff.length)).toList().then((data) {
+      
+      List<Map> reversedDiff = diff.reversed.toList();
+      List<Map> clientData = new List.from(data);
+      List<Map> clientDiff = [];
+      num maxVersion = reversedDiff.isEmpty ? 0 : reversedDiff[0]["version"];
+      String defaultAuthor = "_clean_";
+      
+      print("limited diff");
+      print(data);
+      print(reversedDiff);
+      
+      reversedDiff.forEach((Map change) {
+        if (change["action"] == "add") {
+          clientData.removeWhere((d) => d["_id"] == change["_id"]);
+        }
+        else if (change["action"] == "remove") {
+          _insertIntoSorted(clientData, change["data"], _sortParams);
+        }
+        else if (change["action"] == "change") {
+          Map record = clientData.firstWhere((d) => d["_id"] == change["_id"]);
+          
+          if (record == null) {
+            //TODO: the record should be certainly in clientData, throw some nice exception here
+          }
+          
+          record.addAll(slice(change["before"], change["data"].keys.toList()));
+          clientData.sort(_sortBy(_sortParams));
+          
+          if (!record.containsKey("_metadata")) {
+            record["_metadata"] = {};
+          }
+          
+          change["data"].forEach((name, value) {
+            if (!record["_metadata"].containsKey(name)) {
+              record["_metadata"][name] = value;
+            }
+          });
+          
+        }
+      });
+      
+      if (clientData.length > _limit) {
+        clientData.length = _limit;
+      }
+      
+      print("data after change:");
+      print(clientData);
+      
+      Set clientDataSet = new Set.from(clientData.map((d) => d['_id']));
+      Set dataSet = new Set.from(data.map((d) => d['_id']));
+
+      // as these diffs are generated from two data views (not fetched from 
+      // the DB), there is no way to tell the version nor author. These diffs
+      // have to be applied alltogether or not at all
+      
+      clientData.forEach((Map clientRecord) {
+        if (dataSet.contains(clientRecord["_id"])) {
+          if (clientRecord.containsKey("_metadata")) {
+            clientDiff.add({
+              "action" : "change",
+              "_id" : clientRecord["_id"],
+              "data" : clientRecord["_metadata"],
+              "version" : maxVersion,
+              "author" : defaultAuthor,
+            });
+          }
+        }
+        else {
+          // data does not contain the clientRecord thus it needs to be removed
+          clientDiff.add({
+            "action" : "remove",
+            "_id" : clientRecord["_id"],
+            "version" : maxVersion,
+            "author" : defaultAuthor,
+          });
+        }
+      });
+      
+      data.forEach((Map record) {
+        if (!clientDataSet.contains(record["_id"])) {
+          clientDiff.add({
+            "action" : "add",
+            "_id" : record["_id"],
+            "data" : record,
+            "version" : maxVersion,
+            "author" : defaultAuthor,
+          });          
+        }
+      });
+      
+      print(clientDiff);
+      
+      return clientDiff;
+    });
   }
 
   Future _get_locks() {

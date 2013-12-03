@@ -74,11 +74,11 @@ class Communicator {
           if(!response['diff'].isEmpty) {
             _version = response['diff'].map((item) => item['version'])
                 .reduce(max);
-            _handleDiff(response['diff']);
+            _handleDiff(response['diff'], response['sort']);
           }
         }
         if(!_stopped){
-          _requestDiff();
+          new Timer(new Duration(seconds: 5), _requestDiff);
         }
       });
   }
