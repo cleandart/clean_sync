@@ -76,3 +76,7 @@ bool isPublished(String collection) {
 Future handleSyncRequest(request) {
   return PUBLISHER.handleSyncRequest(request);
 }
+
+String getIdPrefix() {
+  return PUBLISHER.getIdPrefix();
+}
