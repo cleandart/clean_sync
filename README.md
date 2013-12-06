@@ -1,8 +1,3 @@
-Server – client synchronization for web applications
-=====================================================
-
-[![Build Status](https://drone.io/github.com/cleandart/clean_sync/status.png)](https://drone.io/github.com/cleandart/clean_sync/latest)
-
 Who likes boilerplate code?
 -----------------------------
 
@@ -61,4 +56,4 @@ How does it work?
 
 Short version: MongoDB and Dart.
 
-Long version: Check the [wiki](https://github.com/cleandart/clean_sync/wiki)!
+Long version: Check the [technological background](https://github.com/cleandart/clean_sync/wiki/Technological-background).
