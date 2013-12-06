@@ -61,4 +61,4 @@ How does it work?
 
 Short version: MongoDB and Dart.
 
-Long version: Check the [wiki](wiki https://github.com/cleandart/clean_sync/wiki)!
+Long version: Check the [wiki](https://github.com/cleandart/clean_sync/wiki)!
