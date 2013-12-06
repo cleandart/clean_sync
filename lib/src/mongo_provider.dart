@@ -84,6 +84,14 @@ class MongoDatabase {
     var mp = new MongoProvider(collection, collectionHistory, _lock);
     return mp;
   }
+
+  Future dropCollection(String collectionName) =>
+    Future.wait([
+      _db.collection(collectionName).drop(),
+      _db.collection(historyCollectionName(collectionName)).drop()
+    ]);
+
+  Future removeLocks() => _lock.drop();
 }
 
 class MongoProvider implements DataProvider {
