@@ -45,3 +45,20 @@ user["email"] = "john.doe@example.com";
 ```
 
 That is it!
+
+Can I use it now?
+------------------
+
+The project is in its early stage, still not feature complete nor bug free. It will take us few months to deliver first stable version. But stay in touch and we will notify you when the preview comes out. Just send us an email to clean@vacuumlabs.com.
+
+Can I help?
+------------
+
+Definitely. We are looking for bright people that likes the idea and can help to polish it, improve it and work with us on it. We are definitely looking for new member of clean team! Just send us an email to clean@vacuumlabs.com.
+
+How does it work?
+------------------
+
+Short version: MongoDB and Dart.
+
+Long version: Check the [wiki](wiki https://github.com/cleandart/clean_sync/wiki)!
