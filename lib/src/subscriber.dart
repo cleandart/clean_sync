@@ -14,6 +14,10 @@ class MissingIdPrefixException implements Exception {
    String toString() => msg == null ? 'DiffNotPossible' : msg;
 }
 
+/**
+ * A control object responsible for managing subscription to server published
+ * collections.
+ */
 class Subscriber {
   Connection _connection;
   String _idPrefix = null;
@@ -21,29 +25,27 @@ class Subscriber {
   final _createSubscription;
 
   Subscriber.config(this._connection, this._dataIdGenerator,
-           this._subscriptionIdGenerator, this._createSubscription, [this._idPrefix = null]);
+           this._subscriptionIdGenerator, this._createSubscription);
 
-  Subscriber(this._connection, {idPrefix: null})
+  Subscriber(this._connection)
       : _dataIdGenerator = new IdGenerator(),
         _subscriptionIdGenerator = new IdGenerator(),
-        _createSubscription = _defaultSubscriptionFactory,
-        _idPrefix = idPrefix;
+        _createSubscription = _defaultSubscriptionFactory;
 
-  Future init() {
-    Future getPrefixId;
-    if (_idPrefix == null) {
-      getPrefixId = _connection.sendRequest(
-          () => new ClientRequest("sync", {"action" : "get_id_prefix"}));
-    } else {
-      getPrefixId = new Future.value({'id_prefix': _idPrefix});
-    }
-    return
-        getPrefixId.then((response) {
-        _idPrefix = response['id_prefix'];
-        _subscriptionIdGenerator.prefix = _idPrefix;
-        _dataIdGenerator.prefix = _idPrefix;
-        return true;
-      });
+  Future _loadIdPrefix() =>_connection.sendRequest(
+        () => new ClientRequest("sync", {"action" : "get_id_prefix"})
+    ).then((response) => response['id_prefix']);
+
+  Future init([idPrefix = null]) {
+    idPrefix = (idPrefix == null) ?
+        _loadIdPrefix() :
+        new Future.value(idPrefix);
+
+    return idPrefix.then((prefix) {
+      _idPrefix = prefix;
+      _subscriptionIdGenerator.prefix = prefix;
+      _dataIdGenerator.prefix = prefix;
+    });
   }
 
   Subscription subscribe(String collectionName, [Map args]) {

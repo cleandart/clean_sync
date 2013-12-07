@@ -34,8 +34,8 @@ void main() {
 
     test('id negotiation.', () {
       // given
-      subscriber = new Subscriber.config(connection, subscriptionIdGenerator,
-          dataIdGenerator, null);
+      subscriber = new Subscriber.config(connection, dataIdGenerator,
+          subscriptionIdGenerator, null);
 
       // when
       var future = subscriber.init();
@@ -51,6 +51,25 @@ void main() {
             .getLogs(callsTo('set prefix', 'prefix')).verify(happenedOnce);
         dataIdGenerator
             .getLogs(callsTo('set prefix', 'prefix')).verify(happenedOnce);
+      });
+    });
+
+    test('obtain prefix from init method argument.', () {
+      // given
+      subscriber = new Subscriber.config(connection, dataIdGenerator,
+          subscriptionIdGenerator, null);
+
+      // when
+      var future = subscriber.init("custom prefix");
+
+      // then
+      return future.then((_) {
+        connection.getLogs().verify(neverHappened);
+        print(dataIdGenerator.getLogs());
+        subscriptionIdGenerator.getLogs(callsTo('set prefix', 'custom prefix'))
+            .verify(happenedOnce);
+        dataIdGenerator.getLogs(callsTo('set prefix', 'custom prefix'))
+            .verify(happenedOnce);
       });
     });
 
@@ -84,24 +103,6 @@ void main() {
       });
     });
 
-    test('subscribe when _id_prefix was given in constructor.', () {
-      // given
-      Map args = {'key1': 'val1'};
-      subscriptionIdGenerator.when(callsTo('next')).alwaysReturn('prefix-bad');
-
-      subscriber = new Subscriber.config(connection, dataIdGenerator,
-          subscriptionIdGenerator, subscriptionFactory, 'prefix-good');
-
-      // when
-      var future = subscriber.init().then((_) {
-        subscriber.subscribe("months", args);
-      });
-
-      //then
-      return future.then((_) {
-        subscriptionIdGenerator.getLogs(callsTo('set prefix', 'prefix-good')).verify(happenedOnce);
-      });
-    });
   });
 
 

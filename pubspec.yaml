@@ -1,5 +1,5 @@
 name: clean_sync
-version: 0.1.0
+version: 0.2.0
 author: Clean Team <clean@vacuumlabs.com>
 description: Library for automatic client server synchronization of data.
 homepage: http://cleandart.github.io/clean_sync/
@@ -11,6 +11,7 @@ dependencies:
     git: https://github.com/cleandart/clean_ajax
   clean_data:
     git: https://github.com/cleandart/clean_data
+  logging: any
   mongo_dart: any
   unittest: any
 dev_dependencies:
