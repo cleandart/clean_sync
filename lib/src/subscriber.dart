@@ -8,15 +8,19 @@ final _defaultSubscriptionFactory =
     (collectionName, connection, author, idGenerator, args) =>
         new Subscription(collectionName, connection, author, idGenerator, args);
 
-class MissingIdPrefixException implements Exception {
-   final String msg;
-   const MissingIdPrefixException([this.msg]);
-   String toString() => msg == null ? 'DiffNotPossible' : msg;
-}
-
 /**
  * A control object responsible for managing subscription to server published
  * collections.
+ *
+ * ## Example
+ *
+ * Create simple Subscriber and subscribe to collection of users.
+ *
+ *      var subscriber = new Subscriber(connection);
+ *      subscriber.init().then((value) {
+ *        var usersSubscription = subscriber.subscribe("users", {"olderThan": 18});
+ *        useUsers(usersSubscription.collection);
+ *      });
  */
 class Subscriber {
   Connection _connection;
@@ -24,18 +28,34 @@ class Subscriber {
   final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
   final _createSubscription;
 
+  /**
+   * Dependency injection constructor used mainly in tests.
+   */
   Subscriber.config(this._connection, this._dataIdGenerator,
            this._subscriptionIdGenerator, this._createSubscription);
 
-  Subscriber(this._connection)
-      : _dataIdGenerator = new IdGenerator(),
-        _subscriptionIdGenerator = new IdGenerator(),
-        _createSubscription = _defaultSubscriptionFactory;
+
+  /**
+   * Creates new instance communicating with server using the [connection].
+   */
+  Subscriber(connection) : this.config(connection, new IdGenerator(),
+      new IdGenerator(), _defaultSubscriptionFactory);
 
   Future _loadIdPrefix() =>_connection.sendRequest(
         () => new ClientRequest("sync", {"action" : "get_id_prefix"})
     ).then((response) => response['id_prefix']);
 
+  /**
+   * Initialize the subscriber. Using [Subscriber] without proper initialization
+   * results in [StateError].
+   *
+   * The method's purpose is to set an unique [idPrefix] that can be used in
+   * '_id' generation in the client code. If the [init] is called without the
+   * [idPrefix], it is requested from the server.
+   *
+   * This method returns the [Future] that completes when the [idPrefix] is
+   * obtained and set.
+   */
   Future init([idPrefix = null]) {
     idPrefix = (idPrefix == null) ?
         _loadIdPrefix() :
@@ -48,10 +68,24 @@ class Subscriber {
     });
   }
 
+  /**
+   * Subscribe to [collectionName] published on server. Subscriber must be
+   * properly initialized with [init] method before calling [subscribe].
+   *
+   * Create new [Subscription] to published collection using its
+   * [collectionName] and optionally [args]. Data in subscribed collection is
+   * keeped in sync between the server and the client with no interaction
+   * needed from the user.
+   *
+   * It is also possible to create multiple independend subscriptions with same
+   * [collectionName] and/or [args]. This can be useful when subscribing to
+   * really big collection and want to request only a portion of data specified
+   * by [args].
+   */
   Subscription subscribe(String collectionName, [Map args]) {
     if(_idPrefix == null) {
-      throw new MissingIdPrefixException(
-          "init() has to be called and completed first.");
+      throw new StateError("Subscriber can not be used before the Future"
+          " returned by 'init' method has completed.");
     }
     String author = _subscriptionIdGenerator.next();
     var subscription = _createSubscription(collectionName, _connection, author,

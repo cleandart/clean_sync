@@ -103,6 +103,20 @@ void main() {
       });
     });
 
+    test('subscribe without proper initialization.', () {
+      // given
+      subscriber = new Subscriber.config(connection, subscriptionIdGenerator,
+          dataIdGenerator, subscriptionFactory);
+
+      // when
+      var when = () {
+        subscriber.subscribe("collection");
+      };
+
+      // then
+      expect(when, throwsStateError);
+    });
+
   });
 
 
