@@ -1,5 +1,11 @@
 name: clean_sync
-description: Part of the clean framework that handles server-client synchronization.
+version: 0.1.0
+author: Clean Team <clean@vacuumlabs.com>
+description: Library for automatic client server synchronization of data.
+homepage: http://cleandart.github.io/clean_sync/
+documentation: http://cleandart.github.io/clean_sync/
+environment:
+  sdk: '>=0.8.10+6 <2.0.0'
 dependencies:
   clean_ajax:
     git: https://github.com/cleandart/clean_ajax
@@ -10,3 +16,4 @@ dependencies:
 dev_dependencies:
   clean_backend:
     git: https://github.com/cleandart/clean_backend
+  hop: any

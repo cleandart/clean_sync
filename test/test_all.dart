@@ -7,7 +7,15 @@ import 'server_test.dart' as server_test;
 import 'client_test.dart' as client_test;
 import 'id_generator_test.dart' as id_generator_test;
 
+import 'package:unittest/unittest.dart';
+import 'package:unittest/vm_config.dart';
+
 main() {
+  run(new VMConfiguration());
+}
+
+run(configuration) {
+  unittestConfiguration = configuration;
 
   server_test.main();
   client_test.main();
