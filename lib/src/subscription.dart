@@ -4,43 +4,6 @@
 
 part of clean_sync.client;
 
-num _defaultCompare(a, b) {
-  return a.compareTo(b);  
-}
-
-_getCompareFunction(bool reverse) {
-  if (reverse) {
-    return (a, b) => -1 * _defaultCompare(a, b);
-  }
-  
-  return _defaultCompare;
-}
-
-_sortBy(Map sortParams) {
-  List<Map> fields = [];
-  
-  sortParams.forEach((field, order) {
-    fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
-  });
-  
-  return (a, b) {
-    String name;
-    num result = 0;
-    
-    for (Map field in fields) {
-      name = field["name"];
-      
-      result = field["comparator"](a[name], b[name]);
-      
-      if (result != 0) {
-        break;
-      }
-    }
-    
-    return result;
-  };
-}
-
 void handleData(List<Map> data, DataCollection collection, String author) {
   // TODO: use clean(author: _author instead)
   var toDelete=[];
@@ -55,40 +18,35 @@ void handleData(List<Map> data, DataCollection collection, String author) {
   }
 }
 
-void handleDiff(List<Map> diff, Map sortParams, DataCollection collection, String author) {
+void handleDiff(List<Map> diff, Subscription subscription, String author) {
   print(diff);
-  print(sortParams);
+  DataCollection collection = subscription.collection;
+  Set<String> modifiedFields;
+  
   diff.forEach((Map change) {
-    if (change["author"] != author) {
-      if (change["action"] == "add") {
+    if (change["action"] == "add") {
+      Data record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record == null) {
         collection.add(new Data.from(change["data"]), author: author);
       }
-      else if (change["action"] == "change") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-        if (record != null) {
-          record.addAll(change["data"], author: author);
-        }
+    }
+    else if (change["action"] == "change" && change["author"] != author) {
+      Data record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record != null) {
+        modifiedFields = subscription.modifiedFieldsOfData(record);
+        
+        change["data"].forEach((String key, dynamic value) {
+          if (!modifiedFields.contains(key)) {
+            record.add(key, value, author: author);
+          }
+        });
       }
-      else if (change["action"] == "remove") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"],
-            orElse: ()=>null);
-        if(record == null) {
-          var collectionMap = collection.toList().map((DataView d) => d.toJson());
-          throw new Exception(
-              'cannot find obj with id ${change["_id"]} in $collectionMap');
-        }
-        //TODO: can result be null?
-        if (record != null) {
-          collection.remove(record, author: author);
-        }
-      }
+    }
+    else if (change["action"] == "remove") {
+      collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
     }
     print("applying: ${change}");
   });
-  
-  if (!sortParams.isEmpty) {
-    // TODO: sort the data
-  }
 }
 
 class Subscription {
@@ -99,8 +57,9 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
+  Map<String, Set<String>> _modifiedFields = {};
   Future get initialSync => _communicator._initialSync.future;
-
+  bool get diffInProgress => _communicator.diffInProgress;
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
@@ -111,10 +70,25 @@ class Subscription {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
         (List<Map> data) {handleData(data, collection, _author);},
-        (List<Map> diff, Map sortParams) {handleDiff(diff, sortParams, collection, _author);});
+        (List<Map> diff) {
+          handleDiff(diff, this, _author);
+          _clearModifiedFields();
+        });
     start();
   }
 
+  Set<String> modifiedFieldsOfData(Data data) {
+    if (!_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]] = new Set();
+    }
+    
+    return _modifiedFields[data["_id"]];
+  }
+  
+  void _clearModifiedFields() {
+    _modifiedFields.clear();
+  }
+  
   void _setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
@@ -140,6 +114,10 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
+          if (_communicator.diffInProgress) {
+            modifiedFieldsOfData(data).addAll(change.keys);
+          }
+          
           _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,

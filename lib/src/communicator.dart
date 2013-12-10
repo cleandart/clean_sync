@@ -12,6 +12,9 @@ class Communicator {
   bool _stopped = true;
   num _version;
   Completer _initialSync = new Completer();
+  bool _diffInProgress = false;
+  
+  bool get diffInProgress => _diffInProgress;
 
   Communicator(this._connection, this._collectionName, this._handleData,
       this._handleDiff, [this._updateStyle='diff']);
@@ -61,25 +64,33 @@ class Communicator {
   }
 
   void _requestDiff() {
-    _connection.send(() => new ClientRequest("sync", {
+
+    _connection.send(() {
+      _diffInProgress = true;
+
+      return new ClientRequest("sync", {
         "action" : "get_diff",
         "collection" : _collectionName,
         "version" : _version
-      })).then((response) {
-        // id data and version was sent, diff is set to null
-        if(response['diff'] == null) {
-          _version = response['version'];
-          _handleData(response['data']);
-        } else {
-          if(!response['diff'].isEmpty) {
-            _version = response['diff'].map((item) => item['version'])
-                .reduce(max);
-            _handleDiff(response['diff'], response['sort']);
-          }
-        }
-        if(!_stopped){
-          new Timer(new Duration(seconds: 5), _requestDiff);
-        }
       });
+    }).then((response) {
+      // id data and version was sent, diff is set to null
+      if(response['diff'] == null) {
+        _version = response['version'];
+        _handleData(response['data']);
+      } else {
+        if(!response['diff'].isEmpty) {
+          _version = response['diff'].map((item) => item['version'])
+              .reduce(max);
+          _handleDiff(response['diff']);
+        }
+      }
+      
+      if(!_stopped){
+        _requestDiff();
+      }
+      
+      _diffInProgress = false;
+    });
   }
 }

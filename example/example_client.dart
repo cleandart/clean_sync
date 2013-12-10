@@ -31,7 +31,7 @@ LIElement createListElement(person, persons) {
     InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
     
     if (pers != null) {
-      //pers["name"] = name.value;
+      pers["name"] = name.value;
       pers["age"] = int.parse(age.value);
     }   
   });
@@ -107,6 +107,12 @@ void main() {
         event.addedItems.forEach((person) {
           UListElement list = querySelector(sel);
           list.children.add(createListElement(person, sub));
+        });
+        event.changedItems.forEach((Data person, ChangeSet changes) {
+          changes.changedItems.forEach((String key, Change value) {
+            InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
+            e.value = value.newValue.toString();
+          });
         });
         event.removedItems.forEach((person) {
           querySelector('$sel > li._id-${person["_id"]}').remove();
