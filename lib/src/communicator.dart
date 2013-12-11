@@ -19,7 +19,7 @@ class Communicator {
   void start() {
     _stopped = false;
     // request initial data
-    _connection.sendRequest(() => new ClientRequest("sync", {
+    _connection.send(() => new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : _collectionName
     })).then((response) {
@@ -48,7 +48,7 @@ class Communicator {
   }
 
   void _requestData() {
-    _connection.sendRequest(() => new ClientRequest("sync", {
+    _connection.send(() => new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : _collectionName
     })).then((response) {
@@ -61,7 +61,7 @@ class Communicator {
   }
 
   void _requestDiff() {
-    _connection.sendRequest(() => new ClientRequest("sync", {
+    _connection.send(() => new ClientRequest("sync", {
         "action" : "get_diff",
         "collection" : _collectionName,
         "version" : _version

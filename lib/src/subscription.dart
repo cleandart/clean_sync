@@ -84,7 +84,7 @@ class Subscription {
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (event["author"] == null) {
         event["change"].addedItems.forEach((data) {
-          _connection.sendRequest(() => new ClientRequest("sync", {
+          _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
             "data" : data,
@@ -97,7 +97,7 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
-          _connection.sendRequest(() => new ClientRequest("sync", {
+          _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
             "_id": data["_id"],
@@ -107,7 +107,7 @@ class Subscription {
         });
 
         event["change"].removedItems.forEach((data) {
-          _connection.sendRequest(() => new ClientRequest("sync", {
+          _connection.send(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
             "_id" : data["_id"],

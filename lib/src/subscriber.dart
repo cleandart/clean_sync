@@ -41,7 +41,7 @@ class Subscriber {
   Subscriber(connection) : this.config(connection, new IdGenerator(),
       new IdGenerator(), _defaultSubscriptionFactory);
 
-  Future _loadIdPrefix() =>_connection.sendRequest(
+  Future _loadIdPrefix() =>_connection.send(
         () => new ClientRequest("sync", {"action" : "get_id_prefix"})
     ).then((response) => response['id_prefix']);
 

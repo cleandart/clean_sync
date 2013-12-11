@@ -25,7 +25,7 @@ void main() {
 
     setUp(() {
       connection = new ConnectionMock();
-      connection.when(callsTo('sendRequest', anything))
+      connection.when(callsTo('send', anything))
         .alwaysReturn(new Future.value({'id_prefix': 'prefix'}));
       subscriptionIdGenerator = new IdGeneratorMock();
       dataIdGenerator = new IdGeneratorMock();
@@ -41,9 +41,9 @@ void main() {
       var future = subscriber.init();
 
       // then
-      var sendRequestCalls = connection.getLogs(callsTo('sendRequest'));
-      sendRequestCalls.verify(happenedOnce);
-      ClientRequest request = sendRequestCalls.first.args.first();
+      var sendCalls = connection.getLogs(callsTo('send'));
+      sendCalls.verify(happenedOnce);
+      ClientRequest request = sendCalls.first.args.first();
       expect(request.args, equals({"action": "get_id_prefix"}));
 
       return future.then((_) {
@@ -134,8 +134,8 @@ void main() {
       months.collection.add(january);
       bool onBeforeAddIsOn = months.collection.first['_id'] == ('prefix-123');
       bool onBeforeChangeIsOn;
-      var sendRequestCall = connection.getLogs().last;
-      if(sendRequestCall == null) {
+      var sendCall = connection.getLogs().last;
+      if(sendCall == null) {
         onBeforeChangeIsOn = false;
       } else {
         var request = connection.getLogs().last.args[0]();
@@ -347,7 +347,7 @@ void main() {
 
     test("get_data sent after start.", () {
       // given
-      connection.when(callsTo('sendRequest')).thenCall((_) {
+      connection.when(callsTo('send')).thenCall((_) {
         defaultCommunicator.stop();
         return new Future.value(data);
       });
@@ -367,7 +367,7 @@ void main() {
 
     test("handleData called properly.", () {
       // given
-      connection.when(callsTo('sendRequest')).thenCall((_) {
+      connection.when(callsTo('send')).thenCall((_) {
         defaultCommunicator.stop();
         return new Future.value(data);
       });
@@ -386,7 +386,7 @@ void main() {
 
     test("get_diff sent with proper version number.", () {
       // given
-      connection.when(callsTo('sendRequest')).thenCall((_) {
+      connection.when(callsTo('send')).thenCall((_) {
         return new Future.value(data);
       }).thenCall((_) {
         defaultCommunicator.stop();
@@ -409,7 +409,7 @@ void main() {
 
     test("handleDiff called properly.", () {
       // given
-      connection.when(callsTo('sendRequest')).thenCall((_) {
+      connection.when(callsTo('send')).thenCall((_) {
         return new Future.value(data);
       }).thenCall((_) {
         defaultCommunicator.stop();
