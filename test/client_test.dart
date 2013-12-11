@@ -15,6 +15,11 @@ class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 class CommunicatorMock extends Mock implements Communicator {}
 class FunctionMock extends Mock implements Function {}
+class SubscriptionMock extends Mock implements Subscription {
+  SubscriptionMock(value) {
+    this.when(callsTo('get initialSync')).alwaysReturn(new Future.value(value));
+  }
+}
 
 void main() {
   group("Subscriber", () {
@@ -320,6 +325,18 @@ void main() {
       // then
       communicator.getLogs(callsTo('stop')).verify(happenedOnce);
       expect(listenersAreOn(), isFalse);
+    });
+
+    test("wait.", () {
+      Subscription s0 = new SubscriptionMock('value0');
+      Subscription s1 = new SubscriptionMock('value1');
+      Subscription s2 = new SubscriptionMock('value2');
+      Subscription.wait([s0, s1, s2]).then((valueList) {
+        expect(valueList[0], equals('value0'));
+        expect(valueList[1], equals('value1'));
+        expect(valueList[2], equals('value2'));
+      });
+
     });
   });
 

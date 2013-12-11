@@ -72,6 +72,14 @@ class Subscription {
     start();
   }
 
+  /**
+   * Waits for initialSync of all provided subscriptions.
+   */
+  static Future wait(List<Subscription> subscriptions) {
+    return Future.wait(
+        subscriptions.map((subscription) => subscription.initialSync));
+  }
+
   void _setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
