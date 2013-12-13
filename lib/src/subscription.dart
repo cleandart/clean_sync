@@ -19,6 +19,7 @@ void handleData(List<Map> data, DataCollection collection, String author) {
 }
 
 void handleDiff(List<Map> diff, DataCollection collection, String author) {
+  var profiling = new Stopwatch()..start();
   diff.forEach((Map change) {
     if (change["author"] != author) {
       if (change["action"] == "add") {
@@ -44,6 +45,8 @@ void handleDiff(List<Map> diff, DataCollection collection, String author) {
         }
       }
     }
+    print("handleDiff:${profiling.elapsed}");
+    profiling.stop();
     print("applying: ${change}");
   });
 }
