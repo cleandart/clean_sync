@@ -266,13 +266,18 @@ class MongoProvider implements DataProvider {
     Set before, after;
     List beforeOrAfter, diff;
 
+    var profiling = new Stopwatch()..start();
     return _collectionHistory.find(beforeOrAfterSelector).toList()
       .then((result) {
+        print('after 1.query${profiling.elapsed}');
+        profiling.reset();
         beforeOrAfter = result;
         return Future.wait([
           _collectionHistory.find(beforeSelector).toList(),
           _collectionHistory.find(afterSelector).toList()]);})
       .then((results) {
+          print('after 2/3.query${profiling.elapsed}');
+          profiling.stop();
           before = new Set.from(results[0].map((d) => d['_id']));
           after = new Set.from(results[1].map((d) => d['_id']));
           diff = [];
