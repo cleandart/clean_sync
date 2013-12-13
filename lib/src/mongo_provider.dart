@@ -46,6 +46,10 @@ class MongoDatabase {
       }));
   }
 
+  void close() {
+    Future.wait(init).then((_) => _db.close());
+  }
+
   void create_collection(String collectionName) {
     init.add(_conn.then((_) =>
         _db.createIndex(historyCollectionName(collectionName), key: 'version',
