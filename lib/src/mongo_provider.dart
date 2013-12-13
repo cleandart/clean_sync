@@ -115,7 +115,10 @@ class MongoProvider implements DataProvider {
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
     print(selector);
+    var profiling = new Stopwatch()..start();
     return collection.find(selector).toList().then((data) {
+      print('Data time:${profiling.elapsed}');
+      profiling.stop();
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
       return {'data': data, 'version': version};
@@ -218,7 +221,12 @@ class MongoProvider implements DataProvider {
 
   Future<Map> diffFromVersion(num version) {
     try{
-      return _diffFromVersion(version).then((d) => {'diff': d});
+      var profiling = new Stopwatch()..start();
+      return _diffFromVersion(version).then((d) {
+        print('diff: ${profiling.elapsed}');
+        profiling.stop();
+      return {'diff': d};
+      });
     } on DiffNotPossibleException catch(e) {
       return data().then((d) {
         d['diff'] = null;
