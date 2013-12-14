@@ -21,7 +21,7 @@ void handleData(List<Map> data, DataCollection collection, String author) {
 void handleDiff(List<Map> diff, Subscription subscription, String author) {
   print(diff);
   DataCollection collection = subscription.collection;
-  Set<String> modifiedFields;
+  List<String> modifiedFields;
   
   diff.forEach((Map change) {
     if (change["action"] == "add") {
@@ -33,7 +33,7 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
     else if (change["action"] == "change" && change["author"] != author) {
       Data record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record != null) {
-        modifiedFields = subscription.modifiedFieldsOfData(record);
+        modifiedFields = subscription.modifiedDataFields(record);
         
         change["data"].forEach((String key, dynamic value) {
           if (!modifiedFields.contains(key)) {
@@ -57,7 +57,7 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
-  Map<String, Set<String>> _modifiedFields = {};
+  Map<String, Map<String, num>> _modifiedFields = {};
   Future get initialSync => _communicator._initialSync.future;
   bool get diffInProgress => _communicator.diffInProgress;
   List<StreamSubscription> _subscriptions = [];
@@ -70,23 +70,48 @@ class Subscription {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
         (List<Map> data) {handleData(data, collection, _author);},
-        (List<Map> diff) {
-          handleDiff(diff, this, _author);
-          _clearModifiedFields();
-        });
+        (List<Map> diff) {handleDiff(diff, this, _author);});
     start();
   }
 
-  Set<String> modifiedFieldsOfData(Data data) {
+  void _initDataField(Data data, String field) {
     if (!_modifiedFields.containsKey(data["_id"])) {
-      _modifiedFields[data["_id"]] = new Set();
+      _modifiedFields[data["_id"]] = {};
     }
     
-    return _modifiedFields[data["_id"]];
+    if (!_modifiedFields[data["_id"]].containsKey(field)) {
+      _modifiedFields[data["_id"]][field] = 0;
+    }
   }
   
-  void _clearModifiedFields() {
-    _modifiedFields.clear();
+  num tokenForDataField(Data data, String field) {
+    _initDataField(data, field);
+    return _modifiedFields[data["_id"]][field];
+  }
+  
+  num nextTokenForDataField(Data data, String field) {
+    _initDataField(data, field);
+    _modifiedFields[data["_id"]][field] += 1;
+    return _modifiedFields[data["_id"]][field];
+  }
+  
+  List<String> modifiedDataFields(Data data) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      return _modifiedFields[data["_id"]].keys.toList();
+    }
+    else {
+      return [];
+    }
+  }
+  
+  void _clearTokenForDataField(Data data, String field) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]].remove(field);
+      
+      if (_modifiedFields[data["_id"]].isEmpty) {
+        _modifiedFields.remove(data["_id"]);
+      }
+    }
   }
   
   void _setupListeners() {
@@ -114,9 +139,11 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
-          if (_communicator.diffInProgress) {
-            modifiedFieldsOfData(data).addAll(change.keys);
-          }
+          Map<String, num> tokens = {};
+          
+          change.keys.forEach((field) {
+            tokens[field] = nextTokenForDataField(data, field);
+          });
           
           _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
@@ -124,7 +151,14 @@ class Subscription {
             "_id": data["_id"],
             "change" : change,
             "author" : _author
-          }));
+          })).then((_) {
+            // TODO: check if server really accepted the change
+            tokens.forEach((field, token) {
+              if (tokenForDataField(data, field) == token) {
+                _clearTokenForDataField(data, field);
+              }
+            });
+          });
         });
 
         event["change"].removedItems.forEach((data) {
