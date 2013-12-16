@@ -119,10 +119,7 @@ class MongoProvider implements DataProvider {
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
     print(selector);
-    var profiling = new Stopwatch()..start();
     return collection.find(selector).toList().then((data) {
-      print('Data time:${profiling.elapsed}');
-      profiling.stop();
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
       return {'data': data, 'version': version};
@@ -225,10 +222,7 @@ class MongoProvider implements DataProvider {
 
   Future<Map> diffFromVersion(num version) {
     try{
-      var profiling = new Stopwatch()..start();
       return _diffFromVersion(version).then((d) {
-        print('diff: ${profiling.elapsed}');
-        profiling.stop();
       return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
@@ -270,18 +264,13 @@ class MongoProvider implements DataProvider {
     Set before, after;
     List beforeOrAfter, diff;
 
-    var profiling = new Stopwatch()..start();
     return _collectionHistory.find(beforeOrAfterSelector).toList()
       .then((result) {
-        print('after 1.query${profiling.elapsed}');
-        profiling.reset();
         beforeOrAfter = result;
         return Future.wait([
           _collectionHistory.find(beforeSelector).toList(),
           _collectionHistory.find(afterSelector).toList()]);})
       .then((results) {
-          print('after 2/3.query${profiling.elapsed}');
-          profiling.stop();
           before = new Set.from(results[0].map((d) => d['_id']));
           after = new Set.from(results[1].map((d) => d['_id']));
           diff = [];
