@@ -3,7 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 
-import 'server_test.dart' as server_test;
+import 'publisher_test.dart' as publisher_test;
+import 'mongo_provider_test.dart' as mongo_provider_test;
 import 'client_test.dart' as client_test;
 import 'id_generator_test.dart' as id_generator_test;
 
@@ -17,7 +18,8 @@ main() {
 run(configuration) {
   unittestConfiguration = configuration;
 
-  server_test.main();
+  mongo_provider_test.main();
+  publisher_test.main();
   client_test.main();
   id_generator_test.main();
 }
