@@ -26,33 +26,31 @@ void handleDiff(List<Map> diff, List collection) {
   });
 }
 
+Map _stripPrivateFields(Map<String, dynamic> data){
+  Map newData = {};
+  data.forEach((key,value) {
+    if (!key.startsWith('__')) newData[key] = value;
+  });
+  return newData;
+}
+
+List _stripPrivateFieldsList(List<Map<String, dynamic>> data){
+  List newData = [];
+  data.forEach((oldMap) {
+    newData.add(_stripPrivateFields(oldMap));
+  });
+  return newData;
+}
+
 void main() {
   group('MongoProvider', () {
     MongoProvider months;
     Future ready;
     MongoDatabase mongodb;
-
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
 
-
-    Map _stripPrivateFields(Map<String, dynamic> data){
-        Map newData = {};
-        data.forEach((key,value) {
-          if (!key.startsWith('__')) newData[key] = value;
-        });
-        return newData;
-    }
-
-    List _stripPrivateFieldsList(List<Map<String, dynamic>> data){
-      List newData = [];
-      data.forEach((oldMap) {
-        newData.add(_stripPrivateFields(oldMap));
-      });
-      return newData;
-    }
-
-    setUp(() {
+     setUp(() {
       january = {'name': 'January', 'days': 31, 'number': 1, '_id': 'january'};
       february = {'name': 'February', 'days': 28, 'number': 2, '_id': 'february'};
       march =  {'name': 'March', 'days': 31, 'number': 3, '_id': 'march'};
@@ -74,12 +72,12 @@ void main() {
 
     tearDown(() {
       mongodb.close();
-
     });
 
     test('get data. (T01)', () {
       // when
       return ready.then((_) {
+
         // then
         return months.data().then((Map data) {
           expect(data['data'], equals([]));
@@ -114,18 +112,16 @@ void main() {
 
     test('add data with same _id. (T03)', () {
 // given
-      february['_id'] = 'january';
+      Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
       Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
-      .then((_) => months.add(new Map.from(february), 'John Doe'));
+      .then((_) => months.add(new Map.from(january2), 'John Doe'));
 
       // then
-
       expect(shouldThrow, throws);
 
     });
-
 
     test('change data. (T04)', () {
       // given
@@ -155,8 +151,6 @@ void main() {
         });
     });
 
-
-
     test('change not existing data. (T05)', () {
       // when
       Future shouldThrow =  ready.then((_) => months.change('january', new Map.from(february), 'Michael Smith'));
@@ -165,14 +159,12 @@ void main() {
         expect(shouldThrow, throws);
     });
 
-
     test('change data with bad _id. (T06)', () {
       // given
       Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
         .then((_) => months.change('january', new Map.from(february), 'Michael Smith'));
-
 
       // then
         expect(shouldThrow, throws);
@@ -190,7 +182,6 @@ void main() {
         .then((data) {
           expect(data['data'].length, equals(0));
           expect(data['version'], lessThanOrEqualTo(2));
-
         }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
           List diffList = dataDiff['diff'];
@@ -201,6 +192,14 @@ void main() {
           expect(diff['version'], equals(2));
           expect(diff['author'], equals('Michael Smith'));
         });
+    });
+
+    test('remove non-existing data. (T08)', () {
+      // when
+      Future shouldNotThrow =ready.then((_) => months.remove('january', 'Michael Smith'));
+
+      // then
+        expect(shouldNotThrow, completion(isTrue));
     });
 
     test('can reconstruct changes form diff. (T09)', () {
@@ -231,9 +230,7 @@ void main() {
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
          expect(_stripPrivateFieldsList(dataStart), equals(_stripPrivateFieldsList(dataEnd)));
-
       });
-
     });
 
   });
