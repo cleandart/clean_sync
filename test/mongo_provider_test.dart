@@ -125,18 +125,18 @@ void main() {
 
     test('change data. (T04)', () {
       // given
-      february['_id'] = 'january';
+      Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
       return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', new Map.from(february), 'Michael Smith'))
+        .then((_) => months.change('january', new Map.from(january2), 'Michael Smith'))
         .then((_) => months.data())
         .then((data){
 
       // then
           expect(data['data'].length, equals(1));
           Map strippedData = _stripPrivateFields(data['data'][0]);
-          expect(strippedData, equals(february));
+          expect(strippedData, equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
@@ -146,14 +146,14 @@ void main() {
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
           Map strippedData = _stripPrivateFields(diff['data']);
-          expect(strippedData, equals(february));
+          expect(strippedData, equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
     });
 
     test('change not existing data. (T05)', () {
       // when
-      Future shouldThrow =  ready.then((_) => months.change('january', new Map.from(february), 'Michael Smith'));
+      Future shouldThrow =  ready.then((_) => months.change('january', new Map.from(january), 'Michael Smith'));
 
       //then
         expect(shouldThrow, throws);
@@ -194,7 +194,7 @@ void main() {
         });
     });
 
-    test('remove non-existing data. (T08)', () {
+    test('remove nonexisting data. (T08)', () {
       // when
       Future shouldNotThrow =ready.then((_) => months.remove('january', 'Michael Smith'));
 
