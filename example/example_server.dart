@@ -30,7 +30,7 @@ void main() {
       backend.router.addRoute("resources", new Route('/resources/'));
       MultiRequestHandler requestHandler = new MultiRequestHandler();
       requestHandler.registerDefaultHandler(handleSyncRequest);
-      backend.addStaticView('static', '../web/');
+      backend.addStaticView('static', './');
       backend.addView('resources', requestHandler.handleHttpRequest);
     });
   });
