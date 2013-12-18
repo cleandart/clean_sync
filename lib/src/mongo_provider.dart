@@ -118,7 +118,6 @@ class MongoProvider implements DataProvider {
    */
   Future<Map> data() {
     Map selector = _selectorList.isEmpty ? {} : {AND: _selectorList};
-    print(selector);
     return collection.find(selector).toList().then((data) {
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
@@ -142,7 +141,6 @@ class MongoProvider implements DataProvider {
           "version" : nextVersion
         }),
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
@@ -182,7 +180,6 @@ class MongoProvider implements DataProvider {
         }
       },
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
@@ -213,7 +210,6 @@ class MongoProvider implements DataProvider {
         }
       },
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
