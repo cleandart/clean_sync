@@ -145,7 +145,7 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
@@ -160,6 +160,9 @@ class MongoProvider implements DataProvider {
         if(record == null) {
           throw new MongoException(null,
               'Change was not applied, document with id $_id does not exist.');
+        } else if (change.containsKey('_id') && change['_id'] != _id) {
+          throw new MongoException(null,
+              'New document id ${change['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
@@ -182,7 +185,7 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
@@ -213,7 +216,7 @@ class MongoProvider implements DataProvider {
         print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
