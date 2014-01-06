@@ -7,14 +7,11 @@ documentation: http://cleandart.github.io/clean_sync/
 environment:
   sdk: '>=0.8.10+6 <2.0.0'
 dependencies:
-  clean_ajax:
-    git: https://github.com/cleandart/clean_ajax
-  clean_data:
-    git: https://github.com/cleandart/clean_data
-  logging: any
-  mongo_dart: any
-  unittest: any
+  clean_ajax: '>=0.3.0 <0.4.0'
+  clean_data: '>=0.2.0 <0.3.0'
+  logging: '>=0.9.0 <0.10.0'
+  mongo_dart: '>=0.1.35 <0.2.0'
 dev_dependencies:
-  clean_backend:
-    git: https://github.com/cleandart/clean_backend
+  clean_backend: '>=0.1.0 <0.2.0'
   hop: any
+  unittest: any
