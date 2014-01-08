@@ -55,23 +55,28 @@ class Subscription {
   String collectionName;
   DataCollection collection;
   Connection _connection;
-  Communicator _communicator;
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
-  Future get initialSync => _communicator._initialSync.future;
+  String _updateStyle = 'diff';
+  num _version;
+  bool _stopped = true;
+  Completer _initialSync = new Completer();
+  Future get initialSync => _initialSync.future;
 
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._communicator, this._author, this._idGenerator, [this.args]);
+      this._author, this._idGenerator, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataCollection();
-    _communicator = new Communicator(_connection, collectionName,
-        (List<Map> data) {handleData(data, collection, _author);},
-        (List<Map> diff) {handleDiff(diff, collection, _author);});
+    
+    if (args != null && args.containsKey('updateStyle')) {
+      _updateStyle = args['updateStyle'];
+    }
+    
     start();
   }
 
@@ -131,11 +136,82 @@ class Subscription {
 
   void start() {
     _setupListeners();
-    _communicator.start();
+    
+    _stopped = false;
+    
+    // request initial data
+    _connection.send(() => new ClientRequest("sync", {
+      "action" : "get_data",
+      "collection" : collectionName
+    })).then((response) {
+      _version = response['version'];
+      handleData(response['data'], collection, _author);
+      
+      print("Got initial data, synced to version ${_version}");
+      
+      if (!_initialSync.isCompleted) {
+        _initialSync.complete();
+      }
+      
+      if (!_stopped) {
+        if (_updateStyle == 'diff') {
+          _requestDiff();
+        }
+        if (_updateStyle == 'data') {
+          _requestData();
+        }
+      }
+    });
+    
+  }
+  
+  void _requestDiff() {
+    StreamSubscription subscription;
+    
+    subscription = _connection.sendPeriodically(() => new ClientRequest("sync", {
+      "action" : "get_diff",
+      "collection" : collectionName,
+      "version" : _version
+    })).listen((response) {
+      
+      // id data and version was sent, diff is set to null
+      if(response['diff'] == null) {
+        _version = response['version'];
+        handleData(response['data'], collection, _author);
+      } else {
+        if(!response['diff'].isEmpty) {
+          _version = response['diff'].map((item) => item['version'])
+              .reduce(max);
+          handleDiff(response['diff'], collection, _author);
+        }
+      }
+      
+      if (_stopped) {
+        subscription.cancel();
+      }
+    });
+  }
+  
+  void _requestData() {
+    StreamSubscription subscription;
+    
+    subscription = _connection.sendPeriodically(() => 
+        new ClientRequest("sync", {
+          "action" : "get_data",
+          "collection" : collectionName
+        })
+    ).listen((response) {
+      _version = response['version'];
+      handleData(response['data'], collection, _author);
+      
+      if (_stopped) {
+        subscription.cancel();
+      }
+    });
   }
 
   void dispose() {
-    _communicator.stop();
+    _stopped = true;
     _subscriptions.forEach((s) {s.cancel();});
   }
 
