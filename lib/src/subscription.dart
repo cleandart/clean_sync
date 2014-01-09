@@ -58,24 +58,29 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
-  String _updateStyle = 'diff';
+  String _updateStyle;
   num _version;
-  bool _stopped = true;
+  Function _handleData, _handleDiff;
+  StreamSubscription _updateSubscription;
   Completer _initialSync = new Completer();
   Future get initialSync => _initialSync.future;
 
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._author, this._idGenerator, [this.args]);
+      this._author, this._idGenerator, this._handleData, this._handleDiff, 
+      this._updateStyle, [this.args]
+  ) {
+    
+  }
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataCollection();
     
-    if (args != null && args.containsKey('updateStyle')) {
-      _updateStyle = args['updateStyle'];
-    }
+    _handleData = handleData;
+    _handleDiff = handleDiff;
+    _updateStyle = 'diff';
     
     start();
   }
@@ -88,7 +93,7 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
-  void _setupListeners() {
+  void setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
@@ -133,19 +138,15 @@ class Subscription {
       }
     }));
   }
-
-  void start() {
-    _setupListeners();
-    
-    _stopped = false;
-    
+  
+  void setupDataRequesting() {
     // request initial data
     _connection.send(() => new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : collectionName
     })).then((response) {
       _version = response['version'];
-      handleData(response['data'], collection, _author);
+      _handleData(response['data'], collection, _author);
       
       print("Got initial data, synced to version ${_version}");
       
@@ -153,65 +154,54 @@ class Subscription {
         _initialSync.complete();
       }
       
-      if (!_stopped) {
-        if (_updateStyle == 'diff') {
-          _requestDiff();
-        }
-        if (_updateStyle == 'data') {
-          _requestData();
-        }
+      if (_updateStyle == 'diff') {
+        _requestDiff();
+      } else if (_updateStyle == 'data') {
+        _requestData();
       }
+
     });
-    
+  }
+  
+  void start() {
+    setupListeners();
+    setupDataRequesting();
   }
   
   void _requestDiff() {
-    StreamSubscription subscription;
-    
-    subscription = _connection.sendPeriodically(() => new ClientRequest("sync", {
+    _updateSubscription = _connection.sendPeriodically(() => new ClientRequest("sync", {
       "action" : "get_diff",
       "collection" : collectionName,
       "version" : _version
     })).listen((response) {
-      
       // id data and version was sent, diff is set to null
       if(response['diff'] == null) {
         _version = response['version'];
-        handleData(response['data'], collection, _author);
+        _handleData(response['data'], collection, _author);
       } else {
         if(!response['diff'].isEmpty) {
           _version = response['diff'].map((item) => item['version'])
               .reduce(max);
-          handleDiff(response['diff'], collection, _author);
+          _handleDiff(response['diff'], collection, _author);
         }
-      }
-      
-      if (_stopped) {
-        subscription.cancel();
       }
     });
   }
   
   void _requestData() {
-    StreamSubscription subscription;
-    
-    subscription = _connection.sendPeriodically(() => 
+    _updateSubscription = _connection.sendPeriodically(() => 
         new ClientRequest("sync", {
           "action" : "get_data",
           "collection" : collectionName
         })
     ).listen((response) {
       _version = response['version'];
-      handleData(response['data'], collection, _author);
-      
-      if (_stopped) {
-        subscription.cancel();
-      }
+      _handleData(response['data'], collection, _author);
     });
   }
 
   void dispose() {
-    _stopped = true;
+    _updateSubscription.cancel();
     _subscriptions.forEach((s) {s.cancel();});
   }
 

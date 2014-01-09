@@ -130,8 +130,10 @@ void main() {
     IdGeneratorMock idGenerator;
     Subscription months;
     Data january, february;
-    CommunicatorMock communicator;
-    DataCollection collection;
+//    CommunicatorMock communicator;
+    DataCollection collection;  
+    FunctionMock mockHandleData;
+    FunctionMock mockHandleDiff;
 
     Function listenersAreOn = () {
       january = new Data.from({'name': 'January', 'order': 1});
@@ -139,7 +141,8 @@ void main() {
       months.collection.add(january);
       bool onBeforeAddIsOn = months.collection.first['_id'] == ('prefix-123');
       bool onBeforeChangeIsOn;
-      var sendCall = connection.getLogs().last;
+      var sendCall = connection.getLogs().last
+          g;
       if(sendCall == null) {
         onBeforeChangeIsOn = false;
       } else {
@@ -157,24 +160,37 @@ void main() {
 
     setUp(() {
       connection = new ConnectionMock();
+//      connection.when(callsTo('send', anything))
+//        .alwaysReturn(new Future.value({'version': 1}));
+//      connection.when(callsTo('sendPeriodically', anything))
+//        .alwaysReturn(
+//          new Stream.fromFuture(
+//            new Future.value({'version': 300})
+//          )
+//        );
+      
       idGenerator = new IdGeneratorMock();
-      communicator = new CommunicatorMock();
+//      communicator = new CommunicatorMock();
       collection = new DataCollection();
+      mockHandleData = new FunctionMock();
+      mockHandleDiff = new FunctionMock();
+      
+      
     });
 
     tearDown(() {
-      months.dispose();
+      //months.dispose();
     });
 
     test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
       january = new Data.from({'name': 'January', 'order': 1});
 
       // when
-      months.start();
+      months.setupListeners();
       months.collection.add(january);
 
       // then
@@ -187,7 +203,7 @@ void main() {
       List<Map> data = [{'_id': '21', 'name': 'February', 'order': 2}];
       connection = new ConnectionMock();
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+        'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
 
       // when
       handleData(data, months.collection, 'author');
@@ -209,7 +225,7 @@ void main() {
       collection.add(january);
       collection.add(february);
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
       List<Map> diff = [
         {'action': 'add', 'data': aprilMap},
         {'action': 'change', '_id': '31',
@@ -233,11 +249,11 @@ void main() {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
       january = new Data.from({'name': 'January', 'order': 1});
 
       // when
-      months.start();
+      months.setupListeners();
       months.collection.add(january);
 
       // then
@@ -253,10 +269,10 @@ void main() {
       january = new Data.from({'_id': '11', 'name': 'January', 'order': 1});
       collection.add(january);
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
 
       // when
-      months.start();
+      months.setupListeners();
       january.addAll({'length': 31});
 
       // then
@@ -273,10 +289,10 @@ void main() {
       january = new Data.from({'_id': '12', 'name': 'January', 'order': 1});
       collection.add(january);
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
 
       // when
-      months.start();
+      months.setupListeners();
       months.collection.remove(january);
 
       // then
@@ -289,13 +305,13 @@ void main() {
     test("start.", () {
       // given
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
 
       // when
-      months.start();
+      months.setupListeners();
 
       // then
-      communicator.getLogs(callsTo('start')).verify(happenedOnce);
+//      var request = connection.getLogs().first.args.first;
       expect(listenersAreOn(), isTrue);
     });
 
