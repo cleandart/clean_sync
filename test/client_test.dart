@@ -137,18 +137,20 @@ void main() {
       january = new Data.from({'name': 'January', 'order': 1});
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
       months.collection.add(january);
-      bool onBeforeAddIsOn = months.collection.first['_id'] == ('prefix-123');
+      bool idWasGenerated = months.collection.first['_id'] == ('prefix-123');
       bool onBeforeChangeIsOn;
       var sendCall = connection.getLogs().last;
       if(sendCall == null) {
         onBeforeChangeIsOn = false;
       } else {
-        var request = connection.getLogs().last.args[0]();
-        onBeforeChangeIsOn = request.args['data']['_id'] == 'prefix-123';
+        LogEntry log = connection.getLogs().last;
+        var request = log.args[0]();
+        onBeforeChangeIsOn = log.methodName == 'send' &&
+            request.args['data']['_id'] == 'prefix-123';
       }
-      if(onBeforeAddIsOn && onBeforeChangeIsOn) {
+      if(idWasGenerated && onBeforeChangeIsOn) {
         return true;
-      } else if (!onBeforeAddIsOn && !onBeforeChangeIsOn) {
+      } else if (!idWasGenerated && !onBeforeChangeIsOn) {
         return false;
       } else {
         throw new Exception('Inconsistent state of listeners!');
@@ -339,8 +341,6 @@ void main() {
 
     });
   });
-
-
 
   group("Communicator", () {
     ConnectionMock connection;
