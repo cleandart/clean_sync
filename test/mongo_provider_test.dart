@@ -27,7 +27,7 @@ void handleDiff(List<Map> diff, List collection) {
   });
 }
 
-Map _stripPrivateFields(Map<String, dynamic> data){
+Map stripPrivateFields(Map<String, dynamic> data){
   Map newData = {};
   data.forEach((key,value) {
     if (!key.startsWith('__')) newData[key] = value;
@@ -35,10 +35,10 @@ Map _stripPrivateFields(Map<String, dynamic> data){
   return newData;
 }
 
-List _stripPrivateFieldsList(List<Map<String, dynamic>> data){
+List stripPrivateFieldsList(List<Map<String, dynamic>> data){
   List newData = [];
   data.forEach((oldMap) {
-    newData.add(_stripPrivateFields(oldMap));
+    newData.add(stripPrivateFields(oldMap));
   });
   return newData;
 }
@@ -47,6 +47,7 @@ void main() {
   group('MongoProvider', () {
     MongoProvider months;
     MongoProvider rndData;
+    MongoProvider rndAllData;
     Future ready;
     MongoDatabase mongodb;
     Map january, february, march, april, may, june, july,
@@ -79,8 +80,9 @@ void main() {
       .then((_) => mongodb.randomChangeMongoProvider())
       .then((_){
         months = mongodb.collection('months');
-        rndData = mongodb.collection('random');
-//        rndData = mongodb.collection('random').find({'a.a': 'hello');
+        rndAllData = mongodb.collection('random');
+//        rndData = mongodb.collection('random').find({'a.a': 'hello'});
+        rndData = mongodb.collection('random').find({'a.a.a': {'\$gt': {}}});
       });
     });
 
@@ -108,7 +110,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = _stripPrivateFields(data['data'][0]);
+          Map strippedData = stripPrivateFields(data['data'][0]);
           expect(strippedData, equals(january));
           expect(data['version'], equals(1));
       }).then((_) => months.diffFromVersion(0))
@@ -118,7 +120,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = _stripPrivateFields(diff['data']);
+          Map strippedData = stripPrivateFields(diff['data']);
           expect(strippedData, equals(january));
           expect(diff['author'], equals(''));
         });
@@ -149,7 +151,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = _stripPrivateFields(data['data'][0]);
+          Map strippedData = stripPrivateFields(data['data'][0]);
           expect(strippedData, equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
@@ -159,7 +161,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = _stripPrivateFields(diff['data']);
+          Map strippedData = stripPrivateFields(diff['data']);
           expect(strippedData, equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
@@ -246,139 +248,9 @@ void main() {
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
 
-         expect(_stripPrivateFieldsList(dataStart), equals(_stripPrivateFieldsList(dataEnd)));
+         expect(stripPrivateFieldsList(dataStart), equals(stripPrivateFieldsList(dataEnd)));
       });
     });
 
-    randomChoice(Iterable iter){
-      var list = new List.from(iter);
-      return list[rng.nextInt(list.length)];
-    }
-
-    var allData=['hello', 'world', 1, null];
-    var allKeys=['a','b','c'];
-
-    randomChangeMap(Map data){
-      var key = randomChoice(allKeys);
-      if (data.containsKey(key)){
-        if (data[key] is Map){
-          randomChangeMap(data[key]);
-        } else {
-          data[key] = randomChoice(allData);
-        }
-      } else {
-        data[key] = randomChoice(allData);
-      }
-
-      if (data[key] is! Map && rng.nextInt(4) == 0) {
-        data[key] = new Map();
-        randomChangeMap(data[key]);
-      }
-
-      if (rng.nextInt(5) == 0) {
-        data.remove(key);
-      }
-    }
-
-    Future fetchAllCollections(List<MongoProvider> colls, Map res){
-      Future.forEach(colls, (MongoProvider coll) {
-        coll.data()
-          .then((data){
-            res[coll] = data;
-          });
-      });
-    }
-
-    Future makeRandomChange(MongoProvider coll, Set ids){
-      String id = rng.nextInt(4).toString();
-      num change = rng.nextInt(50);
-      if (change <= 10) {
-        // add
-        if (ids.contains(id)) {
-          return new Future.value();
-        } else {
-          ids.add(id);
-          return coll.add({'_id': id}, '');
-        }
-      }
-      else if (change <= 11) {
-        // remove
-        if (!ids.contains(id)) {
-          return new Future.value();
-        } else {
-          ids.remove(id);
-          return coll.remove(id, '');
-        }
-      } else {
-        // change
-        if (!ids.contains(id)) {
-          return new Future.value();
-        } else {
-          return coll.find({'_id':id}).data().then((datas){
-            var _data = datas['data'][0];
-            randomChangeMap(_data);
-            return coll.change(id, _data, '');
-          });
-        }
-      }
-    }
-
-    toStringOrdered(List<Map> data){
-      compare(a, b){
-        return a['_id'].compareTo(b['_id']);
-      }
-      mapToStringOrdered(Map m, StringBuffer sb){
-        sb.write('{');
-        List toWrite = new List.from(m.keys)..sort();
-        for (var key in toWrite) {
-          sb.write('${key}: ');
-          if(m[key] is! Map){
-            sb.write(m[key].toString());
-          } else {
-            mapToStringOrdered(m[key], sb);
-          }
-          if (key != toWrite.last) sb.write(', ');
-        }
-        sb.write('}');
-      }
-
-      data.sort(compare);
-      StringBuffer sb = new StringBuffer('[');
-      for(var d in data){
-        mapToStringOrdered(d, sb);
-        sb.write(', ');
-      }
-      sb.write(']');
-      return sb.toString();
-    }
-
-    solo_test('can reconstruct changes form diff. (T09)', () {
-      // given
-      List dataStart;
-      List dataEnd;
-      Set ids;
-      ids = new Set();
-      var versionEnd = 0;
-
-      return ready.then( (_) => Future.forEach(new List.filled(10, 0) , (_) {
-        return rndData.data().then(
-          (data) {
-            dataStart = data['data'];
-            dataStart.forEach((e)=> ids.add(e['_id']));
-            return Future.forEach(new List.filled(100, 0), (_) =>
-                makeRandomChange(rndData, ids));
-
-          }).then((_) => rndData.data())
-            .then((data){ dataEnd = data['data']; })
-            .then((_) => rndData.diffFromVersion(versionEnd))
-            .then((dataDiff) {
-              (dataDiff['diff'] as List).forEach((e) => versionEnd = max(versionEnd, e['version']));
-              handleDiff(dataDiff['diff'], dataStart);
-              print(toStringOrdered(dataEnd));
-              expect(toStringOrdered(_stripPrivateFieldsList(dataStart)),
-                    equals(toStringOrdered(_stripPrivateFieldsList(dataEnd))));
-            });
-      }));
-    });
   });
 }
