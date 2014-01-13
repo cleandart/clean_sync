@@ -10,7 +10,6 @@ import "package:unittest/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'package:clean_ajax/server.dart';
-import 'package:clean_ajax/common.dart';
 
 class DataProviderMock extends Mock implements DataProvider {
   final responseFuture = new FutureMock();
