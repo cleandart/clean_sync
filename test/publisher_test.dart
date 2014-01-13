@@ -10,6 +10,7 @@ import "package:unittest/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'package:clean_ajax/server.dart';
+import 'package:clean_ajax/common.dart';
 
 class DataProviderMock extends Mock implements DataProvider {
   final responseFuture = new FutureMock();
@@ -23,12 +24,17 @@ class DataProviderMock extends Mock implements DataProvider {
   }
 }
 class FutureMock extends Mock implements Future {}
+class ServerRequestMock extends Mock implements ServerRequest {
+  ServerRequestMock(args) {
+    when(callsTo('get args')).alwaysReturn(args);
+  }
+}
 
 void main() {
   group("Publisher", () {
 
     Publisher publisher;
-    ClientRequest request;
+    ServerRequestMock request;
     Map args;
     var _id, data, author;
     DataProviderMock dataProvider;
@@ -63,7 +69,7 @@ void main() {
 
     test("handle get data.", () {
       // given
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "get_data",
         "collection": "months",
         "args": args
@@ -81,7 +87,7 @@ void main() {
 
     test("handle get diff.", () {
       // given
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "get_diff",
         "collection": "months",
         "version": 5,
@@ -101,7 +107,7 @@ void main() {
 
     test("handle add.", () {
       // given
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "add",
         "collection": "months",
         "_id": _id,
@@ -124,7 +130,7 @@ void main() {
 
     test("handle change.", () {
       // given
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "change",
         "collection": "months",
         "_id": _id,
@@ -148,7 +154,7 @@ void main() {
 
     test("handle remove.", () {
       // given
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "remove",
         "collection": "months",
         "_id": _id,
@@ -169,7 +175,7 @@ void main() {
     });
 
     test("handle get server prefix.", () {
-      request = new ClientRequest(null, {
+      request = new ServerRequestMock({
         "action": "get_id_prefix",
       });
 
