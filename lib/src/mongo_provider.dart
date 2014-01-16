@@ -94,7 +94,7 @@ class MongoDatabase {
       _db.collection(historyCollectionName(collectionName)).drop()
     ]);
 
-  Future randomChangeMongoProvider() => _lock.drop();
+  Future removeLocks() => _lock.drop();
 }
 
 class MongoProvider implements DataProvider {

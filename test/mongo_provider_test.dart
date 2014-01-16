@@ -7,7 +7,6 @@ library mongo_provider_test;
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
-import 'dart:math';
 
 
 
@@ -46,17 +45,12 @@ List stripPrivateFieldsList(List<Map<String, dynamic>> data){
 void main() {
   group('MongoProvider', () {
     MongoProvider months;
-    MongoProvider rndData;
-    MongoProvider rndAllData;
     Future ready;
     MongoDatabase mongodb;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
-    List<Map> allMonths;
-    Random rng;
 
      setUp(() {
-      rng = new Random();
       january = {'name': 'January', 'days': 31, 'number': 1, '_id': 'january'};
       february = {'name': 'February', 'days': 28, 'number': 2, '_id': 'february'};
       march =  {'name': 'March', 'days': 31, 'number': 3, '_id': 'march'};
@@ -69,21 +63,11 @@ void main() {
       october = {'name': 'October', 'days': 31, 'number': 10, '_id': 'october'};
       november = {'name': 'November', 'days': 30, 'number': 11, '_id': 'november'};
       december = {'name': 'December', 'days': 31, 'number': 12, '_id': 'december'};
-      allMonths = [january, february, march, april, may, june, july,
-                   august, september, october, november, december];
 
       mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
-      ready = Future.wait(mongodb.init).then((_) {
-        mongodb.dropCollection('months');
-        mongodb.dropCollection('random');
-      })
-      .then((_) => mongodb.randomChangeMongoProvider())
-      .then((_){
-        months = mongodb.collection('months');
-        rndAllData = mongodb.collection('random');
-//        rndData = mongodb.collection('random').find({'a.a': 'hello'});
-        rndData = mongodb.collection('random').find({'a.a.a': {'\$gt': {}}});
-      });
+      ready = Future.wait(mongodb.init).then((_) => mongodb.dropCollection('months'))
+                    .then((_) => mongodb.removeLocks())
+                    .then((_) => months = mongodb.collection('months'));
     });
 
     tearDown(() {
@@ -104,7 +88,7 @@ void main() {
 
     test('add data. (T02)', () {
       // when
-      return ready.then((_) => months.add(new Map.from(january), ''))
+      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
         .then((_) => months.data())
         .then((data){
 
@@ -122,17 +106,17 @@ void main() {
           expect(diff['_id'], equals('january'));
           Map strippedData = stripPrivateFields(diff['data']);
           expect(strippedData, equals(january));
-          expect(diff['author'], equals(''));
+          expect(diff['author'], equals('John Doe'));
         });
     });
 
     test('add data with same _id. (T03)', () {
 // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), ''))
+      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
-      .then((_) => months.add(new Map.from(january2), ''));
+      .then((_) => months.add(new Map.from(january2), 'John Doe'));
 
       // then
       expect(shouldThrow, throws);
@@ -142,7 +126,7 @@ void main() {
     test('change data. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(new Map.from(january), ''))
+      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
         .then((_) => months.change('january', new Map.from(january2), 'Michael Smith'))
@@ -177,7 +161,7 @@ void main() {
 
     test('change data with bad _id. (T06)', () {
       // given
-      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), ''))
+      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
         .then((_) => months.change('january', new Map.from(february), 'Michael Smith'));
@@ -188,7 +172,7 @@ void main() {
 
     test('remove data. (T07)', () {
       // given
-      Future toRemove = ready.then((_) => months.add(new Map.from(january), ''))
+      Future toRemove = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
 
       // when
         .then((_) => months.remove('january', 'Michael Smith'));
@@ -225,21 +209,19 @@ void main() {
       List dataStart;
       List dataEnd;
 
-
-
       Future multipleAccess =
           ready.then((_) => months.data()).then((data) => dataStart = data['data'] )
-          .then((_) => months.add(new Map.from(january), ''))
-       .then((_) => months.add(new Map.from(february), ''))
-       .then((_) => months.add(new Map.from(march), ''))
-       .then((_) => months.add(new Map.from(april), ''))
-         .then((_) => months.change('january', january2, ''))
-       .then((_) => months.remove('february', ''))
-       .then((_) => months.add(new Map.from(february), ''))
-       .then((_) => months.remove('april', ''))
-       .then((_) => months.add(new Map.from(may), ''))
-       .then((_) => months.change('march', march2, ''))
-       .then((_) => months.change('january', january, ''))
+          .then((_) => months.add(new Map.from(january), 'John Doe'))
+       .then((_) => months.add(new Map.from(february), 'John Doe'))
+       .then((_) => months.add(new Map.from(march), 'John Doe'))
+       .then((_) => months.add(new Map.from(april), 'John Doe'))
+         .then((_) => months.change('january', january2, 'John Doe'))
+       .then((_) => months.remove('february', 'John'))
+       .then((_) => months.add(new Map.from(february), 'John Doe'))
+       .then((_) => months.remove('april', 'John'))
+       .then((_) => months.add(new Map.from(may), 'John Doe'))
+       .then((_) => months.change('march', march2, 'John Doe'))
+       .then((_) => months.change('january', january, 'John Doe'))
        .then((_) => months.data()).then((data) => dataEnd = data['data'] );
       //when
       return multipleAccess.then((_) => months.diffFromVersion(0))
@@ -247,7 +229,6 @@ void main() {
       // then
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
-
          expect(stripPrivateFieldsList(dataStart), equals(stripPrivateFieldsList(dataEnd)));
       });
     });
