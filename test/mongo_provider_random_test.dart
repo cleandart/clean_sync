@@ -12,16 +12,16 @@ Random rng = new Random();
 const PROB_REMOVE = 0.05;
 const PROB_ADD = 0.3;
 
-prob(p){
+prob(p) {
   return p > rng.nextDouble();
 }
 
-main(){
+main() {
   MongoProvider currCollection;
   MongoProvider wholeCollection;
   MongoDatabase mongodb;
 
-  setup(Map selector){
+  setup(Map selector) {
     mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
@@ -32,7 +32,7 @@ main(){
     });
   }
 
-    randomChoice(Iterable iter){
+    randomChoice(Iterable iter) {
       var list = new List.from(iter);
       return list[rng.nextInt(list.length)];
     }
@@ -40,10 +40,10 @@ main(){
     var allValues=['hello', 'world', 1, null];
     var allKeys=['a','b','c'];
 
-    randomChangeMap(Map data){
+    randomChangeMap(Map data) {
       var key = randomChoice(allKeys);
-      if (data.containsKey(key)){
-        if (data[key] is Map){
+      if (data.containsKey(key)) {
+        if (data[key] is Map) {
           randomChangeMap(data[key]);
         } else {
           data[key] = randomChoice(allValues);
@@ -62,7 +62,7 @@ main(){
       }
     }
 
-    Future makeRandomChange(MongoProvider coll, Set ids){
+    Future makeRandomChange(MongoProvider coll, Set ids) {
       String id = rng.nextInt(4).toString();
       if (prob(PROB_ADD)) {
         // add
@@ -86,7 +86,7 @@ main(){
         if (!ids.contains(id)) {
           return new Future.value();
         } else {
-          return coll.find({'_id':id}).data().then((datas){
+          return coll.find({'_id':id}).data().then((datas) {
             var _data = datas['data'][0];
             randomChangeMap(_data);
             return coll.change(id, _data, '');
@@ -95,16 +95,16 @@ main(){
       }
     }
 
-    toStringOrdered(List<Map> data){
-      compare(a, b){
+    toStringOrdered(List<Map> data) {
+      compare(a, b) {
         return a['_id'].compareTo(b['_id']);
       }
-      mapToStringOrdered(Map m, StringBuffer sb){
+      mapToStringOrdered(Map m, StringBuffer sb) {
         sb.write('{');
         List toWrite = new List.from(m.keys)..sort();
         for (var key in toWrite) {
           sb.write('${key}: ');
-          if(m[key] is! Map){
+          if(m[key] is! Map) {
             sb.write(m[key].toString());
           } else {
             mapToStringOrdered(m[key], sb);
@@ -156,13 +156,13 @@ main(){
     });
   };
 
-  runTest(selector){
+  runTest(selector) {
     return setup(selector)
       .then((_) => _test())
       .then((_) => _teardown());
   }
 
-  test('can reconstruct changes form diff. (T09)', () {
+  test('Make a lot of changes and see whether getData and getDiff behave consistently.', () {
     return new Future.value(null)
     .then((_) => runTest({}))
     .then((_) => runTest({'a': {'\$gt': {}}}))
