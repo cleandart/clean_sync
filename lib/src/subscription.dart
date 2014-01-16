@@ -5,17 +5,12 @@
 part of clean_sync.client;
 
 void handleData(List<Map> data, DataCollection collection, String author) {
-  // TODO: use clean(author: _author instead)
-  var toDelete=[];
-  for (var d in collection) {
-    toDelete.add(d);
-  }
-  for (var d in toDelete) {
-    collection.remove(d, author: author);
-  }
+  collection.clear(author: author);
+  List<Data> toAdd = [];
   for (Map record in data) {
-    collection.add(new Data.from(record), author : author);
+    toAdd.add(new Data.from(record));
   }
+  collection.addAll(toAdd, author: author);
 }
 
 void handleDiff(List<Map> diff, DataCollection collection, String author) {

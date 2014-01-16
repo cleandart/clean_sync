@@ -26,7 +26,7 @@ void handleDiff(List<Map> diff, List collection) {
   });
 }
 
-Map _stripPrivateFields(Map<String, dynamic> data){
+Map stripPrivateFields(Map<String, dynamic> data){
   Map newData = {};
   data.forEach((key,value) {
     if (!key.startsWith('__')) newData[key] = value;
@@ -34,10 +34,10 @@ Map _stripPrivateFields(Map<String, dynamic> data){
   return newData;
 }
 
-List _stripPrivateFieldsList(List<Map<String, dynamic>> data){
+List stripPrivateFieldsList(List<Map<String, dynamic>> data){
   List newData = [];
   data.forEach((oldMap) {
-    newData.add(_stripPrivateFields(oldMap));
+    newData.add(stripPrivateFields(oldMap));
   });
   return newData;
 }
@@ -94,7 +94,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = _stripPrivateFields(data['data'][0]);
+          Map strippedData = stripPrivateFields(data['data'][0]);
           expect(strippedData, equals(january));
           expect(data['version'], equals(1));
       }).then((_) => months.diffFromVersion(0))
@@ -104,7 +104,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = _stripPrivateFields(diff['data']);
+          Map strippedData = stripPrivateFields(diff['data']);
           expect(strippedData, equals(january));
           expect(diff['author'], equals('John Doe'));
         });
@@ -135,7 +135,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = _stripPrivateFields(data['data'][0]);
+          Map strippedData = stripPrivateFields(data['data'][0]);
           expect(strippedData, equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
@@ -145,7 +145,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = _stripPrivateFields(diff['data']);
+          Map strippedData = stripPrivateFields(diff['data']);
           expect(strippedData, equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
@@ -229,7 +229,7 @@ void main() {
       // then
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
-         expect(_stripPrivateFieldsList(dataStart), equals(_stripPrivateFieldsList(dataEnd)));
+         expect(stripPrivateFieldsList(dataStart), equals(stripPrivateFieldsList(dataEnd)));
       });
     });
 

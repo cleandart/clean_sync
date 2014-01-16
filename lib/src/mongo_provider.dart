@@ -85,8 +85,7 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    var mp = new MongoProvider(collection, collectionHistory, _lock);
-    return mp;
+    return new MongoProvider(collection, collectionHistory, _lock);
   }
 
   Future dropCollection(String collectionName) =>
