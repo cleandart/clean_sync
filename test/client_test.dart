@@ -137,20 +137,22 @@ void main() {
       january = new Data.from({'name': 'January', 'order': 1});
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
       months.collection.add(january);
+      // ID is generated and changes are propagated to server when listeners are
+      // on.
       bool idWasGenerated = months.collection.first['_id'] == ('prefix-123');
-      bool onBeforeChangeIsOn;
+      bool changeWasSent;
       var sendCall = connection.getLogs().last;
       if(sendCall == null) {
-        onBeforeChangeIsOn = false;
+        changeWasSent = false;
       } else {
         LogEntry log = connection.getLogs().last;
         var request = log.args[0]();
-        onBeforeChangeIsOn = log.methodName == 'send' &&
+        changeWasSent = log.methodName == 'send' &&
             request.args['data']['_id'] == 'prefix-123';
       }
-      if(idWasGenerated && onBeforeChangeIsOn) {
+      if(idWasGenerated && changeWasSent) {
         return true;
-      } else if (!idWasGenerated && !onBeforeChangeIsOn) {
+      } else if (!idWasGenerated && !changeWasSent) {
         return false;
       } else {
         throw new Exception('Inconsistent state of listeners!');
