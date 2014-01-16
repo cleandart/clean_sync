@@ -8,6 +8,7 @@ import 'package:unittest/unittest.dart';
 import 'package:unittest/mock.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
+import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';
 import 'dart:async';
 
@@ -15,6 +16,11 @@ class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 class CommunicatorMock extends Mock implements Communicator {}
 class FunctionMock extends Mock implements Function {}
+class SubscriptionMock extends Mock implements Subscription {
+  SubscriptionMock(value) {
+    this.when(callsTo('get initialSync')).alwaysReturn(new Future.value(value));
+  }
+}
 
 void main() {
   group("Subscriber", () {
@@ -132,18 +138,22 @@ void main() {
       january = new Data.from({'name': 'January', 'order': 1});
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
       months.collection.add(january);
-      bool onBeforeAddIsOn = months.collection.first['_id'] == ('prefix-123');
-      bool onBeforeChangeIsOn;
+      // ID is generated and changes are propagated to server when listeners are
+      // on.
+      bool idWasGenerated = months.collection.first['_id'] == ('prefix-123');
+      bool changeWasSent;
       var sendCall = connection.getLogs().last;
       if(sendCall == null) {
-        onBeforeChangeIsOn = false;
+        changeWasSent = false;
       } else {
-        var request = connection.getLogs().last.args[0]();
-        onBeforeChangeIsOn = request.args['data']['_id'] == 'prefix-123';
+        LogEntry log = connection.getLogs().last;
+        var request = log.args[0]();
+        changeWasSent = log.methodName == 'send' &&
+            request.args['data']['_id'] == 'prefix-123';
       }
-      if(onBeforeAddIsOn && onBeforeChangeIsOn) {
+      if(idWasGenerated && changeWasSent) {
         return true;
-      } else if (!onBeforeAddIsOn && !onBeforeChangeIsOn) {
+      } else if (!idWasGenerated && !changeWasSent) {
         return false;
       } else {
         throw new Exception('Inconsistent state of listeners!');
@@ -321,9 +331,19 @@ void main() {
       communicator.getLogs(callsTo('stop')).verify(happenedOnce);
       expect(listenersAreOn(), isFalse);
     });
+
+    test("wait.", () {
+      Subscription s0 = new SubscriptionMock('value0');
+      Subscription s1 = new SubscriptionMock('value1');
+      Subscription s2 = new SubscriptionMock('value2');
+      Subscription.wait([s0, s1, s2]).then((valueList) {
+        expect(valueList[0], equals('value0'));
+        expect(valueList[1], equals('value1'));
+        expect(valueList[2], equals('value2'));
+      });
+
+    });
   });
-
-
 
   group("Communicator", () {
     ConnectionMock connection;

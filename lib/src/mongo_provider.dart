@@ -43,16 +43,16 @@ final Function historyCollectionName =
  */
 Map slice(Map map, List keys) {
   Map result = {};
-  
+
   keys.forEach((key) {
     if (map.containsKey(key)) {
       result[key] = map[key];
     }
   });
-  
+
   return result;
 }
-  
+
 class MongoDatabase {
   Db _db;
   Future _conn;
@@ -67,6 +67,10 @@ class MongoDatabase {
       _lock = _db.collection(LOCK_COLLECTION_NAME);
       return true;
       }));
+  }
+
+  void close() {
+    Future.wait(init).then((_) => _db.close());
   }
 
   void create_collection(String collectionName) {
@@ -104,8 +108,7 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    var mp = new MongoProvider(collection, collectionHistory, _lock);
-    return mp;
+    return new MongoProvider(collection, collectionHistory, _lock);
   }
 
   Future dropCollection(String collectionName) =>
@@ -125,8 +128,9 @@ class MongoProvider implements DataProvider {
   num _skip = NOSKIP;
 
   Future<int> get _maxVersion => _collectionHistory.count();
-  Map get _rawSelector => {QUERY: _selectorList.isEmpty ? {} : {AND: _selectorList}, ORDERBY: _sortParams};
-  
+  Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
+      {} : {AND: _selectorList}, ORDERBY: _sortParams};
+
   MongoProvider(this.collection, this._collectionHistory, this._lock);
 
   void _copySelection(MongoProvider mp) {
@@ -135,7 +139,7 @@ class MongoProvider implements DataProvider {
     this._limit = mp._limit;
     this._skip = mp._skip;
   }
-  
+
   MongoProvider find(Map params) {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._copySelection(this);
@@ -147,23 +151,23 @@ class MongoProvider implements DataProvider {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._copySelection(this);
     mp._sortParams.addAll(params);
-    return mp;    
+    return mp;
   }
 
   MongoProvider limit(num value) {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._copySelection(this);
     mp._limit = value;
-    return mp;    
+    return mp;
   }
-  
+
   MongoProvider skip(num value) {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._copySelection(this);
     mp._skip = value;
-    return mp;    
+    return mp;
   }
-  
+
   /**
    * Returns data and version of this data 7.
    */
@@ -192,10 +196,9 @@ class MongoProvider implements DataProvider {
           "version" : nextVersion
         }),
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
@@ -210,6 +213,9 @@ class MongoProvider implements DataProvider {
         if(record == null) {
           throw new MongoException(null,
               'Change was not applied, document with id $_id does not exist.');
+        } else if (change.containsKey('_id') && change['_id'] != _id) {
+          throw new MongoException(null,
+              'New document id ${change['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
@@ -229,10 +235,9 @@ class MongoProvider implements DataProvider {
         }
       },
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
@@ -260,10 +265,9 @@ class MongoProvider implements DataProvider {
         }
       },
       onError: (e) {
-        print(e);
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
-        _release_locks().then((_) {
+        return _release_locks().then((_) {
           throw new MongoException(e);
         });
       }
@@ -272,7 +276,9 @@ class MongoProvider implements DataProvider {
 
   Future<Map> diffFromVersion(num version) {
     try{
-      return _diffFromVersion(version).then((d) => {'diff': d});
+      return _diffFromVersion(version).then((d) {
+      return {'diff': d};
+      });
     } on DiffNotPossibleException catch(e) {
       return data().then((d) {
         d['diff'] = null;
@@ -355,57 +361,57 @@ class MongoProvider implements DataProvider {
               });
             }
           });
-          
+
           if (_limit > NOLIMIT || _skip > NOSKIP) {
             return _limitedDiffFromVersion(diff);
           }
-          
+
           return diff;
       });
   }
-  
+
   num _defaultCompare(a, b) {
-    return a.compareTo(b);  
+    return a.compareTo(b);
   }
 
   _getCompareFunction(bool reverse) {
     if (reverse) {
       return (a, b) => -1 * _defaultCompare(a, b);
     }
-    
+
     return _defaultCompare;
   }
-  
+
   _sortBy(Map sortParams) {
     List<Map> fields = [];
-    
+
     sortParams.forEach((field, order) {
       fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
     });
-    
+
     return (a, b) {
       String name;
       num result = 0;
-      
+
       for (Map field in fields) {
         name = field["name"];
-        
+
         result = field["comparator"](a[name], b[name]);
-        
+
         if (result != 0) {
           break;
         }
       }
-      
+
       return result;
     };
   }
-  
+
   void _insertIntoSorted(List<Map> data, Map record, Map sortParams) {
     data.add(record);
     data.sort(_sortBy(sortParams));
   }
-  
+
   Future<List<Map>> _limitedDiffFromVersion(List<Map> diff) {
     return collection.find(where.raw(_rawSelector).limit(_skip + _limit + diff.length)).toList().then((data) {
       return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((currentData) {
@@ -414,11 +420,11 @@ class MongoProvider implements DataProvider {
         List<Map> clientDiff = [];
         num maxVersion = reversedDiff.isEmpty ? 0 : reversedDiff[0]["version"];
         String defaultAuthor = "_clean_";
-        
+
         print("limited diff");
         print(data);
         print(reversedDiff);
-        
+
         reversedDiff.forEach((Map change) {
           if (change["action"] == "add") {
             clientData.removeWhere((d) => d["_id"] == change["_id"]);
@@ -428,44 +434,44 @@ class MongoProvider implements DataProvider {
           }
           else if (change["action"] == "change") {
             Map record = clientData.firstWhere((d) => d["_id"] == change["_id"]);
-            
+
             if (record == null) {
               //TODO: the record should be certainly in clientData, throw some nice exception here
             }
-            
+
             record.addAll(slice(change["before"], change["data"].keys.toList()));
             clientData.sort(_sortBy(_sortParams));
-            
+
             if (!record.containsKey("_metadata")) {
               record["_metadata"] = {};
             }
-            
+
             change["data"].forEach((name, value) {
               if (!record["_metadata"].containsKey(name)) {
                 record["_metadata"][name] = value;
               }
             });
-            
+
           }
         });
-        
+
         if (clientData.length > _skip) {
           clientData = clientData.getRange(_skip, [clientData.length, _skip + _limit].reduce(min)).toList();
         }
         else {
           clientData = [];
         }
-        
+
         print("data after change:");
         print(clientData);
-        
+
         Set clientDataSet = new Set.from(clientData.map((d) => d['_id']));
         Set dataSet = new Set.from(currentData.map((d) => d['_id']));
-  
-        // as these diffs are generated from two data views (not fetched from 
+
+        // as these diffs are generated from two data views (not fetched from
         // the DB), there is no way to tell the version nor author. These diffs
         // have to be applied alltogether or not at all
-        
+
         clientData.forEach((Map clientRecord) {
           if (dataSet.contains(clientRecord["_id"])) {
             if (clientRecord.containsKey("_metadata")) {
@@ -488,7 +494,7 @@ class MongoProvider implements DataProvider {
             });
           }
         });
-        
+
         currentData.forEach((Map record) {
           if (!clientDataSet.contains(record["_id"])) {
             clientDiff.add({
@@ -497,12 +503,12 @@ class MongoProvider implements DataProvider {
               "data" : record,
               "version" : maxVersion,
               "author" : defaultAuthor,
-            });          
+            });
           }
         });
-        
+
         print(clientDiff);
-        
+
         return clientDiff;
       });
     });

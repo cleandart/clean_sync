@@ -21,23 +21,23 @@ void main() {
     publish('persons', (_) {
       return mongodb.collection("persons");
     });
-    
+
     publish('personsOlderThan24', (_) {
       return mongodb.collection("persons").find({"age" : {'\$gt' : 24}});
       //return mongodb.collection("persons").find({"age" : null});
     });
-    
+
     publish('personsOlderThan24Desc', (_) {
       return mongodb.collection("persons").find({"age" : {'\$gt' : 24}}).sort({"age": DESC}).skip(2).limit(3);
       //return mongodb.collection("persons").find({"age" : null});
     });
-    
+
     Backend.bind([], new SHA256()).then((backend) {
       backend.router.addRoute("static", new Route('/static/*'));
       backend.router.addRoute("resources", new Route('/resources/'));
       MultiRequestHandler requestHandler = new MultiRequestHandler();
       requestHandler.registerDefaultHandler(handleSyncRequest);
-      backend.addStaticView('static', '../example/');
+      backend.addStaticView('static', './');
       backend.addView('resources', requestHandler.handleHttpRequest);
     });
   });

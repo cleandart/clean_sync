@@ -11,6 +11,7 @@ library clean_sync.client;
 
 import 'dart:async';
 import "package:clean_ajax/client.dart";
+import "package:clean_ajax/common.dart";
 import "package:clean_data/clean_data.dart";
 import 'dart:math';
 
