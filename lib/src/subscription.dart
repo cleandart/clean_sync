@@ -78,7 +78,7 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
-  void _setupIdGeneratorListener() {
+  void _setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
@@ -125,7 +125,7 @@ class Subscription {
   }
 
   void start() {
-    _setupIdGeneratorListener();
+    _setupListeners();
     _communicator.start();
   }
 
