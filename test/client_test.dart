@@ -12,7 +12,18 @@ import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';
 import 'dart:async';
 
-class ConnectionMock extends Mock implements Connection {}
+class ConnectionMock extends Mock implements Connection {
+  ConnectionMock() {
+    when(callsTo('send')).alwaysCall((requestFactory) {
+      switch (requestFactory().args['action']) {
+        case ('get_diff'): return new Future.value({'diff': null});
+        case ('get_data'): return new Future.value({'version': 2, 'data': null});
+        case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
+        default: return new Future.value(null);
+      }
+    });
+  }
+}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 class CommunicatorMock extends Mock implements Communicator {}
 class FunctionMock extends Mock implements Function {}
@@ -168,7 +179,7 @@ void main() {
     });
 
     tearDown(() {
-      months.dispose();
+      if (months != null) months.dispose();
     });
 
     test("assign id to data.", () {
@@ -223,7 +234,7 @@ void main() {
         ];
 
       // when
-      handleDiff(diff, months.collection, 'author');
+      handleDiff(diff, months, 'author');
       months.collection.addIndex(['_id']);
 
       // then
