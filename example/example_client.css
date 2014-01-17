@@ -25,3 +25,7 @@ h1, p {
   text-align: center;
   margin-top: 140px;
 }
+
+table input {
+  width: 50px;
+}

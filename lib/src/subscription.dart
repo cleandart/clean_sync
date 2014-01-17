@@ -13,32 +13,33 @@ void handleData(List<Map> data, DataCollection collection, String author) {
   collection.addAll(toAdd, author: author);
 }
 
-void handleDiff(List<Map> diff, DataCollection collection, String author) {
+void handleDiff(List<Map> diff, Subscription subscription, String author) {
+  print(diff);
+  DataCollection collection = subscription.collection;
+  List<String> modifiedFields;
   var profiling = new Stopwatch()..start();
+
   diff.forEach((Map change) {
-    if (change["author"] != author) {
-      if (change["action"] == "add") {
+    if (change["action"] == "add") {
+      Data record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record == null) {
         collection.add(new Data.from(change["data"]), author: author);
       }
-      else if (change["action"] == "change") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-        if (record != null) {
-          record.addAll(change["data"], author: author);
-        }
+    }
+    else if (change["action"] == "change" && change["author"] != author) {
+      Data record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record != null) {
+        modifiedFields = subscription.modifiedDataFields(record);
+
+        change["data"].forEach((String key, dynamic value) {
+          if (!modifiedFields.contains(key)) {
+            record.add(key, value, author: author);
+          }
+        });
       }
-      else if (change["action"] == "remove") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"],
-            orElse: ()=>null);
-        if(record == null) {
-          var collectionMap = collection.toList().map((DataView d) => d.toJson());
-          throw new Exception(
-              'cannot find obj with id ${change["_id"]} in $collectionMap');
-        }
-        //TODO: can result be null?
-        if (record != null) {
-          collection.remove(record, author: author);
-        }
-      }
+    }
+    else if (change["action"] == "remove") {
+      collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
     }
     print("handleDiff:${profiling.elapsed}");
     profiling.stop();
@@ -54,8 +55,9 @@ class Subscription {
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
+  Map<String, Map<String, num>> _modifiedFields = {};
   Future get initialSync => _communicator._initialSync.future;
-
+  bool get diffInProgress => _communicator.diffInProgress;
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
@@ -66,8 +68,48 @@ class Subscription {
     collection = new DataCollection();
     _communicator = new Communicator(_connection, collectionName,
         (List<Map> data) {handleData(data, collection, _author);},
-        (List<Map> diff) {handleDiff(diff, collection, _author);});
+        (List<Map> diff) {handleDiff(diff, this, _author);});
     start();
+  }
+
+  void _initDataField(Data data, String field) {
+    if (!_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]] = {};
+    }
+
+    if (!_modifiedFields[data["_id"]].containsKey(field)) {
+      _modifiedFields[data["_id"]][field] = 0;
+    }
+  }
+
+  num tokenForDataField(Data data, String field) {
+    _initDataField(data, field);
+    return _modifiedFields[data["_id"]][field];
+  }
+
+  num nextTokenForDataField(Data data, String field) {
+    _initDataField(data, field);
+    _modifiedFields[data["_id"]][field] += 1;
+    return _modifiedFields[data["_id"]][field];
+  }
+
+  List<String> modifiedDataFields(Data data) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      return _modifiedFields[data["_id"]].keys.toList();
+    }
+    else {
+      return [];
+    }
+  }
+
+  void _clearTokenForDataField(Data data, String field) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]].remove(field);
+
+      if (_modifiedFields[data["_id"]].isEmpty) {
+        _modifiedFields.remove(data["_id"]);
+      }
+    }
   }
 
   /**
@@ -103,13 +145,26 @@ class Subscription {
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
 
+          Map<String, num> tokens = {};
+
+          change.keys.forEach((field) {
+            tokens[field] = nextTokenForDataField(data, field);
+          });
+
           _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
             "_id": data["_id"],
             "change" : change,
             "author" : _author
-          }));
+          })).then((_) {
+            // TODO: check if server really accepted the change
+            tokens.forEach((field, token) {
+              if (tokenForDataField(data, field) == token) {
+                _clearTokenForDataField(data, field);
+              }
+            });
+          });
         });
 
         event["change"].removedItems.forEach((data) {
