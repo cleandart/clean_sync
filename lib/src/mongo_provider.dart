@@ -371,7 +371,7 @@ class MongoProvider implements DataProvider {
   }
 
   num _defaultCompare(a, b) {
-    return a.compareTo(b);
+    return Comparable.compare(a,b); //a.compareTo(b);
   }
 
   _getCompareFunction(bool reverse) {

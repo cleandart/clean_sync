@@ -244,6 +244,47 @@ void main() {
           equals(marchMapAfter.toString()));
     });
 
+    test("handle diff response", (){
+      DataMap guybrush = new DataMap.from({'name' : 'Guybrush'});
+      DataMap lechuck = new DataMap.from({'name' : 'LeChuck'});
+      DataMap mi = new DataMap.from({'_id' : '1', 'good': guybrush, 'evil': lechuck});
+      DataMap summary = new DataMap.from({'_id' : '2', 'characters': new DataList.from([new DataMap.from(guybrush)])});
+      DataSet games = new DataSet.from([mi, summary]);
+      Subscription gamesSubs  = new Subscription.config('games', games, connection,
+          communicator, 'author', idGenerator);
+      List<Map> diff = [
+        {'action': 'change', '_id': '1',
+          'data': {'_id' : '1',
+             'good': {'name': 'Guybrush Threepwood'},
+             'evil': {'name': 'LeChuck'}
+          }
+        },
+        {'action': 'change', '_id': '2',
+          'data': {'_id' : '2',
+             'characters': [new DataMap.from(guybrush), new DataMap.from(lechuck)]
+          }
+        }
+      ];
+
+      handleDiff(diff, gamesSubs, 'author');
+      guybrush.onChange.listen((change){
+        expect(change.equals(new ChangeSet(
+            {'name': new Change('Guybrush', 'Guybrush Threepwood')}
+        )), isTrue);
+
+        print('tutu $change');
+      });
+      lechuck.onChange.listen((change){
+        expect(true, isFalse);
+      });
+      games.onChange.listen((change){
+        print(change);
+//        epxect();
+      });
+      print(games);
+
+    });
+
     test("send add-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');

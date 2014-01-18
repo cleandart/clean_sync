@@ -13,13 +13,38 @@ void handleData(List<Map> data, DataSet collection, String author) {
   collection.addAll(toAdd, author: author);
 }
 
-void applyChange (Map source, DataMap target, author) {
+void applyChangeList (List source, List target, author) {
+  target.length = source.length;
+//  print('tu $source $target');
+  for (num i=0; i<target.length; i++) {
+    if (!applyChange(source[i], target[i], author)) {
+      target[i] = source[i];
+    }
+  }
+}
+
+bool applyChange (source, target, author) {
+  if (source is Map && target is Map) {
+    applyChangeMap(source, target, author);
+    return true;
+  }
+  if (source is List && target is List) {
+    applyChangeList(source, target, author);
+    return true;
+  }
+  if(source == target) {
+    return true;
+  }
+  return false;
+}
+
+void applyChangeMap (Map source, DataMap target, author) {
+  print('source $source');
   for (var key in new List.from(source.keys)) {
     if (target.containsKey(key)) {
-      if (source[key] is Map && target[key] is Map) {
-        applyChange(source[key], target[key], author);
-      } else if (source[key] != target[key]) {
+      if(!applyChange(source[key], target[key], author)){
         target.add(key, source[key], author: author);
+        print('reseting $key $source');
       }
     } else {
       target.add(key, source[key], author: author);
@@ -49,12 +74,13 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record != null) {
         modifiedFields = subscription.modifiedDataFields(record);
+        applyChange(change["data"], record, author);
 
-        change["data"].forEach((String key, dynamic value) {
-          if (!modifiedFields.contains(key)) {
-            record.add(key, value, author: author);
-          }
-        });
+//        change["data"].forEach((String key, dynamic value) {
+//          if (!modifiedFields.contains(key)) {
+//            record.add(key, value, author: author);
+//          }
+//        });
       }
     }
     else if (change["action"] == "remove") {

@@ -164,11 +164,16 @@ main() {
   }
 
   test('Make a lot of changes and see whether getData and getDiff behave consistently.', () {
-    return new Future.value(null)
-    .then((_) => runTest((m) => m))
-    .then((_) => runTest((m) => m.find({'a': {'\$gt': {}}})))
-    .then((_) => runTest((m) => m.find({'a.a': {'\$gt': {}}})))
-    .then((_) => runTest((m) => m.find({'a.a.a': {'\$gt': {}}})))
-    .then((_) => runTest((m) => m.find({'b.b': 'hello'})));
+    List modifiers = [
+//      (MongoProvider m) => m.find({'b': {'\$gt' : {}}}).sort({'a': 1}).limit(3),
+//      (MongoProvider m) => m.find({'b': {'\$gt' : {}}}).sort({'a': -1}).limit(3),
+      (MongoProvider m) => m,
+      (MongoProvider m) => m.find({'a.a': {'\$gt': {}}}),
+      (MongoProvider m) => m.find({'a.a.a': {'\$gt': {}}}),
+      (MongoProvider m) => m.find({'b.b': 'hello'}),
+      (MongoProvider m) => m.find({'a': {'\$gt': {}}}),
+    ];
+
+    return Future.forEach(modifiers, (modifier) => runTest(modifier));
   });
 }
