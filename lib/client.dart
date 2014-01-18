@@ -17,5 +17,4 @@ import 'dart:math';
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
-part 'src/communicator.dart';
 part 'src/id_generator.dart';
