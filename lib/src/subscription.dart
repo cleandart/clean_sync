@@ -13,31 +13,17 @@ void handleData(List<Map> data, DataSet collection, String author) {
   collection.addAll(toAdd, author: author);
 }
 
-void applyChangeList (List source, DataList target, author) {
+void _applyChangeList (List source, DataList target, author) {
   target.length = source.length;
   for (num i=0; i<target.length; i++) {
     if (!applyChange(source[i], target[i], author)) {
-      target[i] = source[i];
+      // TODO add set method to DataList and use it here
+      target.setAll(i, [source[i]], author: author);
     }
   }
 }
 
-bool applyChange (source, target, author) {
-  if (source is Map && target is Map) {
-    applyChangeMap(source, target, author);
-    return true;
-  }
-  if (source is List && target is List) {
-    applyChangeList(source, target, author);
-    return true;
-  }
-  if(source == target) {
-    return true;
-  }
-  return false;
-}
-
-void applyChangeMap (Map source, DataMap target, author) {
+void _applyChangeMap (Map source, DataMap target, author) {
   for (var key in new List.from(source.keys)) {
     if (target.containsKey(key)) {
       if(!applyChange(source[key], target[key], author)){
@@ -53,6 +39,22 @@ void applyChangeMap (Map source, DataMap target, author) {
     }
   }
 }
+
+bool applyChange (source, target, author) {
+  if (source is Map && target is Map) {
+    _applyChangeMap(source, target, author);
+    return true;
+  }
+  if (source is List && target is List) {
+    _applyChangeList(source, target, author);
+    return true;
+  }
+  if(source == target) {
+    return true;
+  }
+  return false;
+}
+
 
 
 void handleDiff(List<Map> diff, Subscription subscription, String author) {

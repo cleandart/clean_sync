@@ -212,7 +212,6 @@ void main() {
       expect(months.collection.first.containsValue("February"), isTrue);
     });
 
-
     test("handle diff response", (){
       DataMap guybrush = new DataMap.from({'name' : 'Guybrush'});
       DataReference guybrushNameRef = guybrush.ref('name');
