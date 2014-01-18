@@ -382,21 +382,21 @@ class MongoProvider implements DataProvider {
     return _defaultCompare;
   }
 
-  _sortBy(Map sortParams) {
+  _getComparator(Map sortParams) {
     List<Map> fields = [];
 
     sortParams.forEach((field, order) {
       fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
     });
 
-    return (a, b) {
+    return (Map item1, Map item2) {
       String name;
       num result = 0;
 
       for (Map field in fields) {
         name = field["name"];
 
-        result = field["comparator"](a[name], b[name]);
+        result = field["comparator"](item1[name], item2[name]);
 
         if (result != 0) {
           break;
@@ -409,7 +409,7 @@ class MongoProvider implements DataProvider {
 
   void _insertIntoSorted(List<Map> data, Map record, Map sortParams) {
     data.add(record);
-    data.sort(_sortBy(sortParams));
+    data.sort(_getComparator(sortParams));
   }
 
   Future<List<Map>> _limitedDiffFromVersion(List<Map> diff) {
@@ -440,7 +440,7 @@ class MongoProvider implements DataProvider {
             }
 
             record.addAll(slice(change["before"], change["data"].keys.toList()));
-            clientData.sort(_sortBy(_sortParams));
+            clientData.sort(_getComparator(_sortParams));
 
             if (!record.containsKey("_metadata")) {
               record["_metadata"] = {};
