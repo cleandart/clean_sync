@@ -13,9 +13,8 @@ void handleData(List<Map> data, DataSet collection, String author) {
   collection.addAll(toAdd, author: author);
 }
 
-void applyChangeList (List source, List target, author) {
+void applyChangeList (List source, DataList target, author) {
   target.length = source.length;
-//  print('tu $source $target');
   for (num i=0; i<target.length; i++) {
     if (!applyChange(source[i], target[i], author)) {
       target[i] = source[i];
@@ -39,12 +38,10 @@ bool applyChange (source, target, author) {
 }
 
 void applyChangeMap (Map source, DataMap target, author) {
-  print('source $source');
   for (var key in new List.from(source.keys)) {
     if (target.containsKey(key)) {
       if(!applyChange(source[key], target[key], author)){
         target.add(key, source[key], author: author);
-        print('reseting $key $source');
       }
     } else {
       target.add(key, source[key], author: author);
@@ -67,14 +64,14 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
     if (change["action"] == "add") {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record == null) {
-        collection.add(new DataMap.from(change["data"]), author: author);
+        collection.add(new DataMap.from(cleanify(change["data"])), author: author);
       }
     }
     else if (change["action"] == "change" && change["author"] != author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record != null) {
         modifiedFields = subscription.modifiedDataFields(record);
-        applyChange(change["data"], record, author);
+        applyChange(cleanify(change["data"]), record, author);
 
 //        change["data"].forEach((String key, dynamic value) {
 //          if (!modifiedFields.contains(key)) {
@@ -88,7 +85,6 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
     }
 //    print("handleDiff:${profiling.elapsed}");
     profiling.stop();
-//    print("applying: ${change}");
   });
 }
 
@@ -169,7 +165,6 @@ class Subscription {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
-      print('data: $data ${data.runtimeType}');
       if(data["_id"] == null) {
         data["_id"] = _idGenerator.next();
       }
