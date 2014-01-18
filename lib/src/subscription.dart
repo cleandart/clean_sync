@@ -235,7 +235,7 @@ class Subscription {
     "collection" : collectionName
   });
 
-  _createDiffRequest() => () => new ClientRequest("sync", {
+  _createDiffRequest() => new ClientRequest("sync", {
     "action" : "get_diff",
     "collection" : collectionName,
     "version" : _version
@@ -265,7 +265,7 @@ class Subscription {
             if(!response['diff'].isEmpty) {
               _version = response['diff'].map((item) => item['version'])
                   .reduce(max);
-              _handleDiff(response['diff'], collection, _author);
+              _handleDiff(response['diff'], this, _author);
             }
           }
         });

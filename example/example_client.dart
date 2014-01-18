@@ -108,7 +108,7 @@ void main() {
           UListElement list = querySelector(sel);
           list.children.add(createListElement(person, sub));
         });
-        event.changedItems.forEach((DataMap person, ChangeSet changes) {
+        event.strictlyChanged.forEach((DataMap person, ChangeSet changes) {
           changes.changedItems.forEach((String key, Change value) {
             InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
             e.value = value.newValue.toString();
