@@ -101,11 +101,10 @@ class Subscription {
   Function _handleDiff = handleDiff;
   /// Used for testing and debugging. If true, data (instead of diff) is
   /// requested periodically.
-  bool _requestData = false;
+  bool _forceDataRequesting = false;
   Map args = {};
 
   num _version;
-  StreamSubscription _updateSubscription;
   Completer _initialSync = new Completer();
   Map<String, Map<String, num>> _modifiedFields = {};
   List<StreamSubscription> _subscriptions = [];
@@ -115,7 +114,7 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._requestData, [this.args]);
+      this._forceDataRequesting, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
@@ -171,6 +170,7 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
+  // TODO rename to something private-like
   void setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
@@ -241,6 +241,7 @@ class Subscription {
     "version" : _version
   });
 
+  // TODO rename to something private-like
   void setupDataRequesting() {
     // request initial data
     _connection.send(_createDataRequest).then((response) {
@@ -249,23 +250,25 @@ class Subscription {
 
       print("Got initial data, synced to version ${_version}");
 
+      // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
 
       var subscription = _connection
-      .sendPeriodically(_requestData ? _createDataRequest : _createDiffRequest)
-      .listen((response) {
-        // id data and version was sent, diff is set to null
-        if(response['diff'] == null) {
-          _version = response['version'];
-          _handleData(response['data'], collection, _author);
-        } else {
-          if(!response['diff'].isEmpty) {
-            _version = response['diff'].map((item) => item['version'])
-                .reduce(max);
-            _handleDiff(response['diff'], collection, _author);
+        .sendPeriodically(_forceDataRequesting ?
+            _createDataRequest : _createDiffRequest)
+        .listen((response) {
+          // id data and version was sent, diff is set to null
+          if(response['diff'] == null) {
+            _version = response['version'];
+            _handleData(response['data'], collection, _author);
+          } else {
+            if(!response['diff'].isEmpty) {
+              _version = response['diff'].map((item) => item['version'])
+                  .reduce(max);
+              _handleDiff(response['diff'], collection, _author);
+            }
           }
-        }
-      });
+        });
 
       _subscriptions.add(subscription);
     });
