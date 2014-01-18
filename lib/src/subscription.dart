@@ -112,10 +112,7 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._updateStyle, [this.args]
-  ) {
-
-  }
+      this._updateStyle, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
