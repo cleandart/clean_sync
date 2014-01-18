@@ -197,7 +197,7 @@ void main() {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       january = new DataMap.from({'name': 'January', 'order': 1});
 
       // when
@@ -214,7 +214,7 @@ void main() {
       List<Map> data = [{'_id': '21', 'name': 'February', 'order': 2}];
       connection = new ConnectionMock();
       months = new Subscription.config('months', collection, connection,
-        'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+        'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       handleData(data, months.collection, 'author');
@@ -236,7 +236,7 @@ void main() {
       collection.add(january);
       collection.add(february);
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       List<Map> diff = [
         {'action': 'add', 'data': aprilMap},
         {'action': 'change', '_id': '31',
@@ -263,7 +263,7 @@ void main() {
       DataMap summary = new DataMap.from({'_id' : '2', 'characters': new DataList.from([new DataMap.from(guybrush)])});
       DataSet games = new DataSet.from([mi, summary]);
       Subscription gamesSubs  = new Subscription.config('games', games, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       List<Map> diff = [
         {'action': 'change', '_id': '1',
           'data': {'_id' : '1',
@@ -301,7 +301,7 @@ void main() {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       january = new DataMap.from({'name': 'January', 'order': 1});
 
       // when
@@ -321,7 +321,7 @@ void main() {
       january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
       collection.add(january);
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.setupListeners();
@@ -341,7 +341,7 @@ void main() {
       january = new DataMap.from({'_id': '12', 'name': 'January', 'order': 1});
       collection.add(january);
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.setupListeners();
@@ -357,7 +357,7 @@ void main() {
     test("start.", () {
       // given
       months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, 'diff');
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.setupListeners();
@@ -367,31 +367,28 @@ void main() {
       expect(listenersAreOn(), isTrue);
     });
 
-    test("restart.", () {
-      // given
-      months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
-
-      // when
-      months.restart();
-
-      // then
-      communicator.getLogs(callsTo('stop')).verify(happenedOnce);
-      communicator.getLogs(callsTo('start')).verify(happenedOnce);
-      expect(communicator.getLogs().last.methodName, equals('start'));
-      expect(listenersAreOn(), isTrue);
-    });
+//    test("restart.", () {
+//      // given
+//      months = new Subscription.config('months', collection, connection,
+//          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+//
+//      // when
+//      months.restart();
+//
+//      // then
+//      // TODO
+//      expect(listenersAreOn(), isTrue);
+//    });
 
     test("dispose.", () {
       // given
       months = new Subscription.config('months', collection, connection,
-          communicator, 'author', idGenerator);
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.dispose();
 
       // then
-      communicator.getLogs(callsTo('stop')).verify(happenedOnce);
       expect(listenersAreOn(), isFalse);
     });
 
@@ -405,117 +402,6 @@ void main() {
         expect(valueList[2], equals('value2'));
       });
 
-    });
-  });
-
-  group("Communicator", () {
-    ConnectionMock connection;
-    FunctionMock handleData;
-    FunctionMock handleDiff;
-    Communicator defaultCommunicator;
-    Communicator diffCommunicator = new Communicator(connection, 'months',
-        handleData, handleDiff, 'diff');
-    Communicator dataCommunicator = new Communicator(connection, 'months',
-        handleData, handleDiff, 'data');
-    Map data, diff, emptyDiff;
-
-    setUp(() {
-      connection = new ConnectionMock();
-      handleData = new FunctionMock();
-      handleDiff = new FunctionMock();
-      data = {'data': 'some_data', 'version': 12};
-      diff = {'diff': [{'version': 13}, {'version': 14}]};
-      emptyDiff = {'diff': []};
-    });
-
-    test("get_data sent after start.", () {
-      // given
-      connection.resetBehavior();
-      connection.when(callsTo('send')).thenCall((_) {
-        defaultCommunicator.stop();
-        return new Future.value(data);
-      });
-      handleData = new FunctionMock();
-      defaultCommunicator = new Communicator(connection, 'months', handleData,
-          handleDiff);
-
-      // when
-      defaultCommunicator.start();
-
-      // then
-      var request = connection.getLogs().first.args.first();
-      expect(request.type, equals('sync'));
-      expect(request.args, equals({'action': 'get_data',
-        'collection': 'months'}));
-    });
-
-    test("handleData called properly.", () {
-//      // given
-      connection.resetBehavior();
-      connection.when(callsTo('send')).alwaysCall((_) {
-        defaultCommunicator.stop();
-        return new Future.value(data);
-      });
-
-      defaultCommunicator = new Communicator(connection, 'months', handleData,
-          handleDiff);
-//
-//      // when
-      defaultCommunicator.start();
-
-      // then
-
-      return new Future.delayed(new Duration(milliseconds: 100), () {
-        expect(handleData.getLogs(callsTo('call')).first.args.first,
-            equals('some_data'));
-
-      });
-    });
-
-    test("get_diff sent with proper version number.", () {
-      // given
-      connection.resetBehavior();
-      connection.when(callsTo('send')).thenCall((_) {
-        return new Future.value(data);
-      }).thenCall((_) {
-        defaultCommunicator.stop();
-        return new Future.value(emptyDiff);
-      });
-      defaultCommunicator = new Communicator(connection, 'months', handleData,
-          handleDiff);
-
-      // when
-      defaultCommunicator.start();
-
-      // then
-      return new Future.delayed(new Duration(milliseconds: 100), () {
-        var diffRequest = connection.getLogs().last.args.first();
-        expect(diffRequest.type, equals('sync'));
-        expect(diffRequest.args, equals({'action': 'get_diff',
-          'collection': 'months', 'version': 12}));
-      });
-    });
-
-    test("handleDiff called properly.", () {
-      // given
-      connection.resetBehavior();
-      connection.when(callsTo('send')).thenCall((_) {
-        return new Future.value(data);
-      }).thenCall((_) {
-        defaultCommunicator.stop();
-        return new Future.value(diff);
-      });
-      defaultCommunicator = new Communicator(connection, 'months', handleData,
-          handleDiff);
-
-      // when
-      defaultCommunicator.start();
-
-      // then
-      return new Future.delayed(new Duration(milliseconds: 100), () {
-        expect(handleDiff.getLogs(callsTo('call')).first.args.first,
-            equals([{'version': 13}, {'version': 14}]));
-      });
     });
   });
 }

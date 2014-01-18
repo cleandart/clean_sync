@@ -93,33 +93,35 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
 }
 
 class Subscription {
+  // constructor arguments:
   String collectionName;
   DataSet collection;
   Connection _connection;
   String _author;
   IdGenerator _idGenerator;
+  Function _handleData = handleData;
+  Function _handleDiff = handleDiff;
+  /// Used for testing and debugging. If true, data (instead of diff) is
+  /// requested periodically.
+  bool _requestData = false;
   Map args = {};
 
-  String _updateStyle;
   num _version;
-  Function _handleData, _handleDiff;
   StreamSubscription _updateSubscription;
   Completer _initialSync = new Completer();
-  Future get initialSync => _initialSync.future;
-
   Map<String, Map<String, num>> _modifiedFields = {};
   List<StreamSubscription> _subscriptions = [];
 
+  /// Completes after first request to get data is answered and handled.
+  Future get initialSync => _initialSync.future;
+
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._updateStyle, [this.args]);
+      this._requestData, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataSet();
-    _handleData = handleData;
-    _handleDiff = handleDiff;
-    _updateStyle = 'diff';
     start();
   }
 
@@ -231,27 +233,44 @@ class Subscription {
     }));
   }
 
+  _createDataRequest() => new ClientRequest("sync", {
+    "action" : "get_data",
+    "collection" : collectionName
+  });
+
+  _createDiffRequest() => () => new ClientRequest("sync", {
+    "action" : "get_diff",
+    "collection" : collectionName,
+    "version" : _version
+  });
+
   void setupDataRequesting() {
     // request initial data
-    _connection.send(() => new ClientRequest("sync", {
-      "action" : "get_data",
-      "collection" : collectionName
-    })).then((response) {
+    _connection.send(_createDataRequest).then((response) {
       _version = response['version'];
       _handleData(response['data'], collection, _author);
 
       print("Got initial data, synced to version ${_version}");
 
-      if (!_initialSync.isCompleted) {
-        _initialSync.complete();
-      }
+      if (!_initialSync.isCompleted) _initialSync.complete();
 
-      if (_updateStyle == 'diff') {
-        _requestDiff();
-      } else if (_updateStyle == 'data') {
-        _requestData();
-      }
+      var subscription = _connection
+      .sendPeriodically(_requestData ? _createDataRequest : _createDiffRequest)
+      .listen((response) {
+        // id data and version was sent, diff is set to null
+        if(response['diff'] == null) {
+          _version = response['version'];
+          _handleData(response['data'], collection, _author);
+        } else {
+          if(!response['diff'].isEmpty) {
+            _version = response['diff'].map((item) => item['version'])
+                .reduce(max);
+            _handleDiff(response['diff'], collection, _author);
+          }
+        }
+      });
 
+      _subscriptions.add(subscription);
     });
   }
 
@@ -260,41 +279,8 @@ class Subscription {
     setupDataRequesting();
   }
 
-  void _requestDiff() {
-    _updateSubscription = _connection.sendPeriodically(() => new ClientRequest("sync", {
-      "action" : "get_diff",
-      "collection" : collectionName,
-      "version" : _version
-    })).listen((response) {
-      // id data and version was sent, diff is set to null
-      if(response['diff'] == null) {
-        _version = response['version'];
-        _handleData(response['data'], collection, _author);
-      } else {
-        if(!response['diff'].isEmpty) {
-          _version = response['diff'].map((item) => item['version'])
-              .reduce(max);
-          _handleDiff(response['diff'], collection, _author);
-        }
-      }
-    });
-  }
-
-  void _requestData() {
-    _updateSubscription = _connection.sendPeriodically(() =>
-        new ClientRequest("sync", {
-          "action" : "get_data",
-          "collection" : collectionName
-        })
-    ).listen((response) {
-      _version = response['version'];
-      _handleData(response['data'], collection, _author);
-    });
-  }
-
   void dispose() {
-    _updateSubscription.cancel();
-    _subscriptions.forEach((s) {s.cancel();});
+    _subscriptions.forEach((s) => s.cancel());
   }
 
   void restart() {
