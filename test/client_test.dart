@@ -25,7 +25,6 @@ class ConnectionMock extends Mock implements Connection {
   }
 }
 class IdGeneratorMock extends Mock implements IdGenerator {}
-class CommunicatorMock extends Mock implements Communicator {}
 class FunctionMock extends Mock implements Function {}
 class SubscriptionMock extends Mock implements Subscription {
   SubscriptionMock(value) {
