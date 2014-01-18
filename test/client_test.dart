@@ -15,7 +15,6 @@ import 'dart:async';
 class ConnectionMock extends Mock implements Connection {
   ConnectionMock() {
     when(callsTo('send')).alwaysCall((requestFactory) {
-      print('aaaaaa');
       switch (requestFactory().args['action']) {
         case ('get_diff'): return new Future.value({'diff': null});
         case ('get_data'): return new Future.value({'version': 2, 'data': null});
@@ -378,6 +377,7 @@ void main() {
 
     test("get_data sent after start.", () {
       // given
+      connection.resetBehavior();
       connection.when(callsTo('send')).thenCall((_) {
         defaultCommunicator.stop();
         return new Future.value(data);
@@ -396,14 +396,12 @@ void main() {
         'collection': 'months'}));
     });
 
-    solo_test("handleData called properly.", () {
+    test("handleData called properly.", () {
 //      // given
-//      connection.when(callsTo('send')).thenCall((_) {
       connection.resetBehavior();
       connection.when(callsTo('send')).alwaysCall((_) {
-        print('sending');
+        defaultCommunicator.stop();
         return new Future.value(data);
-//        return new Future.delayed(new Duration(milliseconds: 1), () => data);
       });
 
       defaultCommunicator = new Communicator(connection, 'months', handleData,
@@ -412,14 +410,9 @@ void main() {
 //      // when
       defaultCommunicator.start();
 
-      print('wtfff');
       // then
-      new Future.delayed(new Duration(milliseconds: 10), (){
-        print('101010');
-      });
 
       return new Future.delayed(new Duration(milliseconds: 100), () {
-        print('tututu');
         expect(handleData.getLogs(callsTo('call')).first.args.first,
             equals('some_data'));
 
@@ -428,6 +421,7 @@ void main() {
 
     test("get_diff sent with proper version number.", () {
       // given
+      connection.resetBehavior();
       connection.when(callsTo('send')).thenCall((_) {
         return new Future.value(data);
       }).thenCall((_) {
@@ -451,6 +445,7 @@ void main() {
 
     test("handleDiff called properly.", () {
       // given
+      connection.resetBehavior();
       connection.when(callsTo('send')).thenCall((_) {
         return new Future.value(data);
       }).thenCall((_) {

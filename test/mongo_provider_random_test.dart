@@ -21,14 +21,15 @@ main() {
   MongoProvider wholeCollection;
   MongoDatabase mongodb;
 
-  setup(Map selector) {
+  setup(selector) {
     mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks())
     .then((_){
       wholeCollection = mongodb.collection('random');
-      currCollection = mongodb.collection('random').find(selector);
+//      currCollection = mongodb.collection('random').find(selector);
+      currCollection = selector(mongodb.collection('random'));
     });
   }
 
@@ -164,10 +165,10 @@ main() {
 
   test('Make a lot of changes and see whether getData and getDiff behave consistently.', () {
     return new Future.value(null)
-    .then((_) => runTest({}))
-    .then((_) => runTest({'a': {'\$gt': {}}}))
-    .then((_) => runTest({'a.a': {'\$gt': {}}}))
-    .then((_) => runTest({'a.a.a': {'\$gt': {}}}))
-    .then((_) => runTest({'b.b': 'hello'}));
+    .then((_) => runTest((m) => m))
+    .then((_) => runTest((m) => m.find({'a': {'\$gt': {}}})))
+    .then((_) => runTest((m) => m.find({'a.a': {'\$gt': {}}})))
+    .then((_) => runTest((m) => m.find({'a.a.a': {'\$gt': {}}})))
+    .then((_) => runTest((m) => m.find({'b.b': 'hello'})));
   });
 }
