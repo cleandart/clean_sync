@@ -224,7 +224,7 @@ void main() {
       expect(months.collection.first.containsValue("February"), isTrue);
     });
 
-    test("handle diff response.", () {
+    skip_test("handle diff response.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       DataMap marchMapBefore = new DataMap.from({'_id': '31', 'name': 'February', 'order': 3});
@@ -258,10 +258,12 @@ void main() {
 
     test("handle diff response", (){
       DataMap guybrush = new DataMap.from({'name' : 'Guybrush'});
+      DataReference guybrushNameRef = guybrush.ref('name');
       DataMap lechuck = new DataMap.from({'name' : 'LeChuck'});
       DataMap mi = new DataMap.from({'_id' : '1', 'good': guybrush, 'evil': lechuck});
+      DataMap loom = new DataMap.from({'_id': '3', 'game': 'loom'});
       DataMap summary = new DataMap.from({'_id' : '2', 'characters': new DataList.from([new DataMap.from(guybrush)])});
-      DataSet games = new DataSet.from([mi, summary]);
+      DataSet games = new DataSet.from([mi, summary, loom]);
       Subscription gamesSubs  = new Subscription.config('games', games, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
       List<Map> diff = [
@@ -273,27 +275,40 @@ void main() {
         },
         {'action': 'change', '_id': '2',
           'data': {'_id' : '2',
-             'characters': [new DataMap.from(guybrush), new DataMap.from(lechuck)]
+             'characters': [new Map.from(guybrush), new Map.from(lechuck)]
           }
-        }
+        },
+        {'action': 'remove', '_id': '3'},
+        {'action': 'add', '_id': '4',
+          'data': {'_id' : '4', 'game': 'grim fandango'}
+        },
       ];
 
       handleDiff(diff, gamesSubs, 'author');
-      guybrush.onChange.listen((change){
+      guybrush.onChange.listen(expectAsync1((change){
+        expect(guybrushNameRef, equals(guybrush.ref('name')));
         expect(change.equals(new ChangeSet(
             {'name': new Change('Guybrush', 'Guybrush Threepwood')}
         )), isTrue);
-
-        print('tutu $change');
-      });
+      }));
       lechuck.onChange.listen((change){
         expect(true, isFalse);
       });
-      games.onChange.listen((change){
-        print(change);
-//        epxect();
-      });
-      print(games);
+      summary.onChange.listen(expectAsync1((change){
+        var added = summary['characters'][1];
+        expect(added is DataMap, isTrue);
+        expect(change.equals(
+            new ChangeSet({
+              'characters': new ChangeSet({1: new Change(undefined, added)})
+            })
+        ), isTrue);
+      }));
+      games.onChange.listen(expectAsync1((ChangeSet change){
+        expect(change.addedItems.length, equals(1));
+        expect(change.addedItems.first['game'], equals('grim fandango'));
+        expect(change.removedItems.length, equals(1));
+        expect(change.removedItems.first['game'], equals('loom'));
+      }));
 
     });
 

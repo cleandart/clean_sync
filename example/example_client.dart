@@ -14,52 +14,52 @@ LIElement createListElement(person, persons) {
   TextInputElement name = new TextInputElement()
   ..className = "_id-${person["_id"]}-${persons.collectionName}-name"
   ..value = "${person["name"]}";
-  
+
   TextInputElement age = new TextInputElement()
   ..className = "_id-${person["_id"]}-${persons.collectionName}-age"
   ..value = "${person["age"]}";
-  
+
   ButtonElement save = new ButtonElement()
   ..text = "save"
   ..dataset["_id"] = person["_id"]
   ..onClick.listen((MouseEvent event) {
     ButtonElement e = event.toElement;
     String _id = e.dataset["_id"];
-    Data pers = persons.collection.firstWhere((d) => d["_id"] == _id);
-    
+    DataMap pers = persons.collection.firstWhere((d) => d["_id"] == _id);
+
     InputElement name = querySelector("._id-${person["_id"]}-${persons.collectionName}-name");
     InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
-    
+
     if (pers != null) {
       pers["name"] = name.value;
       pers["age"] = int.parse(age.value);
-    }   
+    }
   });
-  
+
   ButtonElement delete = new ButtonElement()
   ..text = "delete"
   ..dataset["_id"] = person["_id"]
   ..onClick.listen((MouseEvent event) {
     ButtonElement e = event.toElement;
     String _id = e.dataset["_id"];
-    Data pers = persons.collection.firstWhere((d) => d["_id"] == _id);
+    DataMap pers = persons.collection.firstWhere((d) => d["_id"] == _id);
 
     if (pers != null) {
       persons.collection.remove(pers);
-    }   
+    }
   });
-  
+
   LIElement li = new LIElement()
   ..className = "_id-${person["_id"]}"
   ..text = "#${person["_id"]}"
   ..dataset["_id"] = person["_id"];
-  
+
   li.children
   ..add(name)
   ..add(age)
   ..add(save)
   ..add(delete);
-  
+
   return li;
 }
 
@@ -71,9 +71,9 @@ void main() {
       new Duration(milliseconds: 100));
   String authorData = 'dataAll';
   String authorData24 = 'data24';
-  DataCollection personsDataCol = new DataCollection();
-  DataCollection personsDataCol24 = new DataCollection();
-  
+  DataSet personsDataCol = new DataSet();
+  DataSet personsDataCol24 = new DataSet();
+
 //  Communicator communicator = new Communicator(connection, 'persons',
 //      (List<Map> data) {handleData(data, personsDataCol, authorData);}, null,
 //      'data');
@@ -108,7 +108,7 @@ void main() {
           UListElement list = querySelector(sel);
           list.children.add(createListElement(person, sub));
         });
-        event.changedItems.forEach((Data person, ChangeSet changes) {
+        event.changedItems.forEach((DataMap person, ChangeSet changes) {
           changes.changedItems.forEach((String key, Change value) {
             InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
             e.value = value.newValue.toString();
@@ -124,7 +124,7 @@ void main() {
       InputElement name = querySelector("#name");
       InputElement age = querySelector("#age");
 
-      personsDiff.collection.add(new Data.from({
+      personsDiff.collection.add(new DataMap.from({
         "name" : name.value,
         "age" : int.parse(age.value)
       }));
