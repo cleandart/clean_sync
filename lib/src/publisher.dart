@@ -24,9 +24,9 @@ class Publisher {
     return _publishedCollections.keys.contains(collection);
   }
 
-  Future handleSyncRequest(ClientRequest request) {
+  Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
-    print("REQUEST:  ${data}");
+    //print("REQUEST:  ${data}");
 
     if (data["action"] == "get_id_prefix") {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});

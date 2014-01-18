@@ -4,60 +4,102 @@
 
 part of clean_sync.client;
 
-void handleData(List<Map> data, DataCollection collection, String author) {
-  // TODO: use clean(author: _author instead)
-  var toDelete=[];
-  for (var d in collection) {
-    toDelete.add(d);
-  }
-  for (var d in toDelete) {
-    collection.remove(d, author: author);
-  }
+void handleData(List<Map> data, DataSet collection, String author) {
+  collection.clear(author: author);
+  List<DataMap> toAdd = [];
   for (Map record in data) {
-    collection.add(new Data.from(record), author : author);
+    toAdd.add(new DataMap.from(record));
+  }
+  collection.addAll(toAdd, author: author);
+}
+
+void applyChangeList (List source, List target, author) {
+  target.length = source.length;
+//  print('tu $source $target');
+  for (num i=0; i<target.length; i++) {
+    if (!applyChange(source[i], target[i], author)) {
+      target[i] = source[i];
+    }
   }
 }
 
-void handleDiff(List<Map> diff, DataCollection collection, String author) {
+bool applyChange (source, target, author) {
+  if (source is Map && target is Map) {
+    applyChangeMap(source, target, author);
+    return true;
+  }
+  if (source is List && target is List) {
+    applyChangeList(source, target, author);
+    return true;
+  }
+  if(source == target) {
+    return true;
+  }
+  return false;
+}
+
+void applyChangeMap (Map source, DataMap target, author) {
+  print('source $source');
+  for (var key in new List.from(source.keys)) {
+    if (target.containsKey(key)) {
+      if(!applyChange(source[key], target[key], author)){
+        target.add(key, source[key], author: author);
+        print('reseting $key $source');
+      }
+    } else {
+      target.add(key, source[key], author: author);
+    }
+  }
+  for (var key in new List.from(target.keys)) {
+    if (!source.containsKey(key)) {
+      target.remove(key, author: author);
+    }
+  }
+}
+
+
+void handleDiff(List<Map> diff, Subscription subscription, String author) {
+  DataSet collection = subscription.collection;
+  List<String> modifiedFields;
   var profiling = new Stopwatch()..start();
+
   diff.forEach((Map change) {
-    if (change["author"] != author) {
-      if (change["action"] == "add") {
-        collection.add(new Data.from(change["data"]), author: author);
-      }
-      else if (change["action"] == "change") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-        if (record != null) {
-          record.addAll(change["data"], author: author);
-        }
-      }
-      else if (change["action"] == "remove") {
-        Data record = collection.firstWhere((d) => d["_id"] == change["_id"],
-            orElse: ()=>null);
-        if(record == null) {
-          var collectionMap = collection.toList().map((DataView d) => d.toJson());
-          throw new Exception(
-              'cannot find obj with id ${change["_id"]} in $collectionMap');
-        }
-        //TODO: can result be null?
-        if (record != null) {
-          collection.remove(record, author: author);
-        }
+    if (change["action"] == "add") {
+      DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record == null) {
+        collection.add(new DataMap.from(change["data"]), author: author);
       }
     }
-    print("handleDiff:${profiling.elapsed}");
+    else if (change["action"] == "change" && change["author"] != author) {
+      DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (record != null) {
+        modifiedFields = subscription.modifiedDataFields(record);
+        applyChange(change["data"], record, author);
+
+//        change["data"].forEach((String key, dynamic value) {
+//          if (!modifiedFields.contains(key)) {
+//            record.add(key, value, author: author);
+//          }
+//        });
+      }
+    }
+    else if (change["action"] == "remove") {
+      collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
+    }
+//    print("handleDiff:${profiling.elapsed}");
     profiling.stop();
-    print("applying: ${change}");
+//    print("applying: ${change}");
   });
 }
 
 class Subscription {
   String collectionName;
-  DataCollection collection;
+  DataSet collection;
   Connection _connection;
   String _author;
   IdGenerator _idGenerator;
   Map args = {};
+
   String _updateStyle;
   num _version;
   Function _handleData, _handleDiff;
@@ -65,24 +107,63 @@ class Subscription {
   Completer _initialSync = new Completer();
   Future get initialSync => _initialSync.future;
 
+  Map<String, Map<String, num>> _modifiedFields = {};
   List<StreamSubscription> _subscriptions = [];
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._author, this._idGenerator, this._handleData, this._handleDiff, 
+      this._author, this._idGenerator, this._handleData, this._handleDiff,
       this._updateStyle, [this.args]
   ) {
-    
+
   }
 
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
-    collection = new DataCollection();
-    
+    collection = new DataSet();
     _handleData = handleData;
     _handleDiff = handleDiff;
     _updateStyle = 'diff';
-    
     start();
+  }
+
+  void _initDataField(DataMap data, String field) {
+    if (!_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]] = {};
+    }
+
+    if (!_modifiedFields[data["_id"]].containsKey(field)) {
+      _modifiedFields[data["_id"]][field] = 0;
+    }
+  }
+
+  num tokenForDataField(DataMap data, String field) {
+    _initDataField(data, field);
+    return _modifiedFields[data["_id"]][field];
+  }
+
+  num nextTokenForDataField(DataMap data, String field) {
+    _initDataField(data, field);
+    _modifiedFields[data["_id"]][field] += 1;
+    return _modifiedFields[data["_id"]][field];
+  }
+
+  List<String> modifiedDataFields(DataMap data) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      return _modifiedFields[data["_id"]].keys.toList();
+    }
+    else {
+      return [];
+    }
+  }
+
+  void _clearTokenForDataField(DataMap data, String field) {
+    if (_modifiedFields.containsKey(data["_id"])) {
+      _modifiedFields[data["_id"]].remove(field);
+
+      if (_modifiedFields[data["_id"]].isEmpty) {
+        _modifiedFields.remove(data["_id"]);
+      }
+    }
   }
 
   /**
@@ -97,6 +178,7 @@ class Subscription {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
+      print('data: $data ${data.runtimeType}');
       if(data["_id"] == null) {
         data["_id"] = _idGenerator.next();
       }
@@ -113,10 +195,16 @@ class Subscription {
           }));
         });
 
-        event["change"].changedItems.forEach((Data data, ChangeSet changeSet) {
+        event["change"].strictlyChanged.forEach((DataMap data, ChangeSet changeSet) {
           Map change = {};
           changeSet.changedItems.
             forEach((k, Change v) => change[k] = v.newValue);
+
+          Map<String, num> tokens = {};
+
+          change.keys.forEach((field) {
+            tokens[field] = nextTokenForDataField(data, field);
+          });
 
           _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
@@ -124,7 +212,14 @@ class Subscription {
             "_id": data["_id"],
             "change" : change,
             "author" : _author
-          }));
+          })).then((_) {
+            // TODO: check if server really accepted the change
+            tokens.forEach((field, token) {
+              if (tokenForDataField(data, field) == token) {
+                _clearTokenForDataField(data, field);
+              }
+            });
+          });
         });
 
         event["change"].removedItems.forEach((data) {
@@ -138,7 +233,7 @@ class Subscription {
       }
     }));
   }
-  
+
   void setupDataRequesting() {
     // request initial data
     _connection.send(() => new ClientRequest("sync", {
@@ -147,13 +242,13 @@ class Subscription {
     })).then((response) {
       _version = response['version'];
       _handleData(response['data'], collection, _author);
-      
+
       print("Got initial data, synced to version ${_version}");
-      
+
       if (!_initialSync.isCompleted) {
         _initialSync.complete();
       }
-      
+
       if (_updateStyle == 'diff') {
         _requestDiff();
       } else if (_updateStyle == 'data') {
@@ -162,12 +257,12 @@ class Subscription {
 
     });
   }
-  
+
   void start() {
     setupListeners();
     setupDataRequesting();
   }
-  
+
   void _requestDiff() {
     _updateSubscription = _connection.sendPeriodically(() => new ClientRequest("sync", {
       "action" : "get_diff",
@@ -187,9 +282,9 @@ class Subscription {
       }
     });
   }
-  
+
   void _requestData() {
-    _updateSubscription = _connection.sendPeriodically(() => 
+    _updateSubscription = _connection.sendPeriodically(() =>
         new ClientRequest("sync", {
           "action" : "get_data",
           "collection" : collectionName

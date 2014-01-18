@@ -11,19 +11,55 @@ import "package:clean_ajax/client_browser.dart";
  */
 
 LIElement createListElement(person, persons) {
-  LIElement li = new LIElement()
-  ..className = "_id-${person["_id"]}"
-  ..text = "#${person["_id"]} ${person["name"]} (${person["age"]})"
+  TextInputElement name = new TextInputElement()
+  ..className = "_id-${person["_id"]}-${persons.collectionName}-name"
+  ..value = "${person["name"]}";
+  
+  TextInputElement age = new TextInputElement()
+  ..className = "_id-${person["_id"]}-${persons.collectionName}-age"
+  ..value = "${person["age"]}";
+  
+  ButtonElement save = new ButtonElement()
+  ..text = "save"
   ..dataset["_id"] = person["_id"]
   ..onClick.listen((MouseEvent event) {
-    LIElement e = event.toElement;
+    ButtonElement e = event.toElement;
+    String _id = e.dataset["_id"];
+    Data pers = persons.collection.firstWhere((d) => d["_id"] == _id);
+    
+    InputElement name = querySelector("._id-${person["_id"]}-${persons.collectionName}-name");
+    InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
+    
+    if (pers != null) {
+      pers["name"] = name.value;
+      pers["age"] = int.parse(age.value);
+    }   
+  });
+  
+  ButtonElement delete = new ButtonElement()
+  ..text = "delete"
+  ..dataset["_id"] = person["_id"]
+  ..onClick.listen((MouseEvent event) {
+    ButtonElement e = event.toElement;
     String _id = e.dataset["_id"];
     Data pers = persons.collection.firstWhere((d) => d["_id"] == _id);
 
     if (pers != null) {
       persons.collection.remove(pers);
-    }
+    }   
   });
+  
+  LIElement li = new LIElement()
+  ..className = "_id-${person["_id"]}"
+  ..text = "#${person["_id"]}"
+  ..dataset["_id"] = person["_id"];
+  
+  li.children
+  ..add(name)
+  ..add(age)
+  ..add(save)
+  ..add(delete);
+  
   return li;
 }
 
@@ -37,32 +73,33 @@ void main() {
   String authorData24 = 'data24';
   DataCollection personsDataCol = new DataCollection();
   DataCollection personsDataCol24 = new DataCollection();
-  Communicator communicator = new Communicator(connection, 'persons',
-      (List<Map> data) {handleData(data, personsDataCol, authorData);}, null,
-      'data');
-  Communicator communicator24 = new Communicator(connection,
-      'personsOlderThan24',
-      (List<Map> data) {handleData(data, personsDataCol24, authorData24);},
-      null, 'data');
-
-  personsData = new Subscription.config('persons', personsDataCol, connection,
-      communicator, authorData, new IdGenerator(authorData));
-  personsData24 = new Subscription.config('personsOlderThan24',
-      personsDataCol24, connection, communicator24, authorData24,
-      new IdGenerator(authorData24));
+  
+//  Communicator communicator = new Communicator(connection, 'persons',
+//      (List<Map> data) {handleData(data, personsDataCol, authorData);}, null,
+//      'data');
+//  Communicator communicator24 = new Communicator(connection,
+//      'personsOlderThan24Desc',
+//      (List<Map> data) {handleData(data, personsDataCol24, authorData24);},
+//      null, 'data');
+//
+//  personsData = new Subscription.config('persons', personsDataCol, connection,
+//      communicator, authorData, new IdGenerator(authorData));
+//  personsData24 = new Subscription.config('personsOlderThan24Desc',
+//      personsDataCol24, connection, communicator24, authorData24,
+//      new IdGenerator(authorData24));
 
   Subscriber subscriber = new Subscriber(connection);
   subscriber.init().then((_) {
     personsDiff = subscriber.subscribe("persons");
-    personsDiff24 = subscriber.subscribe("personsOlderThan24");
-    personsData.start();
-    personsData24.start();
+    personsDiff24 = subscriber.subscribe("personsOlderThan24Desc");
+//    personsData.start();
+//    personsData24.start();
 
     Map<String, Subscription> map = {
         '#list-diff': personsDiff,
         '#list24-diff': personsDiff24,
-        '#list-data': personsData,
-        '#list24-data': personsData24,
+//        '#list-data': personsData,
+//        '#list24-data': personsData24,
     };
 
     map.forEach((String sel, Subscription sub) {
@@ -70,6 +107,12 @@ void main() {
         event.addedItems.forEach((person) {
           UListElement list = querySelector(sel);
           list.children.add(createListElement(person, sub));
+        });
+        event.changedItems.forEach((Data person, ChangeSet changes) {
+          changes.changedItems.forEach((String key, Change value) {
+            InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
+            e.value = value.newValue.toString();
+          });
         });
         event.removedItems.forEach((person) {
           querySelector('$sel > li._id-${person["_id"]}').remove();
