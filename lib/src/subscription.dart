@@ -257,6 +257,7 @@ class Subscription {
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
+          print('tutu');
           // id data and version was sent, diff is set to null
           if(response['diff'] == null) {
             _version = response['version'];

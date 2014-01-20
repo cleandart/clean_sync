@@ -12,6 +12,8 @@ import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';
 import 'dart:async';
 
+class BareConnectionMock extends Mock implements Connection {}
+
 class ConnectionMock extends Mock implements Connection {
   ConnectionMock() {
     when(callsTo('send')).alwaysCall((requestFactory) {
@@ -173,15 +175,6 @@ void main() {
 
     setUp(() {
       connection = new ConnectionMock();
-//      connection.when(callsTo('send', anything))
-//        .alwaysReturn(new Future.value({'version': 1}));
-//      connection.when(callsTo('sendPeriodically', anything))
-//        .alwaysReturn(
-//          new Stream.fromFuture(
-//            new Future.value({'version': 300})
-//          )
-//        );
-
       idGenerator = new IdGeneratorMock();
       mockHandleData = new FunctionMock();
       mockHandleDiff = new FunctionMock();
@@ -222,6 +215,38 @@ void main() {
       expect(months.collection.length, equals(1));
       expect(months.collection.first.containsValue("February"), isTrue);
     });
+
+    solo_test("tokens", () {
+
+
+      var connection = new BareConnectionMock();
+      var elem = new DataMap.from({'_id': 1, 'name': 'johny'});
+
+      connection.when(callsTo('send')).alwaysCall((requestFactory) {
+        switch (requestFactory().args['action']) {
+          case ('get_diff'): return new Future.value({'diff': null});
+          case ('get_data'): return new Future.value({'version': 2, 'data': [elem]});
+          case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
+          default: return new Future.value(null);
+        }
+      });
+
+      Subscription subs  = new Subscription.config('collection', collection, connection,
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+
+      _createDataRequest() => new ClientRequest("sync", {
+        "action" : "get_data",
+        "collection" : 'collection'
+      });
+
+      connection.send(_createDataRequest).then((val){
+        print(val);
+        handleData(val['data'], collection, 'author');
+        print(collection);
+      });
+    });
+
+
 
     skip_test("handle diff response.", () {
       // given
