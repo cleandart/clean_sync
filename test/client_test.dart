@@ -216,12 +216,9 @@ void main() {
       expect(months.collection.first.containsValue("February"), isTrue);
     });
 
-    solo_test("tokens", () {
-
-
+    test("tokens", () {
       var connection = new BareConnectionMock();
       var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
-
       connection.when(callsTo('send')).alwaysCall((requestFactory) {
         var request = requestFactory();
         switch (request.args['action']) {
@@ -236,7 +233,10 @@ void main() {
           }]});
           case ('get_data'): return new Future.value({'version': 2, 'data': [elem]});
           case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
-          case ('change'): {print('change ${request.args}'); return new Future.value(null);}
+          case ('change'): {
+            return new Future.delayed(new Duration(milliseconds: 200),
+               () => new Future.value(null));
+          }
           default: return new Future.value(null);
         }
       });
@@ -259,13 +259,12 @@ void main() {
       });
 
       elem['name'] = 'trillian';
-      print(elem);
-      new Future.delayed(new Duration(milliseconds: 200), (){
-        print(elem);
+      elem['name'] = 'tricia';
+      return new Future.delayed(new Duration(milliseconds: 300), (){
+        expect(elem['name'], equals('tricia'));
       });
 
     });
-
 
 
     skip_test("handle diff response.", () {
@@ -426,18 +425,18 @@ void main() {
       expect(listenersAreOn(), isTrue);
     });
 
-//    test("restart.", () {
-//      // given
-//      months = new Subscription.config('months', collection, connection,
-//          'author', idGenerator, mockHandleData, mockHandleDiff, false);
-//
-//      // when
-//      months.restart();
-//
-//      // then
-//      // TODO
-//      expect(listenersAreOn(), isTrue);
-//    });
+    skip_test("restart.", () {
+      // given
+      months = new Subscription.config('months', collection, connection,
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+
+      // when
+      months.restart();
+
+      // then
+      // TODO
+      expect(listenersAreOn(), isTrue);
+    });
 
     test("dispose.", () {
       // given

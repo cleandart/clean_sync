@@ -421,10 +421,6 @@ class MongoProvider implements DataProvider {
         num maxVersion = reversedDiff.isEmpty ? 0 : reversedDiff[0]["version"];
         String defaultAuthor = "_clean_";
 
-        print("limited diff");
-        print(data);
-        print(reversedDiff);
-
         reversedDiff.forEach((Map change) {
           if (change["action"] == "add") {
             clientData.removeWhere((d) => d["_id"] == change["_id"]);
@@ -461,9 +457,6 @@ class MongoProvider implements DataProvider {
         else {
           clientData = [];
         }
-
-        print("data after change:");
-        print(clientData);
 
         Set clientDataSet = new Set.from(clientData.map((d) => d['_id']));
         Set dataSet = new Set.from(currentData.map((d) => d['_id']));
@@ -506,8 +499,6 @@ class MongoProvider implements DataProvider {
             });
           }
         });
-
-        print(clientDiff);
 
         return clientDiff;
       });
