@@ -220,13 +220,23 @@ void main() {
 
 
       var connection = new BareConnectionMock();
-      var elem = new DataMap.from({'_id': 1, 'name': 'johny'});
+      var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
 
       connection.when(callsTo('send')).alwaysCall((requestFactory) {
-        switch (requestFactory().args['action']) {
-          case ('get_diff'): return new Future.value({'diff': null});
+        var request = requestFactory();
+        switch (request.args['action']) {
+          case ('get_diff'): return new Future.delayed(new Duration(milliseconds: 100), () => {'diff': [{
+            'action' : 'change',
+            'author' : 'ford',
+            '_id' : '1',
+            'data' : {
+              '_id': '1',
+              'name': 'ford'
+            }
+          }]});
           case ('get_data'): return new Future.value({'version': 2, 'data': [elem]});
           case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
+          case ('change'): {print('change ${request.args}'); return new Future.value(null);}
           default: return new Future.value(null);
         }
       });
@@ -234,16 +244,26 @@ void main() {
       Subscription subs  = new Subscription.config('collection', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
-      _createDataRequest() => new ClientRequest("sync", {
-        "action" : "get_data",
-        "collection" : 'collection'
+
+      collection.add(elem);
+      subs.setupListeners();
+
+      _createDiffRequest() => new ClientRequest("sync", {
+        "action" : "get_diff",
+        "collection" : 'collection',
+        "version" : 0
       });
 
-      connection.send(_createDataRequest).then((val){
-        print(val);
-        handleData(val['data'], collection, 'author');
-        print(collection);
+      connection.send(_createDiffRequest).then((val){
+        handleDiff(val['diff'], subs, 'author');
       });
+
+      elem['name'] = 'trillian';
+      print(elem);
+      new Future.delayed(new Duration(milliseconds: 200), (){
+        print(elem);
+      });
+
     });
 
 
