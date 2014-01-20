@@ -216,7 +216,7 @@ void main() {
       expect(months.collection.first.containsValue("February"), isTrue);
     });
 
-    test("tokens", () {
+    test("modifiedItems", () {
       var connection = new BareConnectionMock();
       var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
       connection.when(callsTo('send')).alwaysCall((requestFactory) {
@@ -231,8 +231,6 @@ void main() {
               'name': 'ford'
             }
           }]});
-          case ('get_data'): return new Future.value({'version': 2, 'data': [elem]});
-          case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
           case ('change'): {
             return new Future.delayed(new Duration(milliseconds: 200),
                () => new Future.value(null));
@@ -241,11 +239,12 @@ void main() {
         }
       });
 
+      collection.add(elem);
+
       Subscription subs  = new Subscription.config('collection', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
 
-      collection.add(elem);
       subs.setupListeners();
 
       _createDiffRequest() => new ClientRequest("sync", {
@@ -260,9 +259,16 @@ void main() {
 
       elem['name'] = 'trillian';
       elem['name'] = 'tricia';
-      return new Future.delayed(new Duration(milliseconds: 300), (){
-        expect(elem['name'], equals('tricia'));
-      });
+
+      return Future.wait([
+        new Future.delayed(new Duration(milliseconds: 300), (){
+          expect(elem['name'], equals('tricia'));
+        }),
+
+        new Future.delayed(new Duration(milliseconds: 300), (){
+          expect(elem['name'], equals('tricia'));
+        })
+      ]);
 
     });
 

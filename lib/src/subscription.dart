@@ -74,7 +74,7 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
       // 1. the change may be for item that is currently not present in the collection;
       // 2. the field may be 'locekd', because it was changed on user's machine, and
       // this change was not yet confirmed from server
-      if (record != null && !subscription.tokens.containsKey(record['_id'])) {
+      if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
         applyChange(cleanify(change["data"]), record, author);
       }
     }
@@ -99,7 +99,9 @@ class Subscription {
   /// requested periodically.
   bool _forceDataRequesting = false;
   Map args = {};
-  Map<String, Future> tokens = {};
+  /// Maps _id of a document to Future, that completes when server response
+  /// to document's update is completed
+  Map<String, Future> _modifiedItems = {};
 
 
   num _version;
@@ -139,10 +141,10 @@ class Subscription {
     }));
 
     markToken(id, result) {
-      tokens[id] = result;
+      _modifiedItems[id] = result;
       result.then((res){
-        if (tokens[id] == result) {
-          tokens.remove(id);
+        if (_modifiedItems[id] == result) {
+          _modifiedItems.remove(id);
         }
       });
     }
