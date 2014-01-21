@@ -24,30 +24,21 @@ main() {
 
     // sort with MongoComparator
     List<Map> given_output = new List.from(input_to_sort);
-    given_output.sort((a,b) => MongoComparator.compare(a,b));
+    given_output.sort((a,b) => MongoComparator.compareWithKeySelector(a,b, sort_params));
 
     // sort with MongoDb
     Future.forEach(input_to_sort, ((Map entry) => collection.add(entry, "test"))).then((_) {
       print("all was added");
       collection.find({}).sort(sort_params).data().then((Map data) {
         List<Map<String, dynamic>> expected_output = data['data'];
-        print("expected_output: " + expected_output.toString().replaceAll("_id", "\n_id"));
+        print("expected_output: \n" + expected_output.join("\n"));
+        print("given_output: \n" + given_output.join("\n"));
 
         expect(expected_output.length, equals(given_output.length));
 
         // compare the two sortin methods
         for(int i=0; i<expected_output.length ; i++){
-
-          // remove additional keys starting with _
-          Map polished_map = {};
-          expected_output[i].forEach((String key, value){
-            if(!key.startsWith("_")){
-              polished_map[key] = value;
-            }
-          });
-
-          // compare
-          expect(polished_map, equals(given_output[i]));
+          expect(expected_output[i]['__clean_version'], equals(given_output[i]['__clean_version']));
         }
 
         completer.complete(expected_output);
