@@ -22,13 +22,15 @@ main() {
   Future _test(List<Map> input_to_sort, Map sort_params){
     Completer completer = new Completer();
 
-    // sort with MongoComparator
-    List<Map> given_output = new List.from(input_to_sort);
-    given_output.sort((a,b) => MongoComparator.compareWithKeySelector(a,b, sort_params));
-
     // sort with MongoDb
     Future.forEach(input_to_sort, ((Map entry) => collection.add(entry, "test"))).then((_) {
       print("all was added");
+
+      // sort with MongoComparator
+      //   ! is done here as only here "__clean_version" is added
+      List<Map> given_output = new List.from(input_to_sort);
+      given_output.sort((a,b) => MongoComparator.compareWithKeySelector(a,b, sort_params));
+
       collection.find({}).sort(sort_params).data().then((Map data) {
         List<Map<String, dynamic>> expected_output = data['data'];
         print("expected_output: \n" + expected_output.join("\n"));
@@ -135,6 +137,10 @@ main() {
       {'a' : [null]},
     ];
 
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+
     /*
 > db.a.insert({'a': [[[1]], [1], 1]})
 > db.a.insert({'a': [[[1]], [1], null]})
@@ -160,6 +166,37 @@ main() {
      *
      */
 
+  test('Several element list.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : [[[1]], [1], 1]},
+      {'a' : [[[1]], [1], null]},
+      {'a' : [[[1]], [1], []]},
+      {'a' : [[null], null]},
+      {'a' : [[null],[]]},
+      {'a' : [[1], [2], [3], [4], null]},
+      {'a' : [[[]]]},
+      {'a' : [1]},
+      {'a' : [null]},
+      {'a' : [[]]},
+    ];
+
     return runTest(input_to_sort, {'a' : 1});
   });
+
+  test('Boolean.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : true},
+      {'a' : false},
+      {'a' : true},
+      {'a' : false},
+      {'a' : true},
+      {'a' : false},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  // TODO several keys to sort
 }

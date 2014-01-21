@@ -19,7 +19,11 @@ class MongoComparator {
       }
     });
 
-    return (result == 0) ? compare(a, b) : result;
+    if(result == 0){
+      int c = compare(a,b);
+      return (c == 0) ? compare(a["__clean_version"], b["__clean_version"]) : c;
+    }
+    return result;
   }
 
   /**
@@ -42,16 +46,35 @@ class MongoComparator {
       //then b is also []
       if(la.isEmpty) return 0;
 
-      a = la[0];
+      a = la[_firstComparable(la)];
     }
 
     if(b is List){
       List lb = b;
-      b = lb[0];
+      b = lb[_firstComparable(lb)];
     }
 
     // both should have the same type
-    return (a is num || a is String || a is bool || a is DateTime) ? a.compareTo(b) : 0;
+    //   bool.compareTo() doesn't exist
+    if(a is bool){
+       int ia = a ? 1 : 0;
+       int ib = b ? 1 : 0;
+       return ia.compareTo(ib);
+    }
+    return (_isMongoComparable(a)) ? a.compareTo(b) : 0;
+  }
+
+  static int _firstComparable(List list){
+    for(int i=0; i<list.length ; i++){
+      if(_isMongoComparable(list[i])){
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  static bool _isMongoComparable(dynamic a){
+    return (a is num || a is String || a is bool || a is DateTime);
   }
 
   /** http://docs.mongodb.org/manual/reference/bson-types/
