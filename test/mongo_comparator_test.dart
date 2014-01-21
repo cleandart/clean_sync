@@ -70,4 +70,96 @@ main() {
 
     return runTest(input_to_sort, {'a' : 1});
   });
+
+  test('String sorting.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : "e"},
+      {'a' : "a"},
+      {'a' : "b"},
+      {'a' : "d"},
+      {'a' : "c"},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  test('Hierarchy.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : []},
+      {'a' : null},
+      {'a' : 1},
+      {'a' : 1.2},
+      {'a' : "abc"},
+      {'a' : {}},
+      {'a' : [[]]},
+      {'a' : false},
+      //{'a' : new DateTime(2014)},
+      //{'a' : new RegExp("[0-9]")},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  test('List.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : null},
+      {'a' : 1},
+      {'a' : 1.2},
+      {'a' : "abc"},
+      {'a' : {}},
+      {'a' : false},
+      {'a' : [null]},
+      {'a' : [1]},
+      {'a' : [1.2]},
+      {'a' : ["abc"]},
+      {'a' : [{}]},
+      {'a' : [false]},
+      {'a' : []},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  test('Nested list.', () {
+    List<Map> input_to_sort =
+    [
+      {'a' : null},
+      {'a' : []},
+      {'a' : [[null], null]},
+      {'a' : [[null]]},
+      {'a' : [[[]]]},
+      {'a' : [[]]},
+      {'a' : [null]},
+    ];
+
+    /*
+> db.a.insert({'a': [[[1]], [1], 1]})
+> db.a.insert({'a': [[[1]], [1], null]})
+> db.a.insert({'a': [[[1]], [1], []]})
+> db.a.insert({'a': [[null], null]})
+> db.a.insert({'a': [[null], []]})
+> db.a.insert({'a': [[1], [2], [3], [4], null]})
+> db.a.insert({'a': [[[]]]})
+> db.a.insert({'a': [[]]})
+> db.a.insert({'a': [1]})
+> db.a.insert({'a': [null]})
+     *
+{ "_id" : ObjectId("52deaaf349b3a947c24b4ada"), "a" : [  [  [  1 ] ],  [  1 ],  null ] }
+{ "_id" : ObjectId("52deab0849b3a947c24b4adc"), "a" : [  [  null ],  null ] }
+{ "_id" : ObjectId("52deab2849b3a947c24b4ade"), "a" : [  [  1 ],  [  2 ],  [  3 ],  [  4 ],  null ] }
+{ "_id" : ObjectId("52deab9f49b3a947c24b4ae2"), "a" : [  null ] }
+{ "_id" : ObjectId("52deaaf049b3a947c24b4ad9"), "a" : [  [  [  1 ] ],  [  1 ],  1 ] }
+{ "_id" : ObjectId("52deab3d49b3a947c24b4ae1"), "a" : [  1 ] }
+{ "_id" : ObjectId("52deaaf749b3a947c24b4adb"), "a" : [  [  [  1 ] ],  [  1 ],  [ ] ] }
+{ "_id" : ObjectId("52deab1749b3a947c24b4add"), "a" : [  [  null ],  [ ] ] }
+{ "_id" : ObjectId("52deab3a49b3a947c24b4ae0"), "a" : [  [ ] ] }
+{ "_id" : ObjectId("52deab3449b3a947c24b4adf"), "a" : [  [  [ ] ] ] }
+     *
+     */
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
 }

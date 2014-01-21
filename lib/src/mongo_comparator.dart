@@ -51,7 +51,7 @@ class MongoComparator {
     }
 
     // both should have the same type
-    return (a is Comparable) ? a.compareTo(b) : 0;
+    return (a is num || a is String || a is bool || a is DateTime) ? a.compareTo(b) : 0;
   }
 
   /** http://docs.mongodb.org/manual/reference/bson-types/
