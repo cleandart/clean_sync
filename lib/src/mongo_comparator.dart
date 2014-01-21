@@ -4,12 +4,12 @@
 
 part of clean_sync.client;
 
-class MongoComparator implements {
+class MongoComparator {
   /**
    * Compare one comparable to another.
    *
    */
-  static int compare(Comparable a, Comparable b) {
-
+  static int compare(dynamic a, dynamic b) {
+    return 0;
   }
 }
