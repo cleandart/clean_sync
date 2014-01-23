@@ -243,6 +243,11 @@ class Subscription {
     _subscriptions.forEach((s) => s.cancel());
   }
 
+  Future close() {
+    dispose();
+    return Future.wait(_modifiedItems.values);
+  }
+
   void restart() {
     dispose();
     start();
