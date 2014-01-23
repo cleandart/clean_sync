@@ -10,6 +10,9 @@ import 'id_generator_test.dart' as id_generator_test;
 
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
+import 'package:logging/logging.dart';
+
+final Logger logger = new Logger('clean_sync');
 
 main() {
   run(new VMConfiguration());
@@ -17,6 +20,11 @@ main() {
 
 run(configuration) {
   unittestConfiguration = configuration;
+  hierarchicalLoggingEnabled = true;
+  logger.level = Level.WARNING;
+  Logger.root.onRecord.listen((LogRecord rec) {
+    print('${rec.level.name}: ${rec.time}: ${rec.message}');
+  });
 
   mongo_provider_test.main();
   publisher_test.main();

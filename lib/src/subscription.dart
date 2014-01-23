@@ -4,6 +4,8 @@
 
 part of clean_sync.client;
 
+final Logger logger = new Logger('clean_sync');
+
 void handleData(List<Map> data, DataSet collection, String author) {
   collection.clear(author: author);
   List<DataMap> toAdd = [];
@@ -64,7 +66,13 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
   var version = subscription._version;
 
   diff.forEach((Map change) {
-    if(change['version'] <= version) {
+    if (!change.containsKey('version')){
+      logger.warning('change does not contain "version" field. If not testing, '
+                     'this is probably bug. (change: $change)');
+    } else if (version == null) {
+      logger.warning('Subscription $subscription version is null. If not testing, '
+                     'this is probably bug.');
+    } else if(change['version'] <= version) {
       return;
     }
     change = cleanify(change);
@@ -89,7 +97,7 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
     else if (change["action"] == "remove" && change["author"] != author) {
       collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
     }
-  print('applying finished: $subscription ${subscription.collection} ${subscription._version}');
+    logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
 }
 

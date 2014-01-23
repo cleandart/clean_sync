@@ -10,10 +10,8 @@ import 'package:unittest/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
-import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
-import './mongo_provider_test.dart';
 
 
 Random rng = new Random();
@@ -25,11 +23,21 @@ prob(p) {
   return p > rng.nextDouble();
 }
 
+final Logger logger = new Logger('clean_sync');
+
 
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
+
+  hierarchicalLoggingEnabled = true;
+  logger.level = Level.WARNING;
+  Logger.root.onRecord.listen((LogRecord rec) {
+    print('${rec.level.name}: ${rec.time}: ${rec.message}');
+  });
+
+
   DataSet currCollection;
   DataSet wholeCollection;
   MongoDatabase mongodb;
@@ -42,14 +50,6 @@ main() {
   Subscription subReceiver;
   Subscription subReceiverb;
   Subscription subReceiverc;
-
-  Logger log = new Logger('');
-  log.level = Level.WARNING;
-
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.level.name}: ${rec.time}: ${rec.message}');
-  });
-
 
   Publisher pub;
 
@@ -130,11 +130,10 @@ main() {
       if (ids.contains(id)) {
         return false;
       } else {
-        print('before add $id');
-        print(coll);
+        logger.finest('before add $id \n $coll');
         ids.add(id);
         coll.add(new DataMap.from({'_id': id}), author: null);
-        print('after add $id');
+        logger.finest('after add $id');
 
         return true;
       }
@@ -143,26 +142,23 @@ main() {
       // remove
       if (!ids.contains(id)) return false;
       else {
-        print('before remo $id');
-        print(coll);
+        logger.finest('before remo $id \n $coll');
         coll.removeWhere((d)=>d['_id']==id, author: null);
         ids.remove(id);
-        print('before remo $id');
+        logger.finest('before remo $id');
         return true;
       }
     } else {
       // change
       if(ids.contains(id)){
-        print('before change $id');
-
-        print(coll);
+        logger.finest('before change $id \n coll');
         var data = coll.firstWhere((d) => d['_id'] == id);
         var a = coll.length;
         randomChangeMap(data);
-        print(data);
+        logger.finest('$data');
         var b = coll.length;
         assert(a==b);
-        print('after change $id');
+        logger.finest('after change $id');
 
         return true;
       } else {
@@ -178,18 +174,18 @@ main() {
 
   var action = (){
     Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-    print(toChangeSub);
+    logger.finest('$toChangeSub');
     return makeRandomChange(toChangeSub.collection, ids);
   };
 //  var action = () => makeRandomChange(sender, ids);
   var makeExpects = () {
     expect(stripPrivateFieldsList(receiver),
            unorderedEquals(stripPrivateFieldsList(sender)));
-//    expect(stripPrivateFieldsList(sender.where((d)=>d['a']=='hello')),
-//           unorderedEquals(stripPrivateFieldsList(receiverb)));
-//    expect(stripPrivateFieldsList(
-//        sender.where((d) => (d['a'] is Map && d['a']['a'] == 'hello'))),
-//        unorderedEquals(stripPrivateFieldsList(receiverc)));
+    expect(stripPrivateFieldsList(sender.where((d)=>d['a']=='hello')),
+           unorderedEquals(stripPrivateFieldsList(receiverb)));
+    expect(stripPrivateFieldsList(
+        sender.where((d) => (d['a'] is Map && d['a']['a'] == 'hello'))),
+        unorderedEquals(stripPrivateFieldsList(receiverc)));
   };
 
     var times=[20, 50, 100, 200, 400, 800, 1600, 3200];
@@ -202,7 +198,7 @@ main() {
     Future.forEach(new List.filled(1000, null), (_) {
         do{} while(!action());
 //        sender.where((d) => (d.containsKey('a') && d['a'] is Map && d['a']['a'] == 'hello'));
-//        print(receiverc);
+        print(receiver);
         bool end = false;
         return Future.forEach(times, (time){
           if(end){
@@ -224,7 +220,7 @@ main() {
 
   });
 
-  test('test subs', () {
+  skip_test('test subs', () {
 
     DataMap data = new DataMap.from({'_id': '0'});
     DataMap data1 = new DataMap.from({'_id': '1', 'b': 'bbb'});

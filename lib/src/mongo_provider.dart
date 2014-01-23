@@ -317,7 +317,6 @@ class MongoProvider implements DataProvider {
   Future<Map> diffFromVersion(num version) {
     try{
       return _diffFromVersion(version).then((d) {
-//      if (!d.isEmpty) print('diff: $d');
       return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {

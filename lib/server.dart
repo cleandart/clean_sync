@@ -13,10 +13,9 @@ import 'dart:async';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:clean_ajax/server.dart';
 import 'dart:math';
-import 'package:logging/logging.dart';
+import "package:logging/logging.dart";
 
 part 'src/publisher.dart';
 part 'src/data_provider.dart';
 part 'src/mongo_provider.dart';
 
-final Logger log = new Logger('CleanSync');

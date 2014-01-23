@@ -222,7 +222,8 @@ void main() {
       connection.when(callsTo('send')).alwaysCall((requestFactory) {
         var request = requestFactory();
         switch (request.args['action']) {
-          case ('get_diff'): return new Future.delayed(new Duration(milliseconds: 100), () => {'diff': [{
+          case ('get_diff'): return new Future.delayed(
+              new Duration(milliseconds: 100), () => {'diff': [{
             'action' : 'change',
             'author' : 'ford',
             '_id' : '1',
@@ -254,6 +255,7 @@ void main() {
       });
 
       connection.send(_createDiffRequest).then((val){
+        print(val);
         handleDiff(val['diff'], subs, 'author');
       });
 

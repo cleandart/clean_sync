@@ -13,11 +13,11 @@ import 'dart:async';
 import "package:clean_ajax/client.dart";
 import "package:clean_ajax/common.dart";
 import "package:clean_data/clean_data.dart";
+import "package:logging/logging.dart";
 import 'dart:math';
-import 'package:logging/logging.dart';
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
 part 'src/id_generator.dart';
 
-final Logger logger = new Logger('CleanSync');
+
