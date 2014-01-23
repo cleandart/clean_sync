@@ -235,5 +235,57 @@ void main() {
       });
     });
 
+    test('deprecatedChange data. (T10)', () {
+      // given
+      Map january2 = {'name': 'January2', 'number': 4, '_id': 'january'};
+      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+
+      // when
+        .then((_) => months.deprecatedChange('january', new Map.from(january2), 'Michael Smith'))
+        .then((_) => months.data())
+        .then((data){
+
+      // then
+          expect(data['data'].length, equals(1));
+          Map strippedData = stripPrivateFields(data['data'][0]);
+          january2.forEach((key, value) {
+            expect(strippedData[key], equals(value));
+          });
+          january.forEach((key, value) {
+            if (!january2.containsKey(key)) expect(strippedData[key], equals(value));
+          });
+          expect(data['version'], equals(2));
+      }).then((_) => months.diffFromVersion(1))
+        .then((dataDiff) {
+          List diffList = dataDiff['diff'];
+          expect(diffList.length, equals(1));
+          Map diff = diffList[0];
+          expect(diff['action'], equals('change'));
+          expect(diff['_id'], equals('january'));
+          Map strippedData = stripPrivateFields(diff['data']);
+          expect(strippedData, equals(january2));
+          expect(diff['author'], equals('Michael Smith'));
+        });
+    });
+
+    test('deprecatedChange not existing data. (T11)', () {
+      // when
+      Future shouldThrow =  ready.then((_) => months.deprecatedChange('january', new Map.from(january), 'Michael Smith'));
+
+      //then
+        expect(shouldThrow, throws);
+    });
+
+    test('deprecatedChange data with bad _id. (T12)', () {
+      // given
+      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+
+      // when
+        .then((_) => months.deprecatedChange('january', new Map.from(february), 'Michael Smith'));
+
+      // then
+        expect(shouldThrow, throws);
+    });
+
   });
 }
