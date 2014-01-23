@@ -58,6 +58,7 @@ bool applyChange (source, target, author) {
 
 
 void handleDiff(List<Map> diff, Subscription subscription, String author) {
+  print('applying diff to $subscription $diff');
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
   var profiling = new Stopwatch()..start();
@@ -75,7 +76,12 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
       // 1. the change may be for item that is currently not present in the collection;
       // 2. the field may be 'locekd', because it was changed on user's machine, and
       // this change was not yet confirmed from server
-      if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
+      if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
+        print('discarding diff');
+      }
+       if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
+//      if (record != null) {
+        print('tutu');
         applyChange(change["data"], record, author);
       }
     }
@@ -144,9 +150,11 @@ class Subscription {
 
     markToken(id, result) {
       _modifiedItems[id] = result;
-      result.then((res){
+      result.then((nextVersion){
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
+          print('###### $this $nextVersion');
+          _version = nextVersion;
         }
       });
     }
@@ -195,11 +203,15 @@ class Subscription {
     "collection" : collectionName
   });
 
-  _createDiffRequest() => new ClientRequest("sync", {
+  _createDiffRequest() {
+    pendingCompleter = new Completer();
+    print('## $this $_version');
+    return new ClientRequest("sync", {
     "action" : "get_diff",
     "collection" : collectionName,
     "version" : _version
-  });
+    });
+  }
 
   // TODO rename to something private-like
   void setupDataRequesting() {
@@ -237,6 +249,11 @@ class Subscription {
   void start() {
     setupListeners();
     setupDataRequesting();
+  }
+
+  Future close() {
+    dispose();
+    return Future.wait(_modifiedItems.values);
   }
 
   void dispose() {

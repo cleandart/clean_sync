@@ -202,8 +202,48 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
+
+  Future deprecatedChange(String _id, Map change, String author) {
+    num nextVersion;
+    Map newRecord;
+    return _get_locks().then((_) => collection.findOne({"_id" : _id}))
+      .then((Map record) {
+        if(record == null) {
+          throw new MongoException(null,
+              'Change was not applied, document with id $_id does not exist.');
+        } else if (change.containsKey('_id') && change['_id'] != _id) {
+          throw new MongoException(null,
+              'New document id ${change['_id']} should be same as old one $_id.');
+        } else {
+          return _maxVersion.then((version) {
+            nextVersion = version + 1;
+            newRecord = new Map.from(record);
+            newRecord.addAll(change);
+            newRecord[VERSION_FIELD_NAME] = nextVersion;
+            return collection.save(newRecord);
+          }).then((_) =>
+            _collectionHistory.insert({
+              "before" : record,
+              "after" : newRecord,
+              "change" : change,
+              "action" : "change",
+              "author" : author,
+              "version" : nextVersion
+            }));
+        }
+      },
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
 
   //TODO: change means new data, rename it
   Future change(String _id, Map change, String author) {
@@ -241,7 +281,7 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future remove(String _id, String author) {
@@ -271,7 +311,7 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future<Map> diffFromVersion(num version) {
