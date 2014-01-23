@@ -17,7 +17,9 @@ void handleDiff(List<Map> diff, List collection) {
     }
     else if (change["action"] == "change") {
       Map record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-      record.addAll(change["data"]);
+      collection.remove(record);
+      collection.add(change["data"]);
+//      record.addAll(change["data"]);
     }
     else if (change["action"] == "remove") {
       Map record = collection.firstWhere((d) => d["_id"] == change["_id"]);
@@ -34,7 +36,7 @@ Map stripPrivateFields(Map<String, dynamic> data){
   return newData;
 }
 
-List stripPrivateFieldsList(List<Map<String, dynamic>> data){
+List stripPrivateFieldsList(Iterable<Map<String, dynamic>> data){
   List newData = [];
   data.forEach((oldMap) {
     newData.add(stripPrivateFields(oldMap));
@@ -215,7 +217,7 @@ void main() {
        .then((_) => months.add(new Map.from(february), 'John Doe'))
        .then((_) => months.add(new Map.from(march), 'John Doe'))
        .then((_) => months.add(new Map.from(april), 'John Doe'))
-         .then((_) => months.change('january', january2, 'John Doe'))
+       .then((_) => months.change('january', january2, 'John Doe'))
        .then((_) => months.remove('february', 'John'))
        .then((_) => months.add(new Map.from(february), 'John Doe'))
        .then((_) => months.remove('april', 'John'))
@@ -229,7 +231,7 @@ void main() {
       // then
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
-         expect(stripPrivateFieldsList(dataStart), equals(stripPrivateFieldsList(dataEnd)));
+         expect(stripPrivateFieldsList(dataStart), unorderedEquals(stripPrivateFieldsList(dataEnd)));
       });
     });
 

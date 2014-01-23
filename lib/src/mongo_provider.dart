@@ -205,6 +205,7 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks());
   }
 
+  //TODO: change means new data, rename it
   Future change(String _id, Map change, String author) {
     num nextVersion;
     Map newRecord;
@@ -219,8 +220,7 @@ class MongoProvider implements DataProvider {
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
-            newRecord = new Map.from(record);
-            newRecord.addAll(change);
+            newRecord = new Map.from(change);
             newRecord[VERSION_FIELD_NAME] = nextVersion;
             return collection.save(newRecord);
           }).then((_) =>
@@ -277,6 +277,7 @@ class MongoProvider implements DataProvider {
   Future<Map> diffFromVersion(num version) {
     try{
       return _diffFromVersion(version).then((d) {
+//      if (!d.isEmpty) print('diff: $d');
       return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {

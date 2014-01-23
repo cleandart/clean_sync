@@ -63,10 +63,11 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
   var profiling = new Stopwatch()..start();
 
   diff.forEach((Map change) {
-    if (change["action"] == "add") {
+    change = cleanify(change);
+    if (change["action"] == "add" && change["author"] != author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record == null) {
-        collection.add(new DataMap.from(cleanify(change["data"])), author: author);
+        collection.add(new DataMap.from(change["data"]), author: author);
       }
     }
     else if (change["action"] == "change" && change["author"] != author) {
@@ -75,10 +76,10 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
       // 2. the field may be 'locekd', because it was changed on user's machine, and
       // this change was not yet confirmed from server
       if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-        applyChange(cleanify(change["data"]), record, author);
+        applyChange(change["data"], record, author);
       }
     }
-    else if (change["action"] == "remove") {
+    else if (change["action"] == "remove" && change["author"] != author) {
       collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
     }
     log.info('handleDiff time: ${profiling.elapsed}');
@@ -92,6 +93,7 @@ class Subscription {
   DataSet collection;
   Connection _connection;
   String _author;
+  String toString() => 'Subscription(${_author})';
   IdGenerator _idGenerator;
   Function _handleData = handleData;
   Function _handleDiff = handleDiff;
@@ -155,20 +157,20 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
-            "data" : data,
+            "data" : cleanify(decleanify(data)),
             "author" : _author
           }));
           markToken(data['_id'], result);
         });
 
         event["change"].strictlyChanged.forEach((DataMap data, ChangeSet changeSet) {
-          Map change = {};
-          changeSet.changedItems.forEach((k, Change v) => change[k] = v.newValue);
+//          Map change = {};
+//          changeSet.changedItems.forEach((k, Change v) => change[k] = v.newValue);
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
             "_id": data["_id"],
-            "change" : change,
+            "change" : cleanify(decleanify(data)),
             "author" : _author
           }));
           // TODO: check if server really accepted the change

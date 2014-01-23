@@ -395,7 +395,7 @@ void main() {
       var request = connection.getLogs().last.args[0]();
       expect(request.type, equals("sync"));
       expect(request.args, equals({"action": "change", "collection": "months",
-                                   "_id": "11", "change": {'length': 31},
+                                   "_id": "11", "change": january,
                                    "author": "author"}));
     });
 
