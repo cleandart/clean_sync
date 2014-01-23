@@ -19,8 +19,7 @@ void _applyChangeList (List source, DataList target, author) {
   target.length = source.length;
   for (num i=0; i<target.length; i++) {
     if (!applyChange(source[i], target[i], author)) {
-      // TODO add set method to DataList and use it here
-      target.setAll(i, [source[i]], author: author);
+      target.set(i, source[i], author: author);
     }
   }
 }
@@ -66,6 +65,7 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
   var version = subscription._version;
 
   diff.forEach((Map change) {
+    // it can happen, that we get too old changes
     if (!change.containsKey('version')){
       logger.warning('change does not contain "version" field. If not testing, '
                      'this is probably bug. (change: $change)');
@@ -79,23 +79,23 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
     if (change["action"] == "add" && change["author"] != author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record == null) {
-        collection.add(new DataMap.from(change["data"]), author: author);
+        collection.add(new DataMap.from(change["data"]), author: 'clean_sync');
       }
     }
     else if (change["action"] == "change" && change["author"] != author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       // 1. the change may be for item that is currently not present in the collection;
-      // 2. the field may be 'locekd', because it was changed on user's machine, and
+      // 2. the field may be 'locked', because it was changed on user's machine, and
       // this change was not yet confirmed from server
       if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
         logger.fine('discarding diff');
       }
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-        applyChange(change["data"], record, author);
+        applyChange(change["data"], record, 'clean_sync');
       }
     }
     else if (change["action"] == "remove" && change["author"] != author) {
-      collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
+      collection.removeWhere((d) => d["_id"] == change["_id"], author: 'clean_sync');
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
@@ -167,7 +167,7 @@ class Subscription {
     }
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
-      if (event["author"] == null) {
+      if (event["author"] != 'clean_sync') {
         event["change"].addedItems.forEach((data) {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
