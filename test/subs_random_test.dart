@@ -224,7 +224,7 @@ main() {
 
   });
 
-  solo_test('test subs', () {
+  test('test subs', () {
 
     DataMap data = new DataMap.from({'_id': '0'});
     DataMap data1 = new DataMap.from({'_id': '1', 'b': 'bbb'});
@@ -249,6 +249,7 @@ main() {
 
     List actions = [
       () => sender.add(data, author: null),
+      () => print(receiver),
       () => expect(stripPrivateFields(receiver.first), equals(stripPrivateFields(data))),
       () {print('assign!!!!!'); receiver.first['b'] = 'bbb'; sender.first['b'] = 'bb';},
       () => print(sender),
@@ -267,7 +268,7 @@ main() {
     subReceiverc.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
-      return new Future.delayed(new Duration(milliseconds: 400));
+      return new Future.delayed(new Duration(milliseconds: 200));
     }));
 
   });

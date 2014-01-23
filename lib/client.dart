@@ -20,4 +20,4 @@ part 'src/subscription.dart';
 part 'src/subscriber.dart';
 part 'src/id_generator.dart';
 
-final Logger log = new Logger('CleanSync');
+final Logger logger = new Logger('CleanSync');

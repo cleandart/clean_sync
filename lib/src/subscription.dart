@@ -58,12 +58,15 @@ bool applyChange (source, target, author) {
 
 
 void handleDiff(List<Map> diff, Subscription subscription, String author) {
-  print('applying diff to $subscription $diff');
+  logger.fine('handleDiff: $subscription $author $diff');
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
-  var profiling = new Stopwatch()..start();
+  var version = subscription._version;
 
   diff.forEach((Map change) {
+    if(change['version'] <= version) {
+      return;
+    }
     change = cleanify(change);
     if (change["action"] == "add" && change["author"] != author) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
@@ -77,19 +80,16 @@ void handleDiff(List<Map> diff, Subscription subscription, String author) {
       // 2. the field may be 'locekd', because it was changed on user's machine, and
       // this change was not yet confirmed from server
       if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
-        print('discarding diff');
+        logger.fine('discarding diff');
       }
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-//      if (record != null) {
-        print('tutu');
         applyChange(change["data"], record, author);
       }
     }
     else if (change["action"] == "remove" && change["author"] != author) {
       collection.removeWhere((d) => d["_id"] == change["_id"], author: author);
     }
-    log.info('handleDiff time: ${profiling.elapsed}');
-    profiling.stop();
+  print('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
 }
 
@@ -99,7 +99,7 @@ class Subscription {
   DataSet collection;
   Connection _connection;
   String _author;
-  String toString() => 'Subscription(${_author})';
+  String toString() => 'Subscription(${_author}, ver: ${_version})';
   IdGenerator _idGenerator;
   Function _handleData = handleData;
   Function _handleDiff = handleDiff;
@@ -153,7 +153,6 @@ class Subscription {
       result.then((nextVersion){
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
-          print('###### $this $nextVersion');
           _version = nextVersion;
         }
       });
@@ -204,8 +203,6 @@ class Subscription {
   });
 
   _createDiffRequest() {
-    pendingCompleter = new Completer();
-    print('## $this $_version');
     return new ClientRequest("sync", {
     "action" : "get_diff",
     "collection" : collectionName,
@@ -220,7 +217,7 @@ class Subscription {
       _version = response['version'];
       _handleData(response['data'], collection, _author);
 
-      log.info("Got initial data, synced to version ${_version}");
+      logger.info("Got initial data, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
@@ -235,9 +232,9 @@ class Subscription {
             _handleData(response['data'], collection, _author);
           } else {
             if(!response['diff'].isEmpty) {
+              _handleDiff(response['diff'], this, _author);
               _version = response['diff'].map((item) => item['version'])
                   .reduce(max);
-              _handleDiff(response['diff'], this, _author);
             }
           }
         });
