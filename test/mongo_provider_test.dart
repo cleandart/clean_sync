@@ -19,11 +19,9 @@ void handleDiff(List<Map> diff, List collection) {
       Map record = collection.firstWhere((d) => d["_id"] == change["_id"]);
       collection.remove(record);
       collection.add(change["data"]);
-//      record.addAll(change["data"]);
     }
     else if (change["action"] == "remove") {
-      Map record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-      collection.remove(record);
+      collection.removeWhere((d) => d["_id"] == change["_id"]);
     }
   });
 }
@@ -214,7 +212,8 @@ void main() {
 
       Future multipleAccess =
           ready.then((_) => months.data()).then((data) => dataStart = data['data'] )
-          .then((_) => months.add(new Map.from(january), 'John Doe'))
+
+       .then((_) => months.add(new Map.from(january), 'John Doe'))
        .then((_) => months.add(new Map.from(february), 'John Doe'))
        .then((_) => months.add(new Map.from(march), 'John Doe'))
        .then((_) => months.add(new Map.from(april), 'John Doe'))
@@ -264,7 +263,8 @@ void main() {
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
           Map strippedData = stripPrivateFields(diff['data']);
-          expect(strippedData, equals(january2));
+          var res = new Map.from(january)..addAll(january2);
+          expect(strippedData, equals(res));
           expect(diff['author'], equals('Michael Smith'));
         });
     });

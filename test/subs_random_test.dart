@@ -38,7 +38,7 @@ main() {
 
 
   hierarchicalLoggingEnabled = true;
-  logger.level = Level.OFF;
+  logger.level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
     print('${rec.message}');
   });
