@@ -198,10 +198,11 @@ void main() {
 
     test('remove nonexisting data. (T08)', () {
       // when
-      Future shouldNotThrow =ready.then((_) => months.remove('january', 'Michael Smith'));
-
+      Future shouldNotThrow = ready.then((_) => months.remove('january', 'Michael Smith'))
+          .then(expectAsync1((res){
+            expect(res is num, isTrue);
+          }));
       // then
-        expect(shouldNotThrow, completion(isTrue));
     });
 
     test('can reconstruct changes form diff. (T09)', () {

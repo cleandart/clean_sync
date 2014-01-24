@@ -9,6 +9,8 @@ Map<String, DataGenerator> _publishedCollections = {};
 final int MAX = pow(2,16) - 1;
 final int prefix_random_part = new Random().nextInt(MAX);
 
+final Logger logger = new Logger('clean_sync');
+
 class Publisher {
   int counter;
 
@@ -26,7 +28,7 @@ class Publisher {
 
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
-    log.info("REQUEST:  ${data}");
+    logger.finest("REQUEST:  ${data}");
 
     if (data["action"] == "get_id_prefix") {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});

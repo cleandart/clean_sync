@@ -202,7 +202,7 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future deprecatedChange(String _id, Map change, String author) {
@@ -227,7 +227,7 @@ class MongoProvider implements DataProvider {
             _collectionHistory.insert({
               "before" : record,
               "after" : newRecord,
-              "change" : change,
+              "change" : newRecord,
               "action" : "change",
               "author" : author,
               "version" : nextVersion
@@ -259,14 +259,14 @@ class MongoProvider implements DataProvider {
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
-            newRecord = new Map.from(change);
+            newRecord = change;
             newRecord[VERSION_FIELD_NAME] = nextVersion;
             return collection.save(newRecord);
           }).then((_) =>
             _collectionHistory.insert({
               "before" : record,
               "after" : newRecord,
-              "change" : change,
+              "change" : newRecord,
               "action" : "change",
               "author" : author,
               "version" : nextVersion
@@ -280,7 +280,7 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future remove(String _id, String author) {
@@ -310,13 +310,12 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks());
+      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future<Map> diffFromVersion(num version) {
     try{
       return _diffFromVersion(version).then((d) {
-//      if (!d.isEmpty) print('diff: $d');
       return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
@@ -325,6 +324,20 @@ class MongoProvider implements DataProvider {
         return d;
       });
     }
+  }
+
+  List pretify(List diff){
+    Set seen = new Set();
+    var res = [];
+    for (Map change in diff.reversed) {
+      var id = change['_id']+change['action'];
+      assert(id is String);
+      if (!seen.contains(id)) {
+        res.add(change);
+      }
+      seen.add(id);
+    }
+    return new List.from(res.reversed);
   }
 
   Future<List<Map>> _diffFromVersion(num version) {
@@ -405,8 +418,7 @@ class MongoProvider implements DataProvider {
           if (_limit > NOLIMIT || _skip > NOSKIP) {
             return _limitedDiffFromVersion(diff);
           }
-
-          return diff;
+          return pretify(diff);
       });
   }
 
