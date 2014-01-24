@@ -7,12 +7,12 @@ part of clean_sync.client;
 final Logger logger = new Logger('clean_sync');
 
 void handleData(List<Map> data, DataSet collection, String author) {
-  collection.clear(author: author);
+  collection.clear(author: 'clean_sync');
   List<DataMap> toAdd = [];
   for (Map record in data) {
     toAdd.add(new DataMap.from(record));
   }
-  collection.addAll(toAdd, author: author);
+  collection.addAll(toAdd, author: 'clean_sync');
 }
 
 void _applyChangeList (List source, DataList target, author) {
