@@ -33,6 +33,7 @@ main() {
 
       collection.find({}).sort(sort_params).data().then((Map data) {
         List<Map<String, dynamic>> expected_output = data['data'];
+        print("input_to_sort: \n" + input_to_sort.join("\n"));
         print("expected_output: \n" + expected_output.join("\n"));
         print("given_output: \n" + given_output.join("\n"));
 
@@ -59,6 +60,24 @@ main() {
       .then((_) => _test(input_to_sort, sort_params))
       .then((_) => _teardown());
   }
+
+  /*
+  test('minListElement.', () {
+    expect(MongoComparator.minListElement([[], 1, "abc", null]), equals(3));
+    expect(MongoComparator.minListElement([[[]], [1], ["abc"], []]), equals(3));
+  });
+
+  test('dummy compare.', () {
+    expect(MongoComparator.compareWithKeySelector(
+        {"a": [[null], null], "__clean_version": 3},
+        {"a": [null], "__clean_version": 7},
+        {"a":1}), equals(-1));
+    expect(MongoComparator.compareWithKeySelector(
+        {"a": [[]], "__clean_version": 3},
+        {"a": [null], "__clean_version": 7},
+        {"a":1}), equals(1));
+  });
+*/
 
   test('Integer sorting.', () {
     List<Map> input_to_sort =
@@ -193,6 +212,34 @@ main() {
       {'a' : false},
       {'a' : true},
       {'a' : false},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  test('Nested value', () {
+
+    List<Map> input_to_sort =
+    [
+      {'a' : [[[4]]]},
+      {'a' : [[[3]]]},
+      {'a' : [[[2]]]},
+      {'a' : [[[1]]]},
+    ];
+
+    return runTest(input_to_sort, {'a' : 1});
+  });
+
+  test('Nesting depth', () {
+
+    List<Map> input_to_sort =
+    [
+      {'a' : [[[[[[]]]]]]},
+      {'a' : [[[[[]]]]]},
+      {'a' : [[[[]]]]},
+      {'a' : [[[]]]},
+      {'a' : [[]]},
+      {'a' : []},
     ];
 
     return runTest(input_to_sort, {'a' : 1});
