@@ -83,14 +83,13 @@ main() {
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
 
-        var _idGenerator = new IdGeneratorMock();
-        subSender = new Subscription('a', connection, 'author1', _idGenerator, {});
+        subSender = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
         sender = subSender.collection;
 
-        subReceiver = new Subscription('a', connection, 'author2', _idGenerator, {});
+        subReceiver = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
         receiver = subReceiver.collection;
-        subReceiverb = new Subscription('b', connection, 'author3', _idGenerator, {});
-        subReceiverc = new Subscription('c', connection, 'author4', _idGenerator, {});
+        subReceiverb = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
+        subReceiverc = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
 
         receiverb = subReceiverb.collection;
         receiverc = subReceiverc.collection;
@@ -130,44 +129,40 @@ main() {
   }
 
   makeRandomChange(DataSet coll) {
-    String id = (rng.nextInt(9)+1).toString();
-    var data = coll.firstWhere((d) => d['_id'] == id, orElse: () => null);
+    var probAdd = (){
+      if(coll.length<5) return 1;
+      if(coll.length>15)return 0;
+      return rng.nextDouble();
+    };
 
-    if (prob(PROB_ADD)) {
+    var probRemove = (){
+      if(coll.length>15) return 1;
+      if(coll.length<5)return 0;
+      return rng.nextDouble();
+    };
+
+    if (prob(probAdd())) {
       // add
-      if (data != null) {
-        return false;
-      } else {
-        logger.finer('before add $id \n $coll');
-        coll.add(new DataMap.from({'_id': id}), author: null);
-        logger.finer('after add $id');
+        logger.finer('before add \n $coll');
+        coll.add(new DataMap.from({}), author: null);
+        logger.finer('after add');
         return true;
-      }
     }
-    else if (prob(PROB_REMOVE)) {
+    else if (prob(probRemove())) {
+      if (coll.length == 0) return false;
       // remove
-      if (data==null) return false;
-      else {
-        logger.finer('before remo $id \n $coll');
-        coll.remove(data);
-        logger.finer('before remo $id');
+        logger.finer('before remo \n $coll');
+        coll.remove(randomChoice(coll));
+        logger.finer('before remo');
         return true;
-      }
     } else {
       // change
+      if (coll.length == 0) return false;
+      var data = randomChoice(coll);
       if(data!=null){
-        logger.finer('before change $id \n $coll');
-        var data = coll.firstWhere((d) => d['_id'] == id, orElse: () => null);
-        if (data==null) {
-          return false;
-        }
-        var a = coll.length;
+        logger.finer('before change \n $coll');
         randomChangeMap(data);
-        logger.finer('$data');
-        var b = coll.length;
-        assert(a==b);
-        logger.finer('after change $id');
-
+        logger.finer('after change: $data');
         return true;
       } else {
         return false;
@@ -178,20 +173,18 @@ main() {
 
   test('test random', () {
 
-//  var action = (){
-//    var res = false;
-//    for (int i=0; i<5; i++) {
-//      Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-//      res = res || makeRandomChange(toChangeSub.collection);
-//    }
-//    return res;
-//  };
-
   var action = (){
-    Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-    logger.fine('$toChangeSub');
-    return makeRandomChange(toChangeSub.collection);
+    for (int i=0; i<5; i++) {
+      Subscription toChangeSub = randomChoice([subSender, subReceiver]);
+      makeRandomChange(toChangeSub.collection);
+    }
   };
+
+//  var action = (){
+//    Subscription toChangeSub = randomChoice([subSender, subReceiver]);
+//    logger.fine('$toChangeSub');
+//    return makeRandomChange(toChangeSub.collection);
+//  };
 
   var makeExpects = () {
     expect(stripPrivateFieldsList(receiver),
@@ -213,7 +206,7 @@ main() {
 
     Future.forEach(new List.filled(100000, null), (_) {
         print(i++);
-        do{} while(!action());
+        action();
 //        sender.where((d) => (d.containsKey('a') && d['a'] is Map && d['a']['a'] == 'hello'));
         print(receiver);
         bool end = false;
