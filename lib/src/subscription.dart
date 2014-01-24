@@ -58,47 +58,54 @@ bool applyChange (source, target, author) {
 
 
 
-void handleDiff(List<Map> diff, Subscription subscription, String author) {
+bool handleDiff(List<Map> diff, Subscription subscription, String author) {
   logger.fine('handleDiff: $subscription $author $diff');
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
   var version = subscription._version;
+  var res = true;
 
   diff.forEach((Map change) {
-    // it can happen, that we get too old changes
-    if (!change.containsKey('version')){
-      logger.warning('change does not contain "version" field. If not testing, '
-                     'this is probably bug. (change: $change)');
-    } else if (version == null) {
-      logger.warning('Subscription $subscription version is null. If not testing, '
-                     'this is probably bug.');
-    } else if(change['version'] <= version) {
-      return;
-    }
+//     it can happen, that we get too old changes
+//    if (!change.containsKey('version')){
+//      logger.warning('change does not contain "version" field. If not testing, '
+//                     'this is probably bug. (change: $change)');
+//    } else if (version == null) {
+//      logger.warning('Subscription $subscription version is null. If not testing, '
+//                     'this is probably bug.');
+//    } else if(change['version'] <= version) {
+//      return;
+//    }
     change = cleanify(change);
-    if (change["action"] == "add" && change["author"] != author) {
+      if (change["action"] == "add") {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       if (record == null) {
+        logger.fine('aplying changes!');
         collection.add(new DataMap.from(change["data"]), author: 'clean_sync');
+      } else {
       }
     }
-    else if (change["action"] == "change" && change["author"] != author) {
+      else if (change["action"] == "change" ) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
       // 1. the change may be for item that is currently not present in the collection;
       // 2. the field may be 'locked', because it was changed on user's machine, and
       // this change was not yet confirmed from server
       if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
+        res = false;
         logger.fine('discarding diff');
       }
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
+        logger.fine('aplying changes!');
         applyChange(change["data"], record, 'clean_sync');
       }
     }
-    else if (change["action"] == "remove" && change["author"] != author) {
+      else if (change["action"] == "remove" ) {
+      logger.fine('aplying changes!');
       collection.removeWhere((d) => d["_id"] == change["_id"], author: 'clean_sync');
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
+  return res;
 }
 
 class Subscription {
@@ -161,7 +168,6 @@ class Subscription {
       result.then((nextVersion){
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
-          _version = nextVersion;
         }
       });
     }
@@ -240,9 +246,10 @@ class Subscription {
             _handleData(response['data'], collection, _author);
           } else {
             if(!response['diff'].isEmpty) {
-              _handleDiff(response['diff'], this, _author);
-              _version = response['diff'].map((item) => item['version'])
-                  .reduce(max);
+              if(_handleDiff(response['diff'], this, _author)) {
+                _version = response['diff'].map((item) => item['version'])
+                    .reduce(max);
+              }
             }
           }
         });

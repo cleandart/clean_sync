@@ -31,10 +31,16 @@ class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
 
+  var config = new SimpleConfiguration();
+  config.timeout = null;
+  unittestConfiguration = config;
+
+
+
   hierarchicalLoggingEnabled = true;
-  logger.level = Level.WARNING;
+  logger.level = Level.OFF;
   Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.level.name}: ${rec.time}: ${rec.message}');
+    print('${rec.message}');
   });
 
 
@@ -123,42 +129,44 @@ main() {
     }
   }
 
-  makeRandomChange(DataSet coll, Set ids) {
+  makeRandomChange(DataSet coll) {
     String id = (rng.nextInt(9)+1).toString();
+    var data = coll.firstWhere((d) => d['_id'] == id, orElse: () => null);
+
     if (prob(PROB_ADD)) {
       // add
-      if (ids.contains(id)) {
+      if (data != null) {
         return false;
       } else {
-        logger.finest('before add $id \n $coll');
-        ids.add(id);
+        logger.finer('before add $id \n $coll');
         coll.add(new DataMap.from({'_id': id}), author: null);
-        logger.finest('after add $id');
-
+        logger.finer('after add $id');
         return true;
       }
     }
     else if (prob(PROB_REMOVE)) {
       // remove
-      if (!ids.contains(id)) return false;
+      if (data==null) return false;
       else {
-        logger.finest('before remo $id \n $coll');
-        coll.removeWhere((d)=>d['_id']==id, author: null);
-        ids.remove(id);
-        logger.finest('before remo $id');
+        logger.finer('before remo $id \n $coll');
+        coll.remove(data);
+        logger.finer('before remo $id');
         return true;
       }
     } else {
       // change
-      if(ids.contains(id)){
-        logger.finest('before change $id \n coll');
-        var data = coll.firstWhere((d) => d['_id'] == id);
+      if(data!=null){
+        logger.finer('before change $id \n $coll');
+        var data = coll.firstWhere((d) => d['_id'] == id, orElse: () => null);
+        if (data==null) {
+          return false;
+        }
         var a = coll.length;
         randomChangeMap(data);
-        logger.finest('$data');
+        logger.finer('$data');
         var b = coll.length;
         assert(a==b);
-        logger.finest('after change $id');
+        logger.finer('after change $id');
 
         return true;
       } else {
@@ -170,14 +178,21 @@ main() {
 
   test('test random', () {
 
-  var ids = new Set();
+//  var action = (){
+//    var res = false;
+//    for (int i=0; i<5; i++) {
+//      Subscription toChangeSub = randomChoice([subSender, subReceiver]);
+//      res = res || makeRandomChange(toChangeSub.collection);
+//    }
+//    return res;
+//  };
 
   var action = (){
     Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-    logger.finest('$toChangeSub');
-    return makeRandomChange(toChangeSub.collection, ids);
+    logger.fine('$toChangeSub');
+    return makeRandomChange(toChangeSub.collection);
   };
-//  var action = () => makeRandomChange(sender, ids);
+
   var makeExpects = () {
     expect(stripPrivateFieldsList(receiver),
            unorderedEquals(stripPrivateFieldsList(sender)));
@@ -188,14 +203,16 @@ main() {
         unorderedEquals(stripPrivateFieldsList(receiverc)));
   };
 
-    var times=[20, 50, 100, 200, 400, 800, 1600, 3200];
+    var times=[100, 200, 400, 800, 1600, 3200, 6400];
 //    var times=[300, 400, 800, 1600, 3200];
+    var i=0;
     return subSender.initialSync.then((_) =>
     subReceiver.initialSync).then((_) =>
     subReceiverb.initialSync).then((_) =>
     subReceiverc.initialSync).then((_) =>
 
-    Future.forEach(new List.filled(1000, null), (_) {
+    Future.forEach(new List.filled(100000, null), (_) {
+        print(i++);
         do{} while(!action());
 //        sender.where((d) => (d.containsKey('a') && d['a'] is Map && d['a']['a'] == 'hello'));
         print(receiver);
@@ -210,6 +227,10 @@ main() {
               end = true;
             } catch(e,s){
               if(time == times.last){
+                print('author1 $sender');
+                print('author2 $receiver');
+                print('author4 $receiverc');
+
                 print(s);
                 throw e;
               }
@@ -243,15 +264,29 @@ main() {
 //      () => expect(stripPrivateFields(receiverc.first), equals(data)),
 //    ];
 
+//    List actions = [
+//      () => sender.add(data, author: null),
+//      () => print(receiver),
+//      () => expect(stripPrivateFields(receiver.first), equals(stripPrivateFields(data))),
+//      () {print('assign!!!!!'); receiver.first['b'] = 'bbb'; sender.first['b'] = 'bb';},
+//      () => print(sender),
+//      () => print(receiver),
+//      () => expect(stripPrivateFieldsList(sender), equals(stripPrivateFieldsList(receiver))),
+//    ];
+
+
     List actions = [
-      () => sender.add(data, author: null),
       () => print(receiver),
-      () => expect(stripPrivateFields(receiver.first), equals(stripPrivateFields(data))),
-      () {print('assign!!!!!'); receiver.first['b'] = 'bbb'; sender.first['b'] = 'bb';},
-      () => print(sender),
+      () => mongodb.collection('random').add({'_id': '0', 'a': 10}, 'ja'),
       () => print(receiver),
-      () => expect(stripPrivateFieldsList(sender), equals(stripPrivateFieldsList(receiver))),
+      () => mongodb.collection('random').deprecatedChange('0', {'b': 20}, 'ja'),
+      () => expect(stripPrivateFieldsList(receiver), unorderedEquals([{'_id': '0', 'a': 10, 'b': 20}])),
+      () => mongodb.collection('random').deprecatedChange('0', {'a': {'a': 10}}, 'ja'),
+      () => expect(stripPrivateFieldsList(receiver), unorderedEquals([{'_id': '0', 'a': {'a': 10}, 'b': 20}])),
+
+      () => print(receiver),
     ];
+
 
 
 
