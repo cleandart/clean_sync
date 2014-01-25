@@ -181,10 +181,11 @@ class Subscription {
       });
     }
 
+    var change = new ChangeSet();
 
-    _subscriptions.add(collection.onChangeSync.listen((event) {
-      if (event["author"] != 'clean_sync') {
-        event["change"].addedItems.forEach((data) {
+    notify(){
+      new Timer(new Duration(), (){
+        change.addedItems.forEach((data) {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
@@ -194,9 +195,7 @@ class Subscription {
           markToken(data['_id'], result);
         });
 
-        event["change"].strictlyChanged.forEach((DataMap data, ChangeSet changeSet) {
-//          Map change = {};
-//          changeSet.changedItems.forEach((k, Change v) => change[k] = v.newValue);
+        change.strictlyChanged.forEach((DataMap data, ChangeSet changeSet) {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
@@ -208,7 +207,7 @@ class Subscription {
           markToken(data['_id'], result);
         });
 
-        event["change"].removedItems.forEach((data) {
+        change.removedItems.forEach((data) {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
@@ -217,6 +216,16 @@ class Subscription {
           }));
           markToken(data['_id'], result);
         });
+        change = new ChangeSet();
+      });
+    }
+
+    _subscriptions.add(collection.onChangeSync.listen((event) {
+      if (event["author"] != 'clean_sync') {
+        var newChange = event['change'];
+        assert(newChange is ChangeSet);
+        change.mergeIn(newChange);
+        notify();
       }
     }));
   }
