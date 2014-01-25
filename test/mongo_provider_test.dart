@@ -151,14 +151,6 @@ void main() {
         });
     });
 
-    test('change not existing data. (T05)', () {
-      // when
-      Future shouldThrow =  ready.then((_) => months.change('january', new Map.from(january), 'Michael Smith'));
-
-      //then
-        expect(shouldThrow, throws);
-    });
-
     test('change data with bad _id. (T06)', () {
       // given
       Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))

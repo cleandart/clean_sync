@@ -71,6 +71,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
     if (!change.containsKey('version')){
       logger.warning('change does not contain "version" field. If not testing, '
                      'this is probably bug. (change: $change)');
+      change['version'] = 0;
     } else if (version == null) {
       logger.warning('Subscription $subscription version is null. If not testing, '
                      'this is probably bug.');
@@ -179,6 +180,7 @@ class Subscription {
         }
       });
     }
+
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (event["author"] != 'clean_sync') {
