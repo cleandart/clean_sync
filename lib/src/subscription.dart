@@ -58,27 +58,29 @@ bool applyChange (source, target, author) {
 
 
 
-bool handleDiff(List<Map> diff, Subscription subscription, String author) {
+num handleDiff(List<Map> diff, Subscription subscription, String author) {
   logger.fine('handleDiff: $subscription $author $diff');
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
   var version = subscription._version;
-  var res = true;
+  num res = -1;
+  bool collectRes = true;
 
   diff.forEach((Map change) {
 //     it can happen, that we get too old changes
-//    if (!change.containsKey('version')){
-//      logger.warning('change does not contain "version" field. If not testing, '
-//                     'this is probably bug. (change: $change)');
-//    } else if (version == null) {
-//      logger.warning('Subscription $subscription version is null. If not testing, '
-//                     'this is probably bug.');
-//    } else if(change['version'] <= version) {
-//      return;
-//    }
+    if (!change.containsKey('version')){
+      logger.warning('change does not contain "version" field. If not testing, '
+                     'this is probably bug. (change: $change)');
+    } else if (version == null) {
+      logger.warning('Subscription $subscription version is null. If not testing, '
+                     'this is probably bug.');
+    } else if(change['version'] <= version) {
+      return;
+    }
     change = cleanify(change);
       if (change["action"] == "add") {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      if (collectRes) res = max(res, change['version']);
       if (record == null) {
         logger.fine('aplying changes!');
         collection.add(new DataMap.from(change["data"]), author: 'clean_sync');
@@ -91,16 +93,18 @@ bool handleDiff(List<Map> diff, Subscription subscription, String author) {
       // 2. the field may be 'locked', because it was changed on user's machine, and
       // this change was not yet confirmed from server
       if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
-        res = false;
+        collectRes = false;
         logger.fine('discarding diff');
       }
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
         logger.fine('aplying changes!');
+        if (collectRes) res = max(res, change['version']);
         applyChange(change["data"], record, 'clean_sync');
       }
     }
       else if (change["action"] == "remove" ) {
       logger.fine('aplying changes!');
+      if (collectRes) res = max(res, change['version']);
       collection.removeWhere((d) => d["_id"] == change["_id"], author: 'clean_sync');
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
@@ -113,6 +117,7 @@ class Subscription {
   String collectionName;
   DataSet collection;
   Connection _connection;
+  bool lock = false;
   String _author;
   String toString() => 'Subscription(${_author}, ver: ${_version})';
   IdGenerator _idGenerator;
@@ -128,6 +133,8 @@ class Subscription {
 
 
   num _version;
+  get version => _version;
+
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
 
@@ -218,11 +225,16 @@ class Subscription {
   });
 
   _createDiffRequest() {
-    return new ClientRequest("sync", {
-    "action" : "get_diff",
-    "collection" : collectionName,
-    "version" : _version
-    });
+    if (lock) {
+      return null;
+    } else {
+      lock = true;
+      return new ClientRequest("sync", {
+      "action" : "get_diff",
+      "collection" : collectionName,
+      "version" : _version
+      });
+    }
   }
 
   // TODO rename to something private-like
@@ -241,19 +253,17 @@ class Subscription {
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
+          lock = false;
           // id data and version was sent, diff is set to null
           if(response['diff'] == null) {
             _version = response['version'];
             _handleData(response['data'], collection, _author);
           } else {
             if(!response['diff'].isEmpty) {
-              if(_handleDiff(response['diff'], this, _author)) {
-                _version = response['diff'].map((item) => item['version'])
-                    .reduce(max);
+              _version = max(_version, _handleDiff(response['diff'], this, _author));
               }
             }
-          }
-        });
+        }, onError: (e){if (e is! CancelError)throw e;});
 
       _subscriptions.add(subscription);
     });

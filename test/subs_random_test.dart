@@ -16,8 +16,12 @@ import 'package:logging/logging.dart';
 
 Random rng = new Random();
 
+// affect how map is modified
 const PROB_REMOVE = 0.1;
 const PROB_ADD = 0.3;
+
+// affect how collection is modified
+const PROB_CHANGE = 0.95;
 
 prob(p) {
   return p > rng.nextDouble();
@@ -60,6 +64,13 @@ main() {
   Publisher pub;
 
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
+
+//  var _d={
+//         '_id': 'a-2pq',
+//         'c': [[{}], [{}, {}], {}, {}, {'a': [[]]}, [{}], {}, {}],
+//         'a': [{}, [{}, {}], [{'a': 'hello'}, {}], [], {}, [], {}],
+//         'b': [[{}, {}, {}], {}, [], [{}], {}, []]
+//  };
 
   setUp((){
     return Future.wait(mongodb.init)
@@ -106,11 +117,16 @@ main() {
   var allValues=['hello', 'world', 1];
   var allKeys=['a','b','c'];
 
+
+  var randomChangeCollection = null;
+
   randomChangeMap(Map data) {
     var key = randomChoice(allKeys);
     if (data.containsKey(key)) {
       if (data[key] is Map) {
         randomChangeMap(data[key]);
+      } else if (data[key] is DataList){
+        randomChangeCollection(data[key], allowList: true);
       } else {
         data[key] = randomChoice(allValues);
       }
@@ -118,9 +134,14 @@ main() {
       data[key] = randomChoice(allValues);
     }
 
-    if (data[key] is! Map && prob(PROB_ADD)) {
-      data[key] = new Map();
-      randomChangeMap(data[key]);
+    if (data[key] is! Map && data[key] is! List && prob(PROB_ADD)) {
+      if(prob(0.5)){
+        data[key] = new DataList();
+        randomChangeCollection(data[key], allowList:true);
+      } else {
+        data[key] = new DataMap();
+        randomChangeMap(data[key]);
+      }
     }
 
     if (prob(PROB_REMOVE)) {
@@ -128,55 +149,56 @@ main() {
     }
   }
 
-  makeRandomChange(DataSet coll) {
+  randomChangeCollection = (dynamic coll, {allowList: false}) {
     var probAdd = (){
       if(coll.length<5) return 1;
       if(coll.length>15)return 0;
       return rng.nextDouble();
     };
 
-    var probRemove = (){
-      if(coll.length>15) return 1;
-      if(coll.length<5)return 0;
-      return rng.nextDouble();
-    };
 
-    if (prob(probAdd())) {
-      // add
-        logger.finer('before add \n $coll');
-        coll.add(new DataMap.from({}), author: null);
-        logger.finer('after add');
-        return true;
-    }
-    else if (prob(probRemove())) {
-      if (coll.length == 0) return false;
-      // remove
-        logger.finer('before remo \n $coll');
-        coll.remove(randomChoice(coll));
-        logger.finer('before remo');
-        return true;
-    } else {
+      if (!prob(coll.length/10)) {
+        // add
+          logger.finer('before add \n $coll');
+          if (prob(0.5) || !allowList) {
+            coll.add(new DataMap.from({}));
+          } else {
+            coll.add([]);
+          }
+          logger.finer('after add');
+          return true;
+      } else
+      if(!prob(PROB_CHANGE)){
+        // remove
+          if (coll.length == 0) return false;
+          logger.finer('before remo \n $coll');
+          coll.remove(randomChoice(coll));
+          logger.finer('before remo');
+          return true;
+      }
+    else {
       // change
       if (coll.length == 0) return false;
       var data = randomChoice(coll);
-      if(data!=null){
-        logger.finer('before change \n $coll');
+      logger.finer('before change \n $coll');
+      if (data is Map) {
         randomChangeMap(data);
-        logger.finer('after change: $data');
-        return true;
       } else {
-        return false;
+        randomChangeCollection(data);
       }
+      logger.finer('after change: $data');
+      return true;
     }
-  }
+  };
 
 
   test('test random', () {
 
   var action = (){
     for (int i=0; i<5; i++) {
-      Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-      makeRandomChange(toChangeSub.collection);
+      Subscription toChangeSub = randomChoice(
+          [subSender, subReceiver]);
+      randomChangeCollection(toChangeSub.collection);
     }
   };
 
@@ -186,29 +208,62 @@ main() {
 //    return makeRandomChange(toChangeSub.collection);
 //  };
 
+  mongoEquals(dynamic obj, List<String> what, pattern, {allowList: true}){
+    if (what.isEmpty) {
+      return obj == pattern;
+    }
+    var key = what.first;
+    var rest = what.sublist(1);
+    if (obj is Map) {
+      return (obj.containsKey(what.first)) && mongoEquals(obj[key], what.sublist(1), pattern);
+    }
+    if (obj is List && allowList) {
+      return obj.any((e) => mongoEquals(e, what, pattern, allowList: false));
+    }
+    return false;
+  }
+
   var makeExpects = () {
     expect(stripPrivateFieldsList(receiver),
            unorderedEquals(stripPrivateFieldsList(sender)));
-    expect(stripPrivateFieldsList(sender.where((d)=>d['a']=='hello')),
-           unorderedEquals(stripPrivateFieldsList(receiverb)));
+    expect(stripPrivateFieldsList(sender.where((d) => mongoEquals(d, ['a'], 'hello'))),
+        unorderedEquals(stripPrivateFieldsList(receiverb)));
     expect(stripPrivateFieldsList(
-        sender.where((d) => (d['a'] is Map && d['a']['a'] == 'hello'))),
+        sender.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
         unorderedEquals(stripPrivateFieldsList(receiverc)));
   };
 
-    var times=[100, 200, 400, 800, 1600, 3200, 6400];
-//    var times=[300, 400, 800, 1600, 3200];
+    var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
     var i=0;
-    return subSender.initialSync.then((_) =>
+
+    var watch = new Stopwatch()..start();
+    var watchTime = 0;
+    var watchElems = 0;
+    mongodb.create_collection('random');
+
+    new Timer.periodic(new Duration(seconds: 60), (_){
+      mongodb.collection('random').deleteHistory(
+          [subSender.version, subReceiver.version, subReceiverb.version, subReceiverc.version].reduce(min));
+    });
+
+    return
+    Future.wait(mongodb.init).then((_) =>
+    subSender.initialSync).then((_) =>
     subReceiver.initialSync).then((_) =>
     subReceiverb.initialSync).then((_) =>
     subReceiverc.initialSync).then((_) =>
-
     Future.forEach(new List.filled(100000, null), (_) {
-        print(i++);
+        i++;
+        var val = watch.elapsedMilliseconds;
+        watch.reset();
+        watchTime = watchTime*0.99 + val;
+        watchElems = watchElems*0.99 + 1;
+        var watchAverage = watchTime / watchElems;
+
+        print('$i (${watchAverage.round()} ms per modif)');
         action();
-//        sender.where((d) => (d.containsKey('a') && d['a'] is Map && d['a']['a'] == 'hello'));
-        print(receiver);
+
+//        print(receiver);
         bool end = false;
         return Future.forEach(times, (time){
           if(end){
@@ -222,6 +277,7 @@ main() {
               if(time == times.last){
                 print('author1 $sender');
                 print('author2 $receiver');
+                print('author2 $receiverb');
                 print('author4 $receiverc');
 
                 print(s);

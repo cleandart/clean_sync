@@ -127,7 +127,14 @@ class MongoProvider implements DataProvider {
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
 
-  Future<int> get _maxVersion => _collectionHistory.count();
+//  Future<int> get _maxVersion => _collectionHistory.find({ORDERBY: {'version': -1}}).toList()
+//      .then((data){print('data: $data'); return data.first['version'];});
+
+  Future<int> get _maxVersion =>
+      _collectionHistory.find(where.sortBy('version', descending : true)
+          .limit(1)).toList()
+      .then((data) => data.isEmpty? 0: data.first['version']);
+
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
@@ -138,6 +145,10 @@ class MongoProvider implements DataProvider {
     this._selectorList = new List.from(mp._selectorList);
     this._limit = mp._limit;
     this._skip = mp._skip;
+  }
+
+  Future deleteHistory(num version) {
+    return _collectionHistory.remove({'version': {LT: version}});
   }
 
   MongoProvider find(Map params) {
@@ -251,8 +262,9 @@ class MongoProvider implements DataProvider {
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          throw new MongoException(null,
-              'Change was not applied, document with id $_id does not exist.');
+          return true;
+//          throw new MongoException(null,
+//              'Change was not applied, document with id $_id does not exist.');
         } else if (change.containsKey('_id') && change['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${change['_id']} should be same as old one $_id.');
@@ -371,6 +383,7 @@ class MongoProvider implements DataProvider {
     Set before, after;
     List beforeOrAfter, diff;
 
+
     return _collectionHistory.find(beforeOrAfterSelector).toList()
       .then((result) {
         beforeOrAfter = result;
@@ -383,6 +396,7 @@ class MongoProvider implements DataProvider {
           diff = [];
 
           beforeOrAfter.forEach((record) {
+            assert(record['version']>version);
             if(before.contains(record['_id']) && after.contains(record['_id']))
             {
               // record was changed
