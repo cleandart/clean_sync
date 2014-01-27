@@ -41,24 +41,35 @@ class MongoComparator {
    * a positive integer if a is greater than b.
    */
 
-  static int compare(dynamic orig_a, dynamic orig_b, {inList : false}) {
-    // Special case : list - first "MongoCOmparable" element is used for comparision
+  static List preprocessInput(dynamic orig, {inList : false}) {
+    // Special case : list - first "MongoComparable" element is used for comparision
     //   if doesn't exists then the first element.
     // Special special case: empty list
     // Special special special case: [[]] because [{}] < [[]] < [[null]]
-    List obj_a = (orig_a is List)
-        ? getListTrueComparer(orig_a, inList:inList)
-            : [priority(orig_a, inList: inList),orig_a];
-    List obj_b = (orig_b is List)
-        ? getListTrueComparer(orig_b, inList:inList)
-            : [priority(orig_b, inList: inList),orig_b];
+    if(inList == false){
+      int p_orig = priority(orig, inList : inList);
 
+      if(p_orig == TYPE_EMPTY_LIST) return [p_orig, []];
+      //@precondition: p_orig is not an empty list
+      return orig is List ? getListMinElement(orig)
+            : [priority(orig, inList: false),orig];
+    }
+    else{
+      return [priority(orig, inList: true), orig];
+    }
+  }
+
+  static int compare(dynamic orig_a, dynamic orig_b, {inList : false}) {
+    List obj_a = preprocessInput(orig_a, inList : inList);
+    List obj_b = preprocessInput(orig_b, inList : inList);
     int pa = obj_a[0]; // priorities
     int pb = obj_b[0];
     dynamic ca = obj_a[1]; //compareTo
     dynamic cb = obj_b[1];
 
-    if(pa != pb) return pa.compareTo(pb);
+    if(pa != pb) {
+      return pa.compareTo(pb);
+    }
     //@precondtion: priority(a) == priority(b)
 
     // bool.compareTo() doesn't exist
@@ -67,9 +78,18 @@ class MongoComparator {
        int ib = cb ? 1 : 0;
        return ia.compareTo(ib);
     }
+
+    // empty list scenario
     if(isEmptyList(ca) && isEmptyList(cb)){
       return 0;
     }
+    if(isEmptyList(ca)){
+      return -1;
+    }
+    if(isEmptyList(cb)){
+      return 1;
+    }
+
     if(pa == TYPE_NULL){ // && b == null // given by the @precondition
       return 0;
     }
@@ -77,9 +97,13 @@ class MongoComparator {
     //compare lists recursively
     if(ca is List && cb is List){
       //resolve specia special special case: [[]] , because TrueComparer is [[]] but
-      return compare(ca,cb, inList:true);
+      return compare(getListMinElement(ca)[1],getListMinElement(cb)[1], inList:true);
     }
     return (isMongoComparable(ca)) ? ca.compareTo(cb) : 0;
+  }
+
+  static bool isMongoComparable(dynamic a){
+    return (a == null || a is num || a is String || a is bool || a is DateTime);
   }
 
   static bool isEmptyList(dynamic list){
@@ -87,21 +111,17 @@ class MongoComparator {
     return priority(list, inList:false) == TYPE_EMPTY_LIST;
   }
 
-  // returns [priotiry, object to compare with]
-  static dynamic getListTrueComparer(List list, {inList: false}){
-    if(list.isEmpty) return [priority(list, inList:inList), list];
-
+  // returns [priority, object to compare with
+  // if empty list then exception
+  static dynamic getListMinElement(List list){
     int result = 0;
     for(int i=1; i<list.length ; i++){
-      if(compare(list[i], list[result], inList:true) < 0) result = i;
+      if(compare(list[i], list[result], inList:true) < 0) {
+        result = i;
+      }
     }
-    return [priority(list[result], inList: true), list[result]];
+    return [priority(list[result], inList:true), list[result]];
   }
-
-  static bool isMongoComparable(dynamic a){
-    return (a == null || a is num || a is String || a is bool || a is DateTime);
-  }
-
   /** http://docs.mongodb.org/manual/reference/bson-types/
     1. MinKey (internal type)
     2. Null
@@ -127,6 +147,7 @@ class MongoComparator {
   static final int TYPE_BOOL = 7;
   static final int TYPE_DATETIME = 8;
   static final int TYPE_REGEXP = 9;
+  static final int TYPE_UNKNOWN = 13;
 
   static int priority(dynamic a, {inList:false}){
     if(a == null) return TYPE_NULL;
@@ -141,6 +162,6 @@ class MongoComparator {
     if(a is DateTime) return TYPE_DATETIME;
     if(a is RegExp || a is Pattern) return TYPE_REGEXP;
 
-    return 13;
+    return TYPE_UNKNOWN;
   }
 }

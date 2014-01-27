@@ -61,13 +61,16 @@ main() {
       .then((_) => _teardown());
   }
 
-  /*
-  test('minListElement.', () {
-    expect(MongoComparator.minListElement([[], 1, "abc", null]), equals(3));
-    expect(MongoComparator.minListElement([[[]], [1], ["abc"], []]), equals(3));
-  });
-
   test('dummy compare.', () {
+
+    expect(MongoComparator.compareWithKeySelector(
+        {"a": null, "__clean_version": 3},
+        {"a": [], "__clean_version": 7},
+        {"a":1}), equals(1));
+    expect(MongoComparator.compare(
+        [[null], null],
+        [null],
+        inList:false), equals(0));
     expect(MongoComparator.compareWithKeySelector(
         {"a": [[null], null], "__clean_version": 3},
         {"a": [null], "__clean_version": 7},
@@ -76,8 +79,23 @@ main() {
         {"a": [[]], "__clean_version": 3},
         {"a": [null], "__clean_version": 7},
         {"a":1}), equals(1));
+
+    expect(MongoComparator.compareWithKeySelector(
+        {"a": [[[]]], "__clean_version": 3},
+        {"a": [[null]], "__clean_version": 7},
+        {"a":1}), equals(1));
   });
-*/
+
+  test('minListElement.', () {
+    expect(MongoComparator.getListMinElement(
+      [null]), equals([MongoComparator.TYPE_NULL, null]));
+    expect(MongoComparator.getListMinElement(
+      [[null], null]), equals([MongoComparator.TYPE_NULL, null]));
+    expect(MongoComparator.getListMinElement(
+      [[], 1, "abc", null]), equals([MongoComparator.TYPE_NULL, null]));
+    expect(MongoComparator.getListMinElement(
+      [[[]], [1], ["abc"], []]), equals([MongoComparator.TYPE_LIST, []]));
+  });
 
   test('Integer sorting.', () {
     List<Map> input_to_sort =
@@ -159,8 +177,7 @@ main() {
     return runTest(input_to_sort, {'a' : 1});
   });
 
-
-    /*
+/*
 > db.a.insert({'a': [[[1]], [1], 1]})
 > db.a.insert({'a': [[[1]], [1], null]})
 > db.a.insert({'a': [[[1]], [1], []]})
@@ -244,6 +261,5 @@ main() {
 
     return runTest(input_to_sort, {'a' : 1});
   });
-
   // TODO several keys to sort
 }
