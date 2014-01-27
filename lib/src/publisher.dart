@@ -6,6 +6,7 @@ part of clean_sync.server;
 
 typedef DataProvider DataGenerator(Map args);
 Map<String, DataGenerator> _publishedCollections = {};
+Map<String, dynamic> _beforeRequestCallbacks = {};
 final int MAX = pow(2,16) - 1;
 final int prefix_random_part = new Random().nextInt(MAX);
 
@@ -18,8 +19,9 @@ class Publisher {
     counter = 0;
   }
 
-  void publish(String collection, DataGenerator callback) {
+  void publish(String collection, DataGenerator callback, {beforeRequest: null}) {
     _publishedCollections[collection] = callback;
+    _beforeRequestCallbacks[collection] = beforeRequest;
   }
 
   bool isPublished(String collection) {
@@ -38,7 +40,31 @@ class Publisher {
       data['args'] = {};
     }
     data['args']['_authenticatedUserId'] = request.authenticatedUserId;
-    DataProvider dp = _publishedCollections[data['collection']](data['args']);
+
+    if (_beforeRequestCallbacks[data['collection']] != null) {
+      if (data['action'] != 'get_data' && data['action'] != 'get_diff') {
+        try {
+          var value;
+          if (data['action'] == 'add') value = data['data'];
+          else if (data['action'] == 'change') value = data['change'];
+          else if (data['action'] == 'remove') value = {};
+          _beforeRequestCallbacks[data['collection']](value, data['args']);
+        } catch (e) {
+          return new Future.value({
+            'error': e.toString(),
+          });
+        }
+      }
+    }
+
+    DataProvider dp;
+    try {
+      dp = _publishedCollections[data['collection']](data['args']);
+    } catch (e) {
+      return new Future.value({
+        'error': e.toString(),
+      });
+    }
 
     if (data["action"] == "get_data") {
       return dp.data();
@@ -55,6 +81,7 @@ class Publisher {
     else if (data["action"] == "remove") {
       return dp.remove(data['_id'], data['author']);
     }
+
   }
 
   String getIdPrefix() {

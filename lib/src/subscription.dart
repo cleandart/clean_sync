@@ -138,6 +138,7 @@ class Subscription {
 
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
+  StreamController errorStreamController;
 
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
@@ -150,6 +151,7 @@ class Subscription {
       this._idGenerator, [this.args]) {
     collection = new DataSet();
     collection.addIndex(['_id']);
+    errorStreamController = new StreamController.broadcast();
     start();
   }
 
@@ -191,7 +193,10 @@ class Subscription {
             "collection" : collectionName,
             "data" : cleanify(decleanify(data)),
             "author" : _author
-          }));
+          })).then((result) {
+            if (result['error'] != null)
+              errorStreamController.add(result['error']);
+          });
           markToken(data['_id'], result);
         });
 
@@ -202,7 +207,10 @@ class Subscription {
             "_id": data["_id"],
             "change" : cleanify(decleanify(data)),
             "author" : _author
-          }));
+          })).then((result) {
+            if (result['error'] != null)
+              errorStreamController.add(result['error']);
+          });
           // TODO: check if server really accepted the change
           markToken(data['_id'], result);
         });
@@ -213,7 +221,10 @@ class Subscription {
             "collection" : collectionName,
             "_id" : data["_id"],
             "author" : _author
-          }));
+          })).then((result) {
+            if (result['error'] != null)
+              errorStreamController.add(result['error']);
+          });
           markToken(data['_id'], result);
         });
         change = new ChangeSet();
@@ -252,9 +263,15 @@ class Subscription {
   void setupDataRequesting() {
     // request initial data
     _connection.send(_createDataRequest).then((response) {
+      if (response['error'] != null) {
+        if (!_initialSync.isCompleted) _initialSync.completeError(new ArgumentError(response['error']));
+        else throw new ArgumentError(response['error'].toString());
+        return;
+      }
       _version = response['version'];
       _handleData(response['data'], collection, _author);
 
+      logger.log(logger.level, "Test message");
       logger.info("Got initial data, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
