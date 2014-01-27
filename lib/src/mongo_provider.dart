@@ -201,7 +201,6 @@ class MongoProvider implements DataProvider {
         _collectionHistory.insert({
           "before" : {},
           "after" : data,
-          "change" : {},
           "action" : "add",
           "author" : author,
           "version" : nextVersion
@@ -238,7 +237,6 @@ class MongoProvider implements DataProvider {
             _collectionHistory.insert({
               "before" : record,
               "after" : newRecord,
-              "change" : newRecord,
               "action" : "change",
               "author" : author,
               "version" : nextVersion
@@ -278,7 +276,6 @@ class MongoProvider implements DataProvider {
             _collectionHistory.insert({
               "before" : record,
               "after" : newRecord,
-              "change" : newRecord,
               "action" : "change",
               "author" : author,
               "version" : nextVersion
@@ -308,7 +305,6 @@ class MongoProvider implements DataProvider {
             _collectionHistory.insert({
               "before" : record,
               "after" : {},
-              "change" : {},
               "action" : "remove",
               "author" : author,
               "version" : nextVersion
@@ -404,7 +400,7 @@ class MongoProvider implements DataProvider {
                 "action" : "change",
                 "_id" : record["before"]["_id"],
                 "before" : record["before"],
-                "data" : record["change"],
+                "data" : record["after"],
                 "version" : record["version"],
                 "author" : record["author"],
               });

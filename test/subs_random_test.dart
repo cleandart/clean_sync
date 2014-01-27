@@ -51,26 +51,19 @@ main() {
   DataSet currCollection;
   DataSet wholeCollection;
   MongoDatabase mongodb;
-  DataSet sender;
-  DataSet receiver;
-  DataSet receiverb;
-  DataSet receiverc;
+  DataSet colAll;
+  DataSet colAll2;
+  DataSet colA;
+  DataSet colAa;
   Connection connection;
-  Subscription subSender;
-  Subscription subReceiver;
-  Subscription subReceiverb;
-  Subscription subReceiverc;
+  Subscription subAll;
+  Subscription subAll2;
+  Subscription subA;
+  Subscription subAa;
 
   Publisher pub;
 
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
-
-//  var _d={
-//         '_id': 'a-2pq',
-//         'c': [[{}], [{}, {}], {}, {}, {'a': [[]]}, [{}], {}, {}],
-//         'a': [{}, [{}, {}], [{'a': 'hello'}, {}], [], {}, [], {}],
-//         'b': [[{}, {}, {}], {}, [], [{}], {}, []]
-//  };
 
   setUp((){
     return Future.wait(mongodb.init)
@@ -94,18 +87,14 @@ main() {
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
 
-        subSender = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
-        sender = subSender.collection;
-
-        subReceiver = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
-        receiver = subReceiver.collection;
-        subReceiverb = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
-        subReceiverc = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
-
-        receiverb = subReceiverb.collection;
-        receiverc = subReceiverc.collection;
-
-
+        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
+        colAll = subAll.collection;
+        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
+        colAll2 = subAll2.collection;
+        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
+        colA = subA.collection;
+        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
+        colAa = subAa.collection;
     });
   });
 
@@ -197,16 +186,10 @@ main() {
   var action = (){
     for (int i=0; i<5; i++) {
       Subscription toChangeSub = randomChoice(
-          [subSender, subReceiver]);
+          [subAll, subAll2]);
       randomChangeCollection(toChangeSub.collection);
     }
   };
-
-//  var action = (){
-//    Subscription toChangeSub = randomChoice([subSender, subReceiver]);
-//    logger.fine('$toChangeSub');
-//    return makeRandomChange(toChangeSub.collection);
-//  };
 
   mongoEquals(dynamic obj, List<String> what, pattern, {allowList: true}){
     if (what.isEmpty) {
@@ -224,13 +207,13 @@ main() {
   }
 
   var makeExpects = () {
-    expect(stripPrivateFieldsList(receiver),
-           unorderedEquals(stripPrivateFieldsList(sender)));
-    expect(stripPrivateFieldsList(sender.where((d) => mongoEquals(d, ['a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(receiverb)));
+    expect(stripPrivateFieldsList(colAll2),
+           unorderedEquals(stripPrivateFieldsList(colAll)));
+    expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
+        unorderedEquals(stripPrivateFieldsList(colA)));
     expect(stripPrivateFieldsList(
-        sender.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(receiverc)));
+        colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
+        unorderedEquals(stripPrivateFieldsList(colAa)));
   };
 
     var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
@@ -243,15 +226,15 @@ main() {
 
     new Timer.periodic(new Duration(seconds: 60), (_){
       mongodb.collection('random').deleteHistory(
-          [subSender.version, subReceiver.version, subReceiverb.version, subReceiverc.version].reduce(min));
+          [subAll.version, subAll2.version, subA.version, subAa.version].reduce(min));
     });
 
     return
     Future.wait(mongodb.init).then((_) =>
-    subSender.initialSync).then((_) =>
-    subReceiver.initialSync).then((_) =>
-    subReceiverb.initialSync).then((_) =>
-    subReceiverc.initialSync).then((_) =>
+    subAll.initialSync).then((_) =>
+    subAll2.initialSync).then((_) =>
+    subA.initialSync).then((_) =>
+    subAa.initialSync).then((_) =>
     Future.forEach(new List.filled(100000, null), (_) {
         i++;
         var val = watch.elapsedMilliseconds;
@@ -275,10 +258,10 @@ main() {
               end = true;
             } catch(e,s){
               if(time == times.last){
-                print('author1 $sender');
-                print('author2 $receiver');
-                print('author2 $receiverb');
-                print('author4 $receiverc');
+                print('author1 $colAll');
+                print('author2 $colAll2');
+                print('author2 $colA');
+                print('author4 $colAa');
 
                 print(s);
                 throw e;
@@ -325,15 +308,15 @@ main() {
 
 
     List actions = [
-      () => print(receiver),
+      () => print(colAll2),
       () => mongodb.collection('random').add({'_id': '0', 'a': 10}, 'ja'),
-      () => print(receiver),
+      () => print(colAll2),
       () => mongodb.collection('random').deprecatedChange('0', {'b': 20}, 'ja'),
-      () => expect(stripPrivateFieldsList(receiver), unorderedEquals([{'_id': '0', 'a': 10, 'b': 20}])),
+      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([{'_id': '0', 'a': 10, 'b': 20}])),
       () => mongodb.collection('random').deprecatedChange('0', {'a': {'a': 10}}, 'ja'),
-      () => expect(stripPrivateFieldsList(receiver), unorderedEquals([{'_id': '0', 'a': {'a': 10}, 'b': 20}])),
+      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([{'_id': '0', 'a': {'a': 10}, 'b': 20}])),
 
-      () => print(receiver),
+      () => print(colAll2),
     ];
 
 
@@ -342,10 +325,10 @@ main() {
     return
     mongodb.dropCollection('random').then((_) =>
     mongodb.removeLocks()).then((_) =>
-    subSender.initialSync).then((_) =>
-    subReceiver.initialSync).then((_) =>
-    subReceiverb.initialSync).then((_) =>
-    subReceiverc.initialSync).then((_) =>
+    subAll.initialSync).then((_) =>
+    subAll2.initialSync).then((_) =>
+    subA.initialSync).then((_) =>
+    subAa.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
