@@ -70,9 +70,7 @@ class MongoDatabase {
   }
 
   void close() {
-    Future.wait(init).then((_) {
-      _db.close();
-    });
+    Future.wait(init).then((_) => _db.close());
   }
 
   void create_collection(String collectionName) {
