@@ -2,9 +2,34 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-//TODO commentary
+/**
+ * Current implementation works as follows. If the two objects are not lists,
+ * then are compared as in the documentation: http://docs.mongodb.org/manual/reference/bson-types/
+    1. MinKey (internal type)
+    2. Null
+    3. Numbers (ints, longs, doubles)
+    4. Symbol, String
+    5. Object
+    6. Array
+    7. BinData
+    8. ObjectID
+    9. Boolean
+    10. Date, Timestamp
+    11. Regular Expression
+    12. MaxKey (internal type)
 
-//TODO tests
+  If comparing a object versus list, then the MIN_ELEMENT of list is used,
+    e.g. 1 == [1] && 1 < [2] && 1 < [[1]]
+    Note in the last case [1] is used for the right side comparison.
+
+  Special case is empty list, whose MIN_ELEMENT is "undefined" and:
+    [] < null && [] < [null] && null < [[]]
+
+  If comparing two list objects, the result is given by comparing their MIN_ELEMENTS
+    !but now (nested) lists are treated always as lists, so:
+    [null] < [[]] && [[]] < [[[]]] && [["whatever"], null] == [null] && [[]] < [false]
+*/
+
 
 part of clean_sync.client;
 
@@ -122,22 +147,7 @@ class MongoComparator {
     }
     return [priority(list[result], inList:true), list[result]];
   }
-  /** http://docs.mongodb.org/manual/reference/bson-types/
-    1. MinKey (internal type)
-    2. Null
-    3. Numbers (ints, longs, doubles)
-    4. Symbol, String
-    5. Object
-    6. Array
-    7. BinData
-    8. ObjectID
-    9. Boolean
-    10. Date, Timestamp
-    11. Regular Expression
-    12. MaxKey (internal type)
 
-    !BUT if comparing elemnts inside list, empty list (i.e. []) behaves as a List
-  */
   static final int TYPE_EMPTY_LIST = -1;
   static final int TYPE_NULL = 2;
   static final int TYPE_NUM = 3;
