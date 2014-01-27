@@ -231,13 +231,11 @@ main() {
   }
 
   var makeExpects = () {
-    expect(stripPrivateFieldsList(colAll2),
-           unorderedEquals(stripPrivateFieldsList(colAll)));
-    expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colA)));
-    expect(stripPrivateFieldsList(
-        colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colAa)));
+    expect(colAll2, unorderedEquals(colAll));
+    expect(colAll.where((d) => mongoEquals(d, ['a'], 'hello')),
+        unorderedEquals(colA));
+    expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
+        unorderedEquals(colAa));
   };
 
     var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];

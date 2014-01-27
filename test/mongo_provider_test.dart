@@ -26,22 +26,6 @@ void handleDiff(List<Map> diff, List collection) {
   });
 }
 
-Map stripPrivateFields(Map<String, dynamic> data){
-  Map newData = {};
-  data.forEach((key,value) {
-    if (!key.startsWith('__')) newData[key] = value;
-  });
-  return newData;
-}
-
-List stripPrivateFieldsList(Iterable<Map<String, dynamic>> data){
-  List newData = [];
-  data.forEach((oldMap) {
-    newData.add(stripPrivateFields(oldMap));
-  });
-  return newData;
-}
-
 void main() {
   group('MongoProvider', () {
     MongoProvider months;
@@ -94,7 +78,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = stripPrivateFields(data['data'][0]);
+          Map strippedData = data['data'][0];
           expect(strippedData, equals(january));
           expect(data['version'], equals(1));
       }).then((_) => months.diffFromVersion(0))
@@ -104,7 +88,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = stripPrivateFields(diff['data']);
+          Map strippedData = diff['data'];
           expect(strippedData, equals(january));
           expect(diff['author'], equals('John Doe'));
         });
@@ -135,7 +119,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = stripPrivateFields(data['data'][0]);
+          Map strippedData = data['data'][0];
           expect(strippedData, equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
@@ -145,7 +129,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = stripPrivateFields(diff['data']);
+          Map strippedData = diff['data'];
           expect(strippedData, equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
@@ -223,7 +207,7 @@ void main() {
       // then
       .then((dataDiff) {
          handleDiff(dataDiff['diff'], dataStart);
-         expect(stripPrivateFieldsList(dataStart), unorderedEquals(stripPrivateFieldsList(dataEnd)));
+         expect(dataStart, unorderedEquals(dataEnd));
       });
     });
 
@@ -239,7 +223,7 @@ void main() {
 
       // then
           expect(data['data'].length, equals(1));
-          Map strippedData = stripPrivateFields(data['data'][0]);
+          Map strippedData = data['data'][0];
           january2.forEach((key, value) {
             expect(strippedData[key], equals(value));
           });
@@ -254,7 +238,7 @@ void main() {
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
-          Map strippedData = stripPrivateFields(diff['data']);
+          Map strippedData = diff['data'];
           var res = new Map.from(january)..addAll(january2);
           expect(strippedData, equals(res));
           expect(diff['author'], equals('Michael Smith'));

@@ -594,7 +594,13 @@ class MongoProvider implements DataProvider {
   }
   
   void _stripCleanVersion(dynamic data) {
-    data.remove('__clean_version');
+    if (data is Iterable) {
+      data.forEach((Map item) {
+        item.remove('__clean_version');
+      });
+    } else {
+      data.remove('__clean_version');
+    }
   }
 }
 
