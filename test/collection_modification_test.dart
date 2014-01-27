@@ -1,4 +1,4 @@
-library collection_modification_change;
+library collection_modification_test;
 
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
