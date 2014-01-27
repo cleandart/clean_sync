@@ -121,9 +121,9 @@ main() {
   test('test collection add', () {
     List actions = [
       () => colAll.add(data1),
-      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([data1])),
+      () => expect(colAll2, unorderedEquals([data1])),
       () => colAll2.add(data2),
-      () => expect(stripPrivateFieldsList(colAll), unorderedEquals([data1, data2])),
+      () => expect(colAll, unorderedEquals([data1, data2])),
     ];
     
     return executeSubscriptionActions(actions);
@@ -134,7 +134,7 @@ main() {
     List actions = [
       () => colAll.add(data1),
       () => colAll2.first['colAll'] = 'changed from colAll2',
-      () => expect(stripPrivateFieldsList(colAll), unorderedEquals([
+      () => expect(colAll, unorderedEquals([
         {'_id' : '0', 'colAll' : 'changed from colAll2'}
       ])),
     ];
@@ -159,7 +159,7 @@ main() {
       () => colAll.add(data1),
       () => expect(colA.isEmpty, isTrue),
       () => colAll.add(data3),
-      () => expect(stripPrivateFieldsList(colA), unorderedEquals([data3])),
+      () => expect(colA, unorderedEquals([data3])),
     ];
     
     return executeSubscriptionActions(actions);
@@ -170,11 +170,11 @@ main() {
     List actions = [
       () => colAll.add(data3),
       () => colA.first['a'] = data4,
-      () => expect(stripPrivateFieldsList(colAa), unorderedEquals([
+      () => expect(colAa, unorderedEquals([
         {'_id' : '2', 'a' : data4}
       ])),
       () => colAa.first['a'] = 'hello',
-      () => expect(stripPrivateFieldsList(colA), unorderedEquals([stripPrivateFields(data3)])),
+      () => expect(colA, unorderedEquals([data3])),
     ];
     
     return executeSubscriptionActions(actions);

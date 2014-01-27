@@ -189,6 +189,9 @@ class MongoProvider implements DataProvider {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
+      
+      _stripCleanVersion(data);
+
       return {'data': data, 'version': version};
     });
   }
@@ -395,6 +398,10 @@ class MongoProvider implements DataProvider {
 
           beforeOrAfter.forEach((record) {
             assert(record['version']>version);
+            
+            _stripCleanVersion(record['before']);
+            _stripCleanVersion(record['after']);
+            
             if(before.contains(record['_id']) && after.contains(record['_id']))
             {
               // record was changed
@@ -587,4 +594,10 @@ class MongoProvider implements DataProvider {
     _lock.remove({'_id': collection.collectionName})).then((_) =>
     true);
   }
+  
+  void _stripCleanVersion(dynamic data) {
+    data.remove('__clean_version');
+  }
 }
+
+
