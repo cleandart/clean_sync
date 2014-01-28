@@ -107,7 +107,7 @@ main() {
         data4 = new DataMap.from({'a' : 'hello'});
     });
   });
-  
+
   randomChoice(Iterable iter) {
     var list = new List.from(iter);
     return list[rng.nextInt(list.length)];
@@ -189,7 +189,7 @@ main() {
       return true;
     }
   };
-  
+
   executeSubscriptionActions(List actions) {
     return
     mongodb.dropCollection('random').then((_) =>
@@ -205,7 +205,7 @@ main() {
   }
 
 
-  skip_test('test random', () {
+  test('test random', () {
 
   var action = (){
     for (int i=0; i<5; i++) {
@@ -230,15 +230,14 @@ main() {
     return false;
   }
 
+
   Future makeExpects({checkGetData: true}) {
     Future res = new Future.sync((){
-      expect(stripPrivateFieldsList(colAll2),
-             unorderedEquals(stripPrivateFieldsList(colAll)));
-      expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
-          unorderedEquals(stripPrivateFieldsList(colA)));
-      expect(stripPrivateFieldsList(
-          colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
-          unorderedEquals(stripPrivateFieldsList(colAa)));
+      expect(colAll2, unorderedEquals(colAll));
+      expect(colAll.where((d) => mongoEquals(d, ['a'], 'hello')),
+          unorderedEquals(colA));
+      expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
+          unorderedEquals(colAa));
     });
     if (checkGetData) {
       for (Subscription sub in [subAll]) {
@@ -251,7 +250,7 @@ main() {
           .then((_){
             return newSub.close();
           }).then((_) {
-            expect(stripPrivateFieldsList(newSub.collection), unorderedEquals(stripPrivateFieldsList(sub.collection)));
+            expect(newSub.collection, unorderedEquals(sub.collection));
           });
       }
     }

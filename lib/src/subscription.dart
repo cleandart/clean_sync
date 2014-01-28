@@ -149,7 +149,7 @@ class Subscription {
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataSet();
-//    collection.addIndex(['_id']);
+    collection.addIndex(['_id']);
     start();
   }
 
