@@ -206,14 +206,32 @@ main() {
     return false;
   }
 
-  var makeExpects = () {
-    expect(stripPrivateFieldsList(colAll2),
-           unorderedEquals(stripPrivateFieldsList(colAll)));
-    expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colA)));
-    expect(stripPrivateFieldsList(
-        colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colAa)));
+  Future makeExpects({checkGetData: true}) {
+    Future res = new Future.sync((){
+      expect(stripPrivateFieldsList(colAll2),
+             unorderedEquals(stripPrivateFieldsList(colAll)));
+      expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
+          unorderedEquals(stripPrivateFieldsList(colA)));
+      expect(stripPrivateFieldsList(
+          colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
+          unorderedEquals(stripPrivateFieldsList(colAa)));
+    });
+    if (checkGetData) {
+      for (Subscription sub in [subAll]) {
+        Subscription newSub;
+        res = res
+          .then((_) =>
+            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()))
+          .then((_) =>
+              newSub.initialSync)
+          .then((_){
+            return newSub.close();
+          }).then((_) {
+            expect(stripPrivateFieldsList(newSub.collection), unorderedEquals(stripPrivateFieldsList(sub.collection)));
+          });
+      }
+    }
+    return res;
   };
 
     var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
@@ -249,25 +267,22 @@ main() {
 //        print(receiver);
         bool end = false;
         return Future.forEach(times, (time){
+          bool checkGetData = prob(0.1);
           if(end){
             return new Future.value(0);
           } else
-          return new Future.delayed(new Duration(milliseconds: time), (){
-            try{
-              makeExpects();
-              end = true;
-            } catch(e,s){
-              if(time == times.last){
-                print('author1 $colAll');
-                print('author2 $colAll2');
-                print('author2 $colA');
-                print('author4 $colAa');
-
-                print(s);
-                throw e;
-              }
-            }
-          });
+          return new Future.delayed(new Duration(milliseconds: time), () =>
+              makeExpects(checkGetData: checkGetData)).then((_){
+                end = true;
+              }).catchError((e){
+                if(time == times.last){
+                  print('author1 $colAll');
+                  print('author2 $colAll2');
+                  print('author2 $colA');
+                  print('author4 $colAa');
+                  throw e;
+                }
+              });
         });
     }));
 

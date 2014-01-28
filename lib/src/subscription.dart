@@ -149,7 +149,7 @@ class Subscription {
   Subscription(this.collectionName, this._connection, this._author,
       this._idGenerator, [this.args]) {
     collection = new DataSet();
-    collection.addIndex(['_id']);
+//    collection.addIndex(['_id']);
     start();
   }
 
@@ -275,7 +275,6 @@ class Subscription {
               }
             }
         }, onError: (e){if (e is! CancelError)throw e;});
-
       _subscriptions.add(subscription);
     });
   }
@@ -285,13 +284,18 @@ class Subscription {
     setupDataRequesting();
   }
 
-  void dispose() {
-    _subscriptions.forEach((s) => s.cancel());
+  Future dispose() {
+    return Future.forEach(_subscriptions, (sub) => sub.cancel());
   }
 
   Future close() {
-    dispose();
-    return Future.wait(_modifiedItems.values);
+    return dispose()
+      .then((_) =>
+        Future.wait(_modifiedItems.values))
+      .then((_) =>
+         new Future.delayed(new Duration(milliseconds: 100), (){
+          collection.dispose();
+    }));
   }
 
   void restart() {
