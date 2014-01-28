@@ -189,7 +189,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
-            "data" : cleanify(decleanify(data)),
+            "data" : data,
             "author" : _author
           }));
           markToken(data['_id'], result);
@@ -200,7 +200,7 @@ class Subscription {
             "action" : "change",
             "collection" : collectionName,
             "_id": data["_id"],
-            "change" : cleanify(decleanify(data)),
+            "change" : data,
             "author" : _author
           }));
           // TODO: check if server really accepted the change
