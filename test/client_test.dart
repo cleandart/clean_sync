@@ -154,23 +154,25 @@ void main() {
       // ID is generated and changes are propagated to server when listeners are
       // on.
       bool idWasGenerated = months.collection.first['_id'] == ('prefix-123');
-      bool changeWasSent;
-      var sendCall = connection.getLogs().last;
-      if(sendCall == null) {
-        changeWasSent = false;
-      } else {
-        LogEntry log = connection.getLogs().last;
-        var request = log.args[0]();
-        changeWasSent = log.methodName == 'send' &&
-            request.args['data']['_id'] == 'prefix-123';
-      }
-      if(idWasGenerated && changeWasSent) {
-        return true;
-      } else if (!idWasGenerated && !changeWasSent) {
-        return false;
-      } else {
-        throw new Exception('Inconsistent state of listeners!');
-      }
+      return new Future.delayed(new Duration(milliseconds: 100), (){
+        bool changeWasSent;
+        var sendCall = connection.getLogs().last;
+        if(sendCall == null) {
+          changeWasSent = false;
+        } else {
+          LogEntry log = connection.getLogs().last;
+          var request = log.args[0]();
+          changeWasSent = log.methodName == 'send' &&
+              request.args['data']['_id'] == 'prefix-123';
+        }
+        if(idWasGenerated && changeWasSent) {
+          return true;
+        } else if (!idWasGenerated && !changeWasSent) {
+          return false;
+        } else {
+          throw new Exception('Inconsistent state of listeners!');
+        }
+      });
     };
 
     setUp(() {
@@ -274,7 +276,7 @@ void main() {
     });
 
 
-    skip_test("handle diff response.", () {
+    test("handle diff response.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       DataMap marchMapBefore = new DataMap.from({'_id': '31', 'name': 'February', 'order': 3});
@@ -425,7 +427,7 @@ void main() {
       });
     });
 
-    skip_test("start.", () {
+    test("setupListeners", () {
       // given
       months = new Subscription.config('months', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
@@ -435,21 +437,11 @@ void main() {
 
       // then
 //      var request = connection.getLogs().first.args.first;
-      expect(listenersAreOn(), isTrue);
+      return listenersAreOn().then((res){
+        expect(res, isTrue);
+      });
     });
 
-    skip_test("restart.", () {
-      // given
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
-
-      // when
-      months.restart();
-
-      // then
-      // TODO
-      expect(listenersAreOn(), isTrue);
-    });
 
     test("dispose.", () {
       // given
@@ -460,7 +452,9 @@ void main() {
       months.dispose();
 
       // then
-      expect(listenersAreOn(), isFalse);
+      return listenersAreOn().then((res){
+        expect(res, isFalse);
+      });
     });
 
     test("wait.", () {

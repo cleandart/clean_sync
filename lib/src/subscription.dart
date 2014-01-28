@@ -298,9 +298,10 @@ class Subscription {
     }));
   }
 
-  void restart() {
-    dispose();
-    start();
+  Future restart() {
+    return dispose().then((_) {
+      start();
+    });
   }
 
   Stream onClose() {
