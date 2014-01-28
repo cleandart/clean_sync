@@ -272,6 +272,8 @@ class Subscription {
           } else {
             if(!response['diff'].isEmpty) {
               _version = max(_version, _handleDiff(response['diff'], this, _author));
+              } else {
+                _version = response['version'];
               }
             }
         }, onError: (e){if (e is! CancelError)throw e;});
