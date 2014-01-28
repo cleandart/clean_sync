@@ -16,10 +16,6 @@ class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
 
-  var config = new SimpleConfiguration();
-  config.timeout = null;
-  unittestConfiguration = config;
-
   MongoDatabase mongodb;
   DataSet colAll;
   DataSet colAll2;
@@ -78,7 +74,7 @@ main() {
         data4 = new DataMap.from({'a' : 'hello'});
     });
   });
-  
+
   tearDown(() {
     List itemsToClose = [
       subAll,
@@ -113,34 +109,34 @@ main() {
       () => colAll.add(data),
       () => expect(data == colAll.first, isTrue)
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
-  
+
   test('test collection add', () {
     List actions = [
       () => colAll.add(data1),
-      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([data1])),
-      () => colAll2.add(data2),
-      () => expect(stripPrivateFieldsList(colAll), unorderedEquals([data1, data2])),
+      () => expect(colAll2, unorderedEquals([data1])),
+      () {colAll2.add(data2); colAll.add(data3);},
+      () => expect(colAll, unorderedEquals(colAll2)),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection change', () {
     List actions = [
       () => colAll.add(data1),
       () => colAll2.first['colAll'] = 'changed from colAll2',
-      () => expect(stripPrivateFieldsList(colAll), unorderedEquals([
+      () => expect(colAll, unorderedEquals([
         {'_id' : '0', 'colAll' : 'changed from colAll2'}
       ])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection remove', () {
@@ -149,9 +145,9 @@ main() {
       () => colAll2.removeBy('_id', '0'),
       () => expect(colAll.isEmpty, isTrue),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered add', () {
@@ -159,26 +155,26 @@ main() {
       () => colAll.add(data1),
       () => expect(colA.isEmpty, isTrue),
       () => colAll.add(data3),
-      () => expect(stripPrivateFieldsList(colA), unorderedEquals([data3])),
+      () => expect(colA, unorderedEquals([data3])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered change', () {
     List actions = [
       () => colAll.add(data3),
       () => colA.first['a'] = data4,
-      () => expect(stripPrivateFieldsList(colAa), unorderedEquals([
+      () => expect(colAa, unorderedEquals([
         {'_id' : '2', 'a' : data4}
       ])),
       () => colAa.first['a'] = 'hello',
-      () => expect(stripPrivateFieldsList(colA), unorderedEquals([stripPrivateFields(data3)])),
+      () => expect(colA, unorderedEquals([data3])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered remove', () {
@@ -188,9 +184,9 @@ main() {
       () => expect(colA.isEmpty, isTrue),
       () => expect(colAll.isEmpty, isTrue),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
 }
