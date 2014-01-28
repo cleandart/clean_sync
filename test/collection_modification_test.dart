@@ -16,10 +16,6 @@ class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
 
-  var config = new SimpleConfiguration();
-  config.timeout = null;
-  unittestConfiguration = config;
-
   MongoDatabase mongodb;
   DataSet colAll;
   DataSet colAll2;
@@ -78,7 +74,7 @@ main() {
         data4 = new DataMap.from({'a' : 'hello'});
     });
   });
-  
+
   tearDown(() {
     List itemsToClose = [
       subAll,
@@ -113,21 +109,21 @@ main() {
       () => colAll.add(data),
       () => expect(data == colAll.first, isTrue)
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
-  
+
   test('test collection add', () {
     List actions = [
       () => colAll.add(data1),
       () => expect(colAll2, unorderedEquals([data1])),
-      () => colAll2.add(data2),
-      () => expect(colAll, unorderedEquals([data1, data2])),
+      () {colAll2.add(data2); colAll.add(data3);},
+      () => expect(colAll, unorderedEquals(colAll2)),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection change', () {
@@ -138,9 +134,9 @@ main() {
         {'_id' : '0', 'colAll' : 'changed from colAll2'}
       ])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection remove', () {
@@ -149,9 +145,9 @@ main() {
       () => colAll2.removeBy('_id', '0'),
       () => expect(colAll.isEmpty, isTrue),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered add', () {
@@ -161,9 +157,9 @@ main() {
       () => colAll.add(data3),
       () => expect(colA, unorderedEquals([data3])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered change', () {
@@ -176,9 +172,9 @@ main() {
       () => colAa.first['a'] = 'hello',
       () => expect(colA, unorderedEquals([data3])),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
   test('test collection filtered remove', () {
@@ -188,9 +184,9 @@ main() {
       () => expect(colA.isEmpty, isTrue),
       () => expect(colAll.isEmpty, isTrue),
     ];
-    
+
     return executeSubscriptionActions(actions);
-    
+
   });
 
 }
