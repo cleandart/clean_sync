@@ -19,9 +19,8 @@ main() {
     Publisher pub;
     Subscription sub;
 
-    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
-
     setUp((){
+      mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
       return Future.wait(mongodb.init)
         .then((_) => mongodb.dropCollection('random'))
         .then((_) => mongodb.removeLocks()).then((_){
@@ -37,7 +36,7 @@ main() {
     });
 
     tearDown(() {
-      return sub.close();
+      return sub.close().then((_) => mongodb.close());
     });
 
     test('Exception in initial sync is caught on client-side', () {
@@ -64,8 +63,9 @@ main() {
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
       var sub = new Subscription('b', connection, 'author2', _idGenerator, {});
-      sub.errorStreamController.stream.listen(callback);
+
       sub.initialSync.then((_) {
+        sub.errorStream.listen(callback);
         sub.collection.add(newdata);
       });
     });

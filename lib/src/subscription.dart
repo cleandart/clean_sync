@@ -138,7 +138,11 @@ class Subscription {
 
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
-  StreamController errorStreamController;
+  StreamController _errorStreamController;
+  Stream get errorStream {
+    if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
+    return _errorStreamController.stream;
+  }
 
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
@@ -151,7 +155,7 @@ class Subscription {
       this._idGenerator, [this.args]) {
     collection = new DataSet();
     collection.addIndex(['_id']);
-    errorStreamController = new StreamController.broadcast();
+    _errorStreamController = new StreamController.broadcast();
     start();
   }
 
@@ -194,8 +198,9 @@ class Subscription {
             "data" : cleanify(decleanify(data)),
             "author" : _author
           })).then((result) {
-            if (result['error'] != null)
-              errorStreamController.add(result['error']);
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
           });
           markToken(data['_id'], result);
         });
@@ -208,8 +213,9 @@ class Subscription {
             "change" : cleanify(decleanify(data)),
             "author" : _author
           })).then((result) {
-            if (result['error'] != null)
-              errorStreamController.add(result['error']);
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
           });
           // TODO: check if server really accepted the change
           markToken(data['_id'], result);
@@ -222,8 +228,9 @@ class Subscription {
             "_id" : data["_id"],
             "author" : _author
           })).then((result) {
-            if (result['error'] != null)
-              errorStreamController.add(result['error']);
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
           });
           markToken(data['_id'], result);
         });
@@ -264,14 +271,13 @@ class Subscription {
     // request initial data
     _connection.send(_createDataRequest).then((response) {
       if (response['error'] != null) {
-        if (!_initialSync.isCompleted) _initialSync.completeError(new ArgumentError(response['error']));
-        else throw new ArgumentError(response['error'].toString());
+        if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
+        else _errorStreamController.add(new DatabaseAccessError(response['error']));
         return;
       }
       _version = response['version'];
       _handleData(response['data'], collection, _author);
 
-      logger.log(logger.level, "Test message");
       logger.info("Got initial data, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
@@ -319,4 +325,10 @@ class Subscription {
   Stream onClose() {
 
   }
+}
+
+class DatabaseAccessError extends Error {
+  final String message;
+  DatabaseAccessError(this.message);
+  String toString() => "Bad state: $message";
 }

@@ -42,7 +42,7 @@ class Publisher {
     data['args']['_authenticatedUserId'] = request.authenticatedUserId;
 
     if (_beforeRequestCallbacks[data['collection']] != null) {
-      if (data['action'] != 'get_data' && data['action'] != 'get_diff') {
+      if (data['action'] == 'add' || data['action'] == 'change' || data['action'] == 'remove') {
         try {
           var value;
           if (data['action'] == 'add') value = data['data'];
