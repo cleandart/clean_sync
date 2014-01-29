@@ -5,8 +5,6 @@
 part of clean_sync.server;
 
 typedef Future<DataProvider> DataGenerator(Map args);
-Map<String, DataGenerator> _publishedCollections = {};
-Map<String, dynamic> _beforeRequestCallbacks = {};
 final int MAX = pow(2,16) - 1;
 final int prefix_random_part = new Random().nextInt(MAX);
 
@@ -14,8 +12,12 @@ final Logger logger = new Logger('clean_sync');
 
 class Publisher {
   int counter;
+  Map<String, DataGenerator> _publishedCollections;
+  Map<String, dynamic> _beforeRequestCallbacks;
 
   Publisher() {
+    _publishedCollections = {};
+    _beforeRequestCallbacks = {};
     counter = 0;
   }
 

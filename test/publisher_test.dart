@@ -12,7 +12,8 @@ import "dart:async";
 import 'package:clean_ajax/server.dart';
 
 class DataProviderMock extends Mock implements DataProvider {
-  final responseFuture = new FutureMock();
+  static const response = 'response';
+  final responseFuture = new Future.value(response);
 
   DataProviderMock() {
     when(callsTo("data")).alwaysReturn(responseFuture);
@@ -73,14 +74,14 @@ void main() {
         "collection": "months",
         "args": args
       });
-      publisher.publish("months", generator);
 
       // when
-      publisher.handleSyncRequest(request).then((result) {
+      publisher.publish("months", generator);
+      return publisher.handleSyncRequest(request).then((result) {
         // then
         verifyGeneratorCalledOnceWithArgs(args);
         dataProvider.getLogs(callsTo('data')).verify(happenedOnce);
-        expect(result, equals(dataProvider.responseFuture));
+        expect(result, equals(DataProviderMock.response));
       });
     });
 
@@ -94,13 +95,14 @@ void main() {
       });
 
       // when
-      publisher.handleSyncRequest(request).then((result) {
+      publisher.publish("months", generator);
+      return publisher.handleSyncRequest(request).then((result) {
         //then
         verifyGeneratorCalledOnceWithArgs(args);
         var callToDiff = dataProvider.getLogs(callsTo('diffFromVersion'));
         callToDiff.verify(happenedOnce);
         expect(callToDiff.first.args.first, equals(5));
-        expect(result, equals(dataProvider.responseFuture));
+        expect(result, equals(DataProviderMock.response));
       });
     });
 
@@ -116,14 +118,15 @@ void main() {
       });
 
       // when
-      publisher.handleSyncRequest(request).then((result) {
+      publisher.publish("months", generator);
+      return publisher.handleSyncRequest(request).then((result) {
         //then
         verifyGeneratorCalledOnceWithArgs(args);
         var callToDiff = dataProvider.getLogs(callsTo('add'));
         callToDiff.verify(happenedOnce);
         expect(callToDiff.first.args[0], equals(data));
         expect(callToDiff.first.args[1], equals(author));
-        expect(result, equals(dataProvider.responseFuture));
+        expect(result, equals(DataProviderMock.response));
       });
     });
 
@@ -138,8 +141,10 @@ void main() {
         "args": args
       });
 
+      publisher.publish("months", generator);
+
       // when
-      publisher.handleSyncRequest(request).then((result) {
+      return publisher.handleSyncRequest(request).then((result) {
         //then
         verifyGeneratorCalledOnceWithArgs(args);
         var callToDiff = dataProvider.getLogs(callsTo('change'));
@@ -147,7 +152,7 @@ void main() {
         expect(callToDiff.first.args[0], equals(_id));
         expect(callToDiff.first.args[1], equals(data));
         expect(callToDiff.first.args[2], equals(author));
-        expect(result, equals(dataProvider.responseFuture));
+        expect(result, equals(DataProviderMock.response));
       });
     });
 
@@ -162,14 +167,15 @@ void main() {
       });
 
       // when
-      publisher.handleSyncRequest(request).then((result) {
+      publisher.publish("months", generator);
+      return publisher.handleSyncRequest(request).then((result) {
         //then
         verifyGeneratorCalledOnceWithArgs(args);
         var callToDiff = dataProvider.getLogs(callsTo('remove'));
         callToDiff.verify(happenedOnce);
         expect(callToDiff.first.args[0], equals(_id));
         expect(callToDiff.first.args[1], equals(author));
-        expect(result, equals(dataProvider.responseFuture));
+        expect(result, equals(DataProviderMock.response));
       });
     });
 
@@ -179,6 +185,7 @@ void main() {
       });
 
       // when
+      publisher.publish("months", generator);
       Future<Map> result = publisher.handleSyncRequest(request);
 
       //then
