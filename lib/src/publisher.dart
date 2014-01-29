@@ -94,8 +94,8 @@ class Publisher {
 }
 
 final PUBLISHER = new Publisher();
-void publish(String c, DataGenerator dg) {
-  PUBLISHER.publish(c, dg);
+void publish(String c, DataGenerator dg, {beforeRequest: null}) {
+  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest);
 }
 
 bool isPublished(String collection) {
