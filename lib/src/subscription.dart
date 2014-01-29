@@ -189,6 +189,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
+            'args': args,
             "data" : cleanify(decleanify(data)),
             "author" : _author
           }));
@@ -199,6 +200,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
+            'args': args,
             "_id": data["_id"],
             "change" : cleanify(decleanify(data)),
             "author" : _author
@@ -211,6 +213,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
+            'args': args,
             "_id" : data["_id"],
             "author" : _author
           }));
@@ -232,7 +235,8 @@ class Subscription {
 
   _createDataRequest() => new ClientRequest("sync", {
     "action" : "get_data",
-    "collection" : collectionName
+    "collection" : collectionName,
+    'args': args
   });
 
   _createDiffRequest() {
@@ -243,6 +247,7 @@ class Subscription {
       return new ClientRequest("sync", {
       "action" : "get_diff",
       "collection" : collectionName,
+      'args': args,
       "version" : _version
       });
     }
