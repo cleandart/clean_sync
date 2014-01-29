@@ -54,7 +54,7 @@ main() {
 
       var beforeRequest = (value, args) {
         testvalue(value);
-        throw new ArgumentError("No!");
+        return new Future.error(new ArgumentError("No!"));
       };
 
       pub.publish('b', (_) {

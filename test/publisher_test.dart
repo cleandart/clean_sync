@@ -39,7 +39,7 @@ void main() {
     DataProviderMock dataProvider;
     var _generator;
 
-    DataProvider generator(args) => _generator.handle(args);
+    Future<DataProvider> generator(args) => _generator.handle(args);
 
     void verifyGeneratorCalledOnceWithArgs(args) {
       _generator.getLogs().verify(happenedOnce);
@@ -54,7 +54,7 @@ void main() {
       author = "someone";
       dataProvider = new DataProviderMock();
       _generator = new Mock()
-          ..when(callsTo("handle")).alwaysReturn(dataProvider);
+          ..when(callsTo("handle")).alwaysReturn(new Future.value(dataProvider));
     });
 
     test("publish collection.", () {
@@ -76,12 +76,12 @@ void main() {
       publisher.publish("months", generator);
 
       // when
-      var result = publisher.handleSyncRequest(request);
-
-      // then
-      verifyGeneratorCalledOnceWithArgs(args);
-      dataProvider.getLogs(callsTo('data')).verify(happenedOnce);
-      expect(result, equals(dataProvider.responseFuture));
+      publisher.handleSyncRequest(request).then((result) {
+        // then
+        verifyGeneratorCalledOnceWithArgs(args);
+        dataProvider.getLogs(callsTo('data')).verify(happenedOnce);
+        expect(result, equals(dataProvider.responseFuture));
+      });
     });
 
     test("handle get diff.", () {
@@ -94,14 +94,14 @@ void main() {
       });
 
       // when
-      var result = publisher.handleSyncRequest(request);
-
-      //then
-      verifyGeneratorCalledOnceWithArgs(args);
-      var callToDiff = dataProvider.getLogs(callsTo('diffFromVersion'));
-      callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args.first, equals(5));
-      expect(result, equals(dataProvider.responseFuture));
+      publisher.handleSyncRequest(request).then((result) {
+        //then
+        verifyGeneratorCalledOnceWithArgs(args);
+        var callToDiff = dataProvider.getLogs(callsTo('diffFromVersion'));
+        callToDiff.verify(happenedOnce);
+        expect(callToDiff.first.args.first, equals(5));
+        expect(result, equals(dataProvider.responseFuture));
+      });
     });
 
     test("handle add.", () {
@@ -116,15 +116,15 @@ void main() {
       });
 
       // when
-      var result = publisher.handleSyncRequest(request);
-
-      //then
-      verifyGeneratorCalledOnceWithArgs(args);
-      var callToDiff = dataProvider.getLogs(callsTo('add'));
-      callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args[0], equals(data));
-      expect(callToDiff.first.args[1], equals(author));
-      expect(result, equals(dataProvider.responseFuture));
+      publisher.handleSyncRequest(request).then((result) {
+        //then
+        verifyGeneratorCalledOnceWithArgs(args);
+        var callToDiff = dataProvider.getLogs(callsTo('add'));
+        callToDiff.verify(happenedOnce);
+        expect(callToDiff.first.args[0], equals(data));
+        expect(callToDiff.first.args[1], equals(author));
+        expect(result, equals(dataProvider.responseFuture));
+      });
     });
 
     test("handle change.", () {
@@ -139,16 +139,16 @@ void main() {
       });
 
       // when
-      var result = publisher.handleSyncRequest(request);
-
-      //then
-      verifyGeneratorCalledOnceWithArgs(args);
-      var callToDiff = dataProvider.getLogs(callsTo('change'));
-      callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args[0], equals(_id));
-      expect(callToDiff.first.args[1], equals(data));
-      expect(callToDiff.first.args[2], equals(author));
-      expect(result, equals(dataProvider.responseFuture));
+      publisher.handleSyncRequest(request).then((result) {
+        //then
+        verifyGeneratorCalledOnceWithArgs(args);
+        var callToDiff = dataProvider.getLogs(callsTo('change'));
+        callToDiff.verify(happenedOnce);
+        expect(callToDiff.first.args[0], equals(_id));
+        expect(callToDiff.first.args[1], equals(data));
+        expect(callToDiff.first.args[2], equals(author));
+        expect(result, equals(dataProvider.responseFuture));
+      });
     });
 
     test("handle remove.", () {
@@ -162,15 +162,15 @@ void main() {
       });
 
       // when
-      var result = publisher.handleSyncRequest(request);
-
-      //then
-      verifyGeneratorCalledOnceWithArgs(args);
-      var callToDiff = dataProvider.getLogs(callsTo('remove'));
-      callToDiff.verify(happenedOnce);
-      expect(callToDiff.first.args[0], equals(_id));
-      expect(callToDiff.first.args[1], equals(author));
-      expect(result, equals(dataProvider.responseFuture));
+      publisher.handleSyncRequest(request).then((result) {
+        //then
+        verifyGeneratorCalledOnceWithArgs(args);
+        var callToDiff = dataProvider.getLogs(callsTo('remove'));
+        callToDiff.verify(happenedOnce);
+        expect(callToDiff.first.args[0], equals(_id));
+        expect(callToDiff.first.args[1], equals(author));
+        expect(result, equals(dataProvider.responseFuture));
+      });
     });
 
     test("handle get server prefix.", () {
