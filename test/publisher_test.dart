@@ -23,7 +23,7 @@ class DataProviderMock extends Mock implements DataProvider {
     when(callsTo("remove")).alwaysReturn(responseFuture);
   }
 }
-class FutureMock extends Mock implements Future {}
+
 class ServerRequestMock extends Mock implements ServerRequest {
   ServerRequestMock(args) {
     when(callsTo('get args')).alwaysReturn(args);
