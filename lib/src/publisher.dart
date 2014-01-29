@@ -34,7 +34,7 @@ class Publisher {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
     }
 
-    if(!data.containsKey('args') || data['args'] == null) {
+    if(data['args'] == null) {
       data['args'] = {};
     }
     data['args']['_authenticatedUserId'] = request.authenticatedUserId;
