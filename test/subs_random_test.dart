@@ -60,6 +60,7 @@ main() {
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
+  Subscription subNoMatch;
 
   DataMap data1;
   DataMap data2;
@@ -86,6 +87,10 @@ main() {
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
+        
+        pub.publish('d', (_) {
+          return mongodb.collection("random").find({'noMatch': 'noMatch'});
+        });
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -100,6 +105,8 @@ main() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
+        subNoMatch = new Subscription('d', connection, 'author5', 
+            new IdGenerator('e'), {});
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -238,6 +245,8 @@ main() {
           unorderedEquals(colA));
       expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
           unorderedEquals(colAa));
+      expect(subNoMatch.version == subAll.version, isTrue);
+      
     });
     if (checkGetData) {
       for (Subscription sub in [subAll]) {
