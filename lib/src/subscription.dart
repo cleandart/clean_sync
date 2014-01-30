@@ -305,7 +305,8 @@ class Subscription {
     }));
   }
 
-  Future restart() {
+  Future restart([Map args]) {
+    this.args = args;
     return dispose().then((_) {
       start();
     });
