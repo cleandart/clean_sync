@@ -195,7 +195,8 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
             "collection" : collectionName,
-            "data" : cleanify(decleanify(data)),
+            "data" : data,
+            'args': args,
             "author" : _author
           })).then((result) {
             if (result is Map)
@@ -209,8 +210,9 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
+            'args': args,
             "_id": data["_id"],
-            "change" : cleanify(decleanify(data)),
+            "change" : data,
             "author" : _author
           })).then((result) {
             if (result is Map)
@@ -225,6 +227,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
+            'args': args,
             "_id" : data["_id"],
             "author" : _author
           })).then((result) {
@@ -250,7 +253,8 @@ class Subscription {
 
   _createDataRequest() => new ClientRequest("sync", {
     "action" : "get_data",
-    "collection" : collectionName
+    "collection" : collectionName,
+    'args': args
   });
 
   _createDiffRequest() {
@@ -261,6 +265,7 @@ class Subscription {
       return new ClientRequest("sync", {
       "action" : "get_diff",
       "collection" : collectionName,
+      'args': args,
       "version" : _version
       });
     }
@@ -295,10 +300,11 @@ class Subscription {
           } else {
             if(!response['diff'].isEmpty) {
               _version = max(_version, _handleDiff(response['diff'], this, _author));
+              } else {
+                _version = response['version'];
               }
             }
         }, onError: (e){if (e is! CancelError)throw e;});
-
       _subscriptions.add(subscription);
     });
   }
@@ -308,18 +314,24 @@ class Subscription {
     setupDataRequesting();
   }
 
-  void dispose() {
-    _subscriptions.forEach((s) => s.cancel());
+  Future dispose() {
+    return Future.forEach(_subscriptions, (sub) => sub.cancel());
   }
 
   Future close() {
-    dispose();
-    return Future.wait(_modifiedItems.values);
+    return dispose()
+      .then((_) =>
+        Future.wait(_modifiedItems.values))
+      .then((_) =>
+         new Future.delayed(new Duration(milliseconds: 100), (){
+          collection.dispose();
+    }));
   }
 
-  void restart() {
-    dispose();
-    start();
+  Future restart() {
+    return dispose().then((_) {
+      start();
+    });
   }
 
   Stream onClose() {

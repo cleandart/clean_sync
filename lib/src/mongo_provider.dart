@@ -187,6 +187,9 @@ class MongoProvider implements DataProvider {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
+      
+      _stripCleanVersion(data);
+
       return {'data': data, 'version': version};
     });
   }
@@ -324,7 +327,7 @@ class MongoProvider implements DataProvider {
   Future<Map> diffFromVersion(num version) {
     try{
       return _diffFromVersion(version).then((d) {
-      return {'diff': d};
+        return d;
       });
     } on DiffNotPossibleException catch(e) {
       return data().then((d) {
@@ -348,7 +351,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<List<Map>> _diffFromVersion(num version) {
+  Future<Map> _diffFromVersion(num version) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
@@ -378,58 +381,67 @@ class MongoProvider implements DataProvider {
 
     Set before, after;
     List beforeOrAfter, diff;
-
-
-    return _collectionHistory.find(beforeOrAfterSelector).toList()
-      .then((result) {
-        beforeOrAfter = result;
-        return Future.wait([
-          _collectionHistory.find(beforeSelector).toList(),
-          _collectionHistory.find(afterSelector).toList()]);})
-      .then((results) {
-          before = new Set.from(results[0].map((d) => d['_id']));
-          after = new Set.from(results[1].map((d) => d['_id']));
-          diff = [];
-
-          beforeOrAfter.forEach((record) {
-            assert(record['version']>version);
-            if(before.contains(record['_id']) && after.contains(record['_id']))
-            {
-              // record was changed
-              diff.add({
-                "action" : "change",
-                "_id" : record["before"]["_id"],
-                "before" : record["before"],
-                "data" : record["after"],
-                "version" : record["version"],
-                "author" : record["author"],
-              });
-            } else if(before.contains(record['_id'])) {
-              // record was removed
-              diff.add({
-                "action" : "remove",
-                "_id" : record["before"]["_id"],
-                "data" : record["before"],
-                "version" : record["version"],
-                "author" : record["author"],
-              });
-            } else {
-              // record was added
-              diff.add({
-                "action" : "add",
-                "_id" : record["after"]["_id"],
-                "data" : record["after"],
-                "version" : record["version"],
-                "author" : record["author"],
-              });
+    
+     return _maxVersion.then((maxVersion) {
+        return _collectionHistory.find(beforeOrAfterSelector).toList()
+        .then((result) {
+          beforeOrAfter = result;
+          return Future.wait([
+            _collectionHistory.find(beforeSelector).toList(),
+            _collectionHistory.find(afterSelector).toList()]);})
+        .then((results) {
+            before = new Set.from(results[0].map((d) => d['_id']));
+            after = new Set.from(results[1].map((d) => d['_id']));
+            diff = [];
+  
+            beforeOrAfter.forEach((record) {
+              assert(record['version']>version);
+              
+              _stripCleanVersion(record['before']);
+              _stripCleanVersion(record['after']);
+              
+              if(before.contains(record['_id']) && after.contains(record['_id']))
+              {
+                // record was changed
+                diff.add({
+                  "action" : "change",
+                  "_id" : record["before"]["_id"],
+                  "before" : record["before"],
+                  "data" : record["after"],
+                  "version" : record["version"],
+                  "author" : record["author"],
+                });
+              } else if(before.contains(record['_id'])) {
+                // record was removed
+                diff.add({
+                  "action" : "remove",
+                  "_id" : record["before"]["_id"],
+                  "data" : record["before"],
+                  "version" : record["version"],
+                  "author" : record["author"],
+                });
+              } else {
+                // record was added
+                diff.add({
+                  "action" : "add",
+                  "_id" : record["after"]["_id"],
+                  "data" : record["after"],
+                  "version" : record["version"],
+                  "author" : record["author"],
+                });
+              }
+            });
+  
+            if (_limit > NOLIMIT || _skip > NOSKIP) {
+              return _limitedDiffFromVersion(diff);
             }
-          });
-
-          if (_limit > NOLIMIT || _skip > NOSKIP) {
-            return _limitedDiffFromVersion(diff);
-          }
-          return pretify(diff);
-      });
+            if (diff.isEmpty) {
+              return {'diff' : [], 'version' : maxVersion};
+            } else {
+              return {'diff' : pretify(diff)};
+            }
+        });
+    });
   }
 
   num _defaultCompare(a, b) {
@@ -585,4 +597,16 @@ class MongoProvider implements DataProvider {
     _lock.remove({'_id': collection.collectionName})).then((_) =>
     true);
   }
+  
+  void _stripCleanVersion(dynamic data) {
+    if (data is Iterable) {
+      data.forEach((Map item) {
+        item.remove('__clean_version');
+      });
+    } else {
+      data.remove('__clean_version');
+    }
+  }
 }
+
+

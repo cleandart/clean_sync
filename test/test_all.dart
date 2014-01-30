@@ -8,6 +8,7 @@ import 'mongo_provider_test.dart' as mongo_provider_test;
 import 'client_test.dart' as client_test;
 import 'id_generator_test.dart' as id_generator_test;
 import 'exception_test.dart' as exception_test;
+import 'collection_modification_test.dart' as collection_modification_test;
 
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
@@ -32,4 +33,5 @@ run(configuration) {
   client_test.main();
   id_generator_test.main();
   exception_test.main();
+  collection_modification_test.main();
 }

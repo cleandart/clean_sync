@@ -60,6 +60,12 @@ main() {
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
+  Subscription subNoMatch;
+
+  DataMap data1;
+  DataMap data2;
+  DataMap data3;
+  DataMap data4;
 
   Publisher pub;
 
@@ -81,6 +87,10 @@ main() {
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
+        
+        pub.publish('d', (_) {
+          return mongodb.collection("random").find({'noMatch': 'noMatch'});
+        });
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -95,6 +105,13 @@ main() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
+        subNoMatch = new Subscription('d', connection, 'author5', 
+            new IdGenerator('e'), {});
+
+        data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
+        data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
+        data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
+        data4 = new DataMap.from({'a' : 'hello'});
     });
   });
 
@@ -180,6 +197,20 @@ main() {
     }
   };
 
+  executeSubscriptionActions(List actions) {
+    return
+    mongodb.dropCollection('random').then((_) =>
+    mongodb.removeLocks()).then((_) =>
+    subAll.initialSync).then((_) =>
+    subAll2.initialSync).then((_) =>
+    subA.initialSync).then((_) =>
+    subAa.initialSync).then((_) =>
+    Future.forEach(actions, (action) {
+      action();
+      return new Future.delayed(new Duration(milliseconds: 200));
+    }));
+  }
+
 
   test('test random', () {
 
@@ -206,14 +237,33 @@ main() {
     return false;
   }
 
-  var makeExpects = () {
-    expect(stripPrivateFieldsList(colAll2),
-           unorderedEquals(stripPrivateFieldsList(colAll)));
-    expect(stripPrivateFieldsList(colAll.where((d) => mongoEquals(d, ['a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colA)));
-    expect(stripPrivateFieldsList(
-        colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello'))),
-        unorderedEquals(stripPrivateFieldsList(colAa)));
+
+  Future makeExpects({checkGetData: true}) {
+    Future res = new Future.sync((){
+      expect(colAll2, unorderedEquals(colAll));
+      expect(colAll.where((d) => mongoEquals(d, ['a'], 'hello')),
+          unorderedEquals(colA));
+      expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
+          unorderedEquals(colAa));
+      expect(subNoMatch.version == subAll.version, isTrue);
+      
+    });
+    if (checkGetData) {
+      for (Subscription sub in [subAll]) {
+        Subscription newSub;
+        res = res
+          .then((_) =>
+            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()))
+          .then((_) =>
+              newSub.initialSync)
+          .then((_){
+            return newSub.close();
+          }).then((_) {
+            expect(newSub.collection, unorderedEquals(sub.collection));
+          });
+      }
+    }
+    return res;
   };
 
     var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
@@ -249,92 +299,24 @@ main() {
 //        print(receiver);
         bool end = false;
         return Future.forEach(times, (time){
+          bool checkGetData = prob(0.1);
           if(end){
             return new Future.value(0);
           } else
-          return new Future.delayed(new Duration(milliseconds: time), (){
-            try{
-              makeExpects();
-              end = true;
-            } catch(e,s){
-              if(time == times.last){
-                print('author1 $colAll');
-                print('author2 $colAll2');
-                print('author2 $colA');
-                print('author4 $colAa');
-
-                print(s);
-                throw e;
-              }
-            }
-          });
+          return new Future.delayed(new Duration(milliseconds: time), () =>
+              makeExpects(checkGetData: checkGetData)).then((_){
+                end = true;
+              }).catchError((e){
+                if(time == times.last){
+                  print('author1 $colAll');
+                  print('author2 $colAll2');
+                  print('author2 $colA');
+                  print('author4 $colAa');
+                  throw e;
+                }
+              });
         });
     }));
 
   });
-
-  skip_test('test subs', () {
-
-    DataMap data = new DataMap.from({'_id': '0'});
-    DataMap data1 = new DataMap.from({'_id': '1', 'b': 'bbb'});
-    DataMap data2 = new DataMap.from({'_id': '2', 'c': 'ccc'});
-
-
-//    List actions = [
-//      () => sender.add(data, author: null),
-//      () => expect(stripPrivateFields(receiver.first), equals(data)),
-//      () => expect(receiverb, isEmpty),
-//      () => data['a'] = 'hello',
-//      () => expect(stripPrivateFields(receiverb.first), equals(data)),
-//      () => data.remove('a'),
-//      () => expect(receiverb, isEmpty),
-//      () => data['a'] = 1,
-//      () => expect(receiverc, isEmpty),
-//      () => data['a'] = new DataMap.from({}),
-//      () => expect(receiverc, isEmpty),
-//      () => data['a']['a'] = 'hello',
-//      () => expect(stripPrivateFields(receiverc.first), equals(data)),
-//    ];
-
-//    List actions = [
-//      () => sender.add(data, author: null),
-//      () => print(receiver),
-//      () => expect(stripPrivateFields(receiver.first), equals(stripPrivateFields(data))),
-//      () {print('assign!!!!!'); receiver.first['b'] = 'bbb'; sender.first['b'] = 'bb';},
-//      () => print(sender),
-//      () => print(receiver),
-//      () => expect(stripPrivateFieldsList(sender), equals(stripPrivateFieldsList(receiver))),
-//    ];
-
-
-    List actions = [
-      () => print(colAll2),
-      () => mongodb.collection('random').add({'_id': '0', 'a': 10}, 'ja'),
-      () => print(colAll2),
-      () => mongodb.collection('random').deprecatedChange('0', {'b': 20}, 'ja'),
-      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([{'_id': '0', 'a': 10, 'b': 20}])),
-      () => mongodb.collection('random').deprecatedChange('0', {'a': {'a': 10}}, 'ja'),
-      () => expect(stripPrivateFieldsList(colAll2), unorderedEquals([{'_id': '0', 'a': {'a': 10}, 'b': 20}])),
-
-      () => print(colAll2),
-    ];
-
-
-
-
-    return
-    mongodb.dropCollection('random').then((_) =>
-    mongodb.removeLocks()).then((_) =>
-    subAll.initialSync).then((_) =>
-    subAll2.initialSync).then((_) =>
-    subA.initialSync).then((_) =>
-    subAa.initialSync).then((_) =>
-    Future.forEach(actions, (action) {
-      action();
-      return new Future.delayed(new Duration(milliseconds: 200));
-    }));
-
-  });
 }
-
-

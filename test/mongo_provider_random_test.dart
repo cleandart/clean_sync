@@ -151,8 +151,7 @@ main() {
             (currCollection['diff'] as List).forEach((e) => lastVersion = max(lastVersion, e['version']));
             handleDiff(currCollection['diff'], dataStart);
             print(toStringOrdered(dataEnd));
-            expect(toStringOrdered(stripPrivateFieldsList(dataStart)),
-                  equals(toStringOrdered(stripPrivateFieldsList(dataEnd))));
+            expect(toStringOrdered(dataStart), equals(toStringOrdered(dataEnd)));
           });
     });
   };
