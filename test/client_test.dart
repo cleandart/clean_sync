@@ -380,7 +380,7 @@ void main() {
         var request = connection.getLogs().last.args[0]();
         expect(request.type, equals("sync"));
         expect(request.args, equals({"action": "add", "collection": "months",
-                                    "data": january, "author": "author"}));
+                                    "data": january, "author": "author", "args": null}));
       });
     });
 
@@ -402,7 +402,7 @@ void main() {
         expect(request.type, equals("sync"));
         expect(request.args, equals({"action": "change", "collection": "months",
                                      "_id": "11", "change": january,
-                                     "author": "author"}));
+                                     "author": "author", "args": null}));
       });
     });
 
@@ -423,7 +423,7 @@ void main() {
         var request = connection.getLogs().first.args[0]();
         expect(request.type, equals("sync"));
         expect(request.args, equals({"action": "remove", "collection": "months",
-                                     "_id": "12", "author": "author"}));
+                                     "_id": "12", "author": "author", "args": null}));
       });
     });
 

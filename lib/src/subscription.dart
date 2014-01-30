@@ -190,6 +190,7 @@ class Subscription {
             "action" : "add",
             "collection" : collectionName,
             "data" : data,
+            'args': args,
             "author" : _author
           }));
           markToken(data['_id'], result);
@@ -199,6 +200,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "change",
             "collection" : collectionName,
+            'args': args,
             "_id": data["_id"],
             "change" : data,
             "author" : _author
@@ -211,6 +213,7 @@ class Subscription {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "remove",
             "collection" : collectionName,
+            'args': args,
             "_id" : data["_id"],
             "author" : _author
           }));
@@ -232,7 +235,8 @@ class Subscription {
 
   _createDataRequest() => new ClientRequest("sync", {
     "action" : "get_data",
-    "collection" : collectionName
+    "collection" : collectionName,
+    'args': args
   });
 
   _createDiffRequest() {
@@ -243,6 +247,7 @@ class Subscription {
       return new ClientRequest("sync", {
       "action" : "get_diff",
       "collection" : collectionName,
+      'args': args,
       "version" : _version
       });
     }
@@ -272,6 +277,8 @@ class Subscription {
           } else {
             if(!response['diff'].isEmpty) {
               _version = max(_version, _handleDiff(response['diff'], this, _author));
+              } else {
+                _version = response['version'];
               }
             }
         }, onError: (e){if (e is! CancelError)throw e;});
