@@ -138,6 +138,11 @@ class Subscription {
 
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
+  StreamController _errorStreamController;
+  Stream get errorStream {
+    if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
+    return _errorStreamController.stream;
+  }
 
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
@@ -150,6 +155,7 @@ class Subscription {
       this._idGenerator, [this.args]) {
     collection = new DataSet();
     collection.addIndex(['_id']);
+    _errorStreamController = new StreamController.broadcast();
     start();
   }
 
@@ -192,7 +198,11 @@ class Subscription {
             "data" : data,
             'args': args,
             "author" : _author
-          }));
+          })).then((result) {
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
+          });
           markToken(data['_id'], result);
         });
 
@@ -204,7 +214,11 @@ class Subscription {
             "_id": data["_id"],
             "change" : data,
             "author" : _author
-          }));
+          })).then((result) {
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
+          });
           // TODO: check if server really accepted the change
           markToken(data['_id'], result);
         });
@@ -216,7 +230,11 @@ class Subscription {
             'args': args,
             "_id" : data["_id"],
             "author" : _author
-          }));
+          })).then((result) {
+            if (result is Map)
+              if (result['error'] != null)
+                _errorStreamController.add(result['error']);
+          });
           markToken(data['_id'], result);
         });
         change = new ChangeSet();
@@ -257,6 +275,11 @@ class Subscription {
   void setupDataRequesting() {
     // request initial data
     _connection.send(_createDataRequest).then((response) {
+      if (response['error'] != null) {
+        if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
+        else _errorStreamController.add(new DatabaseAccessError(response['error']));
+        return;
+      }
       _version = response['version'];
       _handleData(response['data'], collection, _author);
 
@@ -314,4 +337,10 @@ class Subscription {
   Stream onClose() {
 
   }
+}
+
+class DatabaseAccessError extends Error {
+  final String message;
+  DatabaseAccessError(this.message);
+  String toString() => "Bad state: $message";
 }
