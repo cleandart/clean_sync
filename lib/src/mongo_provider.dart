@@ -298,13 +298,12 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future update(selector, document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+  Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
     num nextVersion;
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
-        if(document.containsKey(SET) || document.containsKey(UNSET) ||
-            document.containsKey(PUSH)) {
+        if(document.keys.any((K) => K.startsWith('\$'))) {
           if(document.containsKey(SET))
             document[SET][VERSION_FIELD_NAME] =  nextVersion;
           else
