@@ -187,7 +187,7 @@ class MongoProvider implements DataProvider {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
-      
+
       _stripCleanVersion(data);
 
       return {'data': data, 'version': version};
@@ -295,6 +295,40 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
+  Future update(selector, document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+    num nextVersion;
+    List oldData;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        return collection.find(selector).toList().then((oldData) {
+          oldData = data;
+          return collection.update(selector, document, upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern);
+        }, onError: (e) => _release_locks().then((_) {
+          throw new MongoException(e);
+        }));
+      }).then((_) {
+        return Future.wait(
+          oldData.map((oldItem) {
+            collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
+            _collectionHistory.insert({
+              "before" : oldItem,
+              "after" : newItem.single,
+              "action" : "add",
+              "author" : author,
+              "version" : nextVersion
+            }));
+          }));
+        },
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
   Future remove(String _id, String author) {
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
@@ -381,7 +415,7 @@ class MongoProvider implements DataProvider {
 
     Set before, after;
     List beforeOrAfter, diff;
-    
+
      return _maxVersion.then((maxVersion) {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
@@ -393,13 +427,13 @@ class MongoProvider implements DataProvider {
             before = new Set.from(results[0].map((d) => d['_id']));
             after = new Set.from(results[1].map((d) => d['_id']));
             diff = [];
-  
+
             beforeOrAfter.forEach((record) {
               assert(record['version']>version);
-              
+
               _stripCleanVersion(record['before']);
               _stripCleanVersion(record['after']);
-              
+
               if(before.contains(record['_id']) && after.contains(record['_id']))
               {
                 // record was changed
@@ -431,7 +465,7 @@ class MongoProvider implements DataProvider {
                 });
               }
             });
-  
+
             if (_limit > NOLIMIT || _skip > NOSKIP) {
               return _limitedDiffFromVersion(diff);
             }
@@ -597,7 +631,7 @@ class MongoProvider implements DataProvider {
     _lock.remove({'_id': collection.collectionName})).then((_) =>
     true);
   }
-  
+
   void _stripCleanVersion(dynamic data) {
     if (data is Iterable) {
       data.forEach((Map item) {
