@@ -14,4 +14,4 @@ dependencies:
 dev_dependencies:
   clean_backend: '>=0.1.0 <0.2.0'
   hop: any
-  unittest: any
+  unittest: '>=0.9.3'
