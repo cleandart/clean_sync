@@ -24,6 +24,9 @@ const String LT = "\$lt";
 const String ORDERBY = "\$orderby";
 const String OR = "\$or";
 const String AND = "\$and";
+const String SET = "\$set";
+const String UNSET = "\$unset";
+const String PUSH = "\$push";
 const num ASC = 1;
 const num DESC = -1;
 const num NOLIMIT = 0;
@@ -300,7 +303,19 @@ class MongoProvider implements DataProvider {
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
-        return collection.find(selector).toList().then((oldData) {
+        if(document.containsKey(SET) || document.containsKey(UNSET) ||
+            document.containsKey(PUSH)) {
+          if(document.containsKey(SET))
+            document[SET][VERSION_FIELD_NAME] =  nextVersion;
+          else
+            document[SET] = {VERSION_FIELD_NAME: nextVersion};
+        }
+        else {
+          document[VERSION_FIELD_NAME] = nextVersion;
+        }
+
+        var col = collection.find(selector);
+        return col.toList().then((data) {
           oldData = data;
           return collection.update(selector, document, upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern);
         }, onError: (e) => _release_locks().then((_) {
@@ -309,11 +324,11 @@ class MongoProvider implements DataProvider {
       }).then((_) {
         return Future.wait(
           oldData.map((oldItem) {
-            collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
+            return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
             _collectionHistory.insert({
               "before" : oldItem,
               "after" : newItem.single,
-              "action" : "add",
+              "action" : "change",
               "author" : author,
               "version" : nextVersion
             }));

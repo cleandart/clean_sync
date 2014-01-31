@@ -9,7 +9,6 @@ import "package:clean_sync/server.dart";
 import "dart:async";
 
 
-
 void handleDiff(List<Map> diff, List collection) {
   diff.forEach((Map change) {
     if (change["action"] == "add") {
@@ -264,5 +263,101 @@ void main() {
         expect(shouldThrow, throws);
     });
 
+    test('update data. (T13)', () {
+      //when
+      return ready
+          .then((_) => months.add(new Map.from(january), 'John Doe'))
+          .then((_) => months.add(new Map.from(february), 'John Doe'))
+          .then((_) => months.add(new Map.from(march), 'John Doe'))
+          .then((_) => months.add(new Map.from(april), 'John Doe'))
+          .then((_) => months.add(new Map.from(june), 'John Doe'))
+          .then((_) => months.add(new Map.from(july), 'John Doe'))
+          .then((_) => months.add(new Map.from(august), 'John Doe'))
+          .then((_) => months.add(new Map.from(september), 'John Doe'))
+          .then((_) => months.add(new Map.from(october), 'John Doe'))
+          .then((_) => months.add(new Map.from(november), 'John Doe'))
+          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.update({'days': 28}, {'days': 29, 'number': 2, 'name': 'February'}, 'John Doe'))
+          .then((_) => months.data())
+          .then((dataInfo) {
+            expect(dataInfo['version'], equals(12));
+            var data = dataInfo['data'];
+            expect(data[1], equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
+            return dataInfo;
+          })
+          .then((_) => months.diffFromVersion(11))
+          .then((dataDiff) {
+            List diffList = dataDiff['diff'];
+            expect(diffList.length, equals(1));
+            Map diff = diffList[0];
+            expect(diff['action'], equals('change'));
+            expect(diff['_id'], equals('february'));
+            Map strippedData = diff['data'];
+            expect(strippedData, equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
+            expect(diff['author'], equals('John Doe'));
+          });
+    });
+
+    test('update data with set. (T14)', () {
+      //when
+      return ready
+          .then((_) => months.add(new Map.from(january), 'John Doe'))
+          .then((_) => months.add(new Map.from(february), 'John Doe'))
+          .then((_) => months.add(new Map.from(march), 'John Doe'))
+          .then((_) => months.add(new Map.from(april), 'John Doe'))
+          .then((_) => months.add(new Map.from(june), 'John Doe'))
+          .then((_) => months.add(new Map.from(july), 'John Doe'))
+          .then((_) => months.add(new Map.from(august), 'John Doe'))
+          .then((_) => months.add(new Map.from(september), 'John Doe'))
+          .then((_) => months.add(new Map.from(october), 'John Doe'))
+          .then((_) => months.add(new Map.from(november), 'John Doe'))
+          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.update({'days': 31}, {SET: {'number': 47}}, 'John Doe', multiUpdate: true))
+          .then((_) => months.data())
+          .then((dataInfo) {
+            expect(dataInfo['version'], equals(12));
+            var data = dataInfo['data'];
+            data.forEach((month) {
+               if( month['days'] == 31) expect(month['number'], equals(47));
+            });
+            return dataInfo;
+          })
+          .then((_) => months.diffFromVersion(11))
+          .then((dataDiff) {
+            List diffList = dataDiff['diff'];
+            expect(diffList.length, equals(6));
+          });
+    });
+
+    test('update data with unset. (T15)', () {
+      //when
+      return ready
+          .then((_) => months.add(new Map.from(january), 'John Doe'))
+          .then((_) => months.add(new Map.from(february), 'John Doe'))
+          .then((_) => months.add(new Map.from(march), 'John Doe'))
+          .then((_) => months.add(new Map.from(april), 'John Doe'))
+          .then((_) => months.add(new Map.from(june), 'John Doe'))
+          .then((_) => months.add(new Map.from(july), 'John Doe'))
+          .then((_) => months.add(new Map.from(august), 'John Doe'))
+          .then((_) => months.add(new Map.from(september), 'John Doe'))
+          .then((_) => months.add(new Map.from(october), 'John Doe'))
+          .then((_) => months.add(new Map.from(november), 'John Doe'))
+          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.update({'days': 31}, {UNSET: {'number': 47}}, 'John Doe', multiUpdate: true))
+          .then((_) => months.data())
+          .then((dataInfo) {
+            expect(dataInfo['version'], equals(12));
+            var data = dataInfo['data'];
+            data.forEach((month) {
+               if( month['days'] == 31) expect(month['number'], isNull);
+            });
+            return dataInfo;
+          })
+          .then((_) => months.diffFromVersion(11))
+          .then((dataDiff) {
+            List diffList = dataDiff['diff'];
+            expect(diffList.length, equals(6));
+          });
+    });
   });
 }
