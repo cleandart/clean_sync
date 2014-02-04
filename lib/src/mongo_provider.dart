@@ -182,14 +182,16 @@ class MongoProvider implements DataProvider {
   /**
    * Returns data and version of this data 7.
    */
-  Future<Map> data() {
+  Future<Map> data({project: null}) {
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
-      
-      _stripCleanVersion(data);
 
+      _stripCleanVersion(data);
+      if (project!=null){
+        data.forEach((e) => project(e));
+      }
       return {'data': data, 'version': version};
     });
   }
@@ -324,13 +326,13 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future<Map> diffFromVersion(num version) {
+  Future<Map> diffFromVersion(num version, {project: null}) {
     try{
-      return _diffFromVersion(version).then((d) {
+      return _diffFromVersion(version, project: project).then((d) {
         return d;
       });
     } on DiffNotPossibleException catch(e) {
-      return data().then((d) {
+      return data(project: project).then((d) {
         d['diff'] = null;
         return d;
       });
@@ -351,7 +353,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<Map> _diffFromVersion(num version) {
+  Future<Map> _diffFromVersion(num version, {project:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
@@ -381,7 +383,7 @@ class MongoProvider implements DataProvider {
 
     Set before, after;
     List beforeOrAfter, diff;
-    
+
      return _maxVersion.then((maxVersion) {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
@@ -393,13 +395,13 @@ class MongoProvider implements DataProvider {
             before = new Set.from(results[0].map((d) => d['_id']));
             after = new Set.from(results[1].map((d) => d['_id']));
             diff = [];
-  
+
             beforeOrAfter.forEach((record) {
               assert(record['version']>version);
-              
+
               _stripCleanVersion(record['before']);
               _stripCleanVersion(record['after']);
-              
+
               if(before.contains(record['_id']) && after.contains(record['_id']))
               {
                 // record was changed
@@ -431,10 +433,20 @@ class MongoProvider implements DataProvider {
                 });
               }
             });
-  
+
             if (_limit > NOLIMIT || _skip > NOSKIP) {
+              throw new Exception('not correctly implemented');
               return _limitedDiffFromVersion(diff);
             }
+
+            if (project!=null) {
+              for (Map elem in diff) {
+                if(elem.containsKey('data')){
+                  project(elem['data']);
+                }
+              }
+            }
+
             if (diff.isEmpty) {
               return {'diff' : [], 'version' : maxVersion};
             } else {
@@ -597,7 +609,7 @@ class MongoProvider implements DataProvider {
     _lock.remove({'_id': collection.collectionName})).then((_) =>
     true);
   }
-  
+
   void _stripCleanVersion(dynamic data) {
     if (data is Iterable) {
       data.forEach((Map item) {

@@ -16,20 +16,23 @@ class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
 
-  var config = new SimpleConfiguration();
-  config.timeout = null;
-  unittestConfiguration = config;
+//  var config = new SimpleConfiguration();
+//  config.timeout = null;
+//  unittestConfiguration = config;
 
   MongoDatabase mongodb;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
   DataSet colAa;
+  DataSet colMapped;
+
   Connection connection;
   Subscription subAll;
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
+  Subscription subMapped;
 
   DataMap data1;
   DataMap data2;
@@ -58,6 +61,13 @@ main() {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
 
+        pub.publish('mapped', (_) {
+          return mongodb.collection("random").find({});
+        }, project: (Map elem){
+          elem.remove('a');
+          elem['aa'] = 'it works gr8';
+        });
+
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
@@ -71,6 +81,8 @@ main() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
+        subMapped = new Subscription('mapped', connection, 'author5', new IdGenerator('e'), {});
+        colMapped = subMapped.collection;
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -100,6 +112,7 @@ main() {
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
+    subMapped.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
@@ -192,6 +205,17 @@ main() {
     return executeSubscriptionActions(actions);
 
   });
+
+  test('test collection mapped', () {
+    List actions = [
+      () => colAll.add({'a': 1, 'b': 2}),
+      () => expect(colMapped, equals([{'b': 2, '_id': 'a-1', 'aa': 'it works gr8'}])),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
 
   skip_test('big data performance', () {
     print('tu');

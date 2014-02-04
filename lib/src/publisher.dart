@@ -14,16 +14,19 @@ class Publisher {
   int counter;
   Map<String, DataGenerator> _publishedCollections;
   Map<String, dynamic> _beforeRequestCallbacks;
+  Map<String, dynamic> _project;
 
   Publisher() {
     _publishedCollections = {};
     _beforeRequestCallbacks = {};
+    _project = {};
     counter = 0;
   }
 
-  void publish(String collection, DataGenerator callback, {beforeRequest: null}) {
+  void publish(String collection, DataGenerator callback, {beforeRequest: null, project:null}) {
     _publishedCollections[collection] = callback;
     _beforeRequestCallbacks[collection] = beforeRequest;
+    _project[collection] = project;
   }
 
   bool isPublished(String collection) {
@@ -33,6 +36,9 @@ class Publisher {
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
     logger.finest("REQUEST:  ${data}");
+    var beforeRequestCall = _beforeRequestCallbacks[data['collection']];
+    var projectCall = _project[data['collection']];
+
 
     if (data["action"] == "get_id_prefix") {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
@@ -43,6 +49,11 @@ class Publisher {
     }
     data['args']['_authenticatedUserId'] = request.authenticatedUserId;
 
+    if (data['action'] == 'add' || data['action'] == 'change' || data['action'] == 'remove') {
+      if (projectCall != null) {
+        throw new Exception('thou shall not modify projected data!');
+      }
+    }
     Future beforeRequest = new Future.value(null);
     if (_beforeRequestCallbacks[data['collection']] != null) {
       if (data['action'] == 'add' || data['action'] == 'change' || data['action'] == 'remove') {
@@ -50,16 +61,16 @@ class Publisher {
         if (data['action'] == 'add') value = data['data'];
         else if (data['action'] == 'change') value = data['change'];
         else if (data['action'] == 'remove') value = {};
-        beforeRequest = _beforeRequestCallbacks[data['collection']](value, data['args']);
+        beforeRequest = beforeRequestCall(value, data['args']);
       }
     }
 
     return beforeRequest.then((_) => _publishedCollections[data['collection']](data['args'])).then((DataProvider dp) {
       if (data["action"] == "get_data") {
-        return dp.data();
+        return dp.data(project: projectCall);
       }
       else if (data["action"] == "get_diff") {
-        return dp.diffFromVersion(data["version"]);
+        return dp.diffFromVersion(data["version"], project: projectCall);
       }
       else if (data["action"] == "add") {
         return dp.add(data['data'], data['author']);

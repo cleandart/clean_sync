@@ -296,6 +296,7 @@ class Subscription {
           // id data and version was sent, diff is set to null
           if(response['diff'] == null) {
             _version = response['version'];
+            print(response);
             _handleData(response['data'], collection, _author);
           } else {
             if(!response['diff'].isEmpty) {
