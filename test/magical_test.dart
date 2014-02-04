@@ -14,7 +14,8 @@ var data;
 /*
  * enhance 8 level, 4 fork: 9s
  */
-main() {
+
+test1(){
   enhance(Map m, num level){
     if (level==0) {
       return m['value'] = 'a';
@@ -37,32 +38,41 @@ main() {
   return new Future.delayed(new Duration(seconds: 500));
 }
 
+test2(){
+  String longString = (new List.filled(1000, 'a')).join('');
+  return new Future.delayed(new Duration(seconds: 1), (){
+//  return new Future.sync((){
+    var j=0;
+    var l=[];
+    for(int i=0; i<1000000; i++){
+      j++;
+      if(i%1000 == 0){
+        print(j);
+      }
+      l.add(longString+'$i');
+    }
+  }).then((_){
+    return new Future.delayed(new Duration(minutes: 10), (){
+    });
+  });
+}
 
-//main(){
-//
-//  new Timer.periodic(const Duration(milliseconds:1000), (t) {
-//    print('tick');
-//    return new List.filled(1000000, "x").join("joohoo");
-//  });
-//
-//  String longString = (new List.filled(1000, 'a')).join('');
-//  return new Future.delayed(new Duration(seconds: 1), (){
-////  return new Future.sync((){
-//    var j=0;
-//    var l=[];
-//    for(int i=0; i<1000000; i++){
-//      j++;
-//      if(i%1000 == 0){
-//        print(j);
-//      }
-//      l.add(longString+'$i');
-//    }
-//  }).then((_){
-//    return new Future.delayed(new Duration(minutes: 10), (){
-//    });
-//  });
-//
-//}
+test3(){
+  var longS ='aaaaaaaaaaaabbbbbbbbbbcccccc';
+    Map m = new Map.from({'a': {'a': longS, 'b': {'a' : longS, 'b': longS}}});
+    for(int i=0; i<10000000000; i++){
+      print(i);
+      cleanify(m);
+    }
+
+}
+
+
+main() {
+  test3();
+}
+
+
 
 //  return Future.forEach(new List.filled(1, null), (_){
 //  });

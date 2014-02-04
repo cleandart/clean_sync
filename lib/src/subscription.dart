@@ -8,11 +8,7 @@ final Logger logger = new Logger('clean_sync');
 
 void handleData(List<Map> data, DataSet collection, String author) {
   collection.clear(author: 'clean_sync');
-  List<DataMap> toAdd = [];
-  for (Map record in data) {
-    toAdd.add(new DataMap.from(record));
-  }
-  collection.addAll(toAdd, author: 'clean_sync');
+  collection.addAll(data, author: 'clean_sync');
 }
 
 void _applyChangeList (List source, DataList target, author) {
@@ -78,15 +74,14 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
     } else if(change['version'] <= version) {
       return;
     }
-    change = cleanify(change);
       if (change["action"] == "add") {
-      DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
-      if (collectRes) res = max(res, change['version']);
-      if (record == null) {
-        logger.fine('aplying changes!');
-        collection.add(new DataMap.from(change["data"]), author: 'clean_sync');
-      } else {
-      }
+        if (collectRes) res = max(res, change['version']);
+        if (collection.findBy('_id', change['_id']).isEmpty){
+          logger.fine('aplying changes!');
+          collection.add(change["data"], author: 'clean_sync');
+        } else {
+          assert(author == change['author']);
+        }
     }
       else if (change["action"] == "change" ) {
       DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);

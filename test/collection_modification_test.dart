@@ -16,9 +16,7 @@ class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main() {
 
-//  var config = new SimpleConfiguration();
-//  config.timeout = null;
-//  unittestConfiguration = config;
+  unittestConfiguration.timeout=null;
 
   MongoDatabase mongodb;
   DataSet colAll;
@@ -217,7 +215,7 @@ main() {
   });
 
 
-  skip_test('big data performance', () {
+  solo_test('big data performance', () {
     print('tu');
     var data = new DataMap();
     for(int i=0; i<2000; i++) {
