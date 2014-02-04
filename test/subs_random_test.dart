@@ -121,7 +121,7 @@ main() {
     return list[rng.nextInt(list.length)];
   }
 
-  var allValues=['hello', 'world', 1];
+  var allValues=['hello', 'world', 1, null];
   var allKeys=['a','b','c'];
 
 
