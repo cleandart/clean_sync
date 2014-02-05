@@ -14,19 +14,20 @@ class Publisher {
   int counter;
   Map<String, DataGenerator> _publishedCollections;
   Map<String, dynamic> _beforeRequestCallbacks;
-  Map<String, dynamic> _project;
+  Map<String, dynamic> _projections;
 
   Publisher() {
     _publishedCollections = {};
     _beforeRequestCallbacks = {};
-    _project = {};
+    _projections = {};
     counter = 0;
   }
 
-  void publish(String collection, DataGenerator callback, {beforeRequest: null, project:null}) {
+  void publish(String collection, DataGenerator callback, {beforeRequest: null,
+    projection: null}) {
     _publishedCollections[collection] = callback;
     _beforeRequestCallbacks[collection] = beforeRequest;
-    _project[collection] = project;
+    _projections[collection] = projection;
   }
 
   bool isPublished(String collection) {
@@ -36,49 +37,52 @@ class Publisher {
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
     logger.finest("REQUEST:  ${data}");
-    var beforeRequestCall = _beforeRequestCallbacks[data['collection']];
-    var projectCall = _project[data['collection']];
-
-
-    if (data["action"] == "get_id_prefix") {
-      return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
-    }
 
     if(data['args'] == null) {
       data['args'] = {};
     }
     data['args']['_authenticatedUserId'] = request.authenticatedUserId;
 
-    if (data['action'] == 'add' || data['action'] == 'change' || data['action'] == 'remove') {
-      if (projectCall != null) {
-        throw new Exception('thou shall not modify projected data!');
-      }
-    }
-    Future beforeRequest = new Future.value(null);
-    if (_beforeRequestCallbacks[data['collection']] != null) {
-      if (data['action'] == 'add' || data['action'] == 'change' || data['action'] == 'remove') {
-        var value;
-        if (data['action'] == 'add') value = data['data'];
-        else if (data['action'] == 'change') value = data['change'];
-        else if (data['action'] == 'remove') value = {};
-        beforeRequest = beforeRequestCall(value, data['args']);
-      }
+    var dataGenerator = _publishedCollections[data['collection']];
+    var beforeRequestCall = _beforeRequestCallbacks[data['collection']];
+    var projectionCall = _projections[data['collection']];
+    var action = data["action"];
+
+    if (action == "get_id_prefix") {
+      return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
     }
 
-    return beforeRequest.then((_) => _publishedCollections[data['collection']](data['args'])).then((DataProvider dp) {
-      if (data["action"] == "get_data") {
-        return dp.data(project: projectCall);
+    List<String> modifications = ['add', 'change', 'remove'];
+
+    if (modifications.contains(action) && projectionCall != null) {
+      throw new Exception('Thou shall not modify projected data!');
+    }
+
+    Future beforeRequest = new Future.value(null);
+    if (beforeRequestCall != null && modifications.contains(action)) {
+      var value;
+      if (action == 'add') value = data['data'];
+      else if (action == 'change') value = data['change'];
+      else if (action == 'remove') value = {};
+      beforeRequest = beforeRequestCall(value, data['args']);
+    }
+
+    return beforeRequest
+        .then((_) => dataGenerator(data['args']))
+        .then((DataProvider dp) {
+      if (action == "get_data") {
+        return dp.data(projection: projectionCall);
       }
-      else if (data["action"] == "get_diff") {
-        return dp.diffFromVersion(data["version"], project: projectCall);
+      else if (action == "get_diff") {
+        return dp.diffFromVersion(data["version"], projection: projectionCall);
       }
-      else if (data["action"] == "add") {
+      else if (action == "add") {
         return dp.add(data['data'], data['author']);
       }
-      else if (data["action"] == "change") {
+      else if (action == "change") {
         return dp.change(data['_id'], data['change'], data['author']);
       }
-      else if (data["action"] == "remove") {
+      else if (action == "remove") {
         return dp.remove(data['_id'], data['author']);
       }
     }).catchError((e) {

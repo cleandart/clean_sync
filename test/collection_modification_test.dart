@@ -61,7 +61,7 @@ main() {
 
         pub.publish('mapped', (_) {
           return mongodb.collection("random").find({});
-        }, project: (Map elem){
+        }, projection: (Map elem){
           elem.remove('a');
           elem['aa'] = 'it works gr8';
         });
@@ -215,7 +215,7 @@ main() {
   });
 
 
-  solo_test('big data performance', () {
+  skip_test('big data performance', () {
     print('tu');
     var data = new DataMap();
     for(int i=0; i<2000; i++) {
