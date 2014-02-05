@@ -182,15 +182,15 @@ class MongoProvider implements DataProvider {
   /**
    * Returns data and version of this data 7.
    */
-  Future<Map> data({project: null}) {
+  Future<Map> data({projection: null}) {
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
 
       _stripCleanVersion(data);
-      if (project!=null){
-        data.forEach((e) => project(e));
+      if (projection!=null){
+        data.forEach((e) => projection(e));
       }
       return {'data': data, 'version': version};
     });
@@ -326,13 +326,13 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future<Map> diffFromVersion(num version, {project: null}) {
+  Future<Map> diffFromVersion(num version, {projection: null}) {
     try{
-      return _diffFromVersion(version, project: project).then((d) {
+      return _diffFromVersion(version, projection: projection).then((d) {
         return d;
       });
     } on DiffNotPossibleException catch(e) {
-      return data(project: project).then((d) {
+      return data(projection: projection).then((d) {
         d['diff'] = null;
         return d;
       });
@@ -353,7 +353,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<Map> _diffFromVersion(num version, {project:null}) {
+  Future<Map> _diffFromVersion(num version, {projection:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
@@ -439,10 +439,10 @@ class MongoProvider implements DataProvider {
               return _limitedDiffFromVersion(diff);
             }
 
-            if (project!=null) {
+            if (projection!=null) {
               for (Map elem in diff) {
                 if(elem.containsKey('data')){
-                  project(elem['data']);
+                  projection(elem['data']);
                 }
               }
             }
