@@ -221,7 +221,7 @@ class MongoProvider implements DataProvider {
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
-        data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion);
+        data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
         return collection.insertAll(data);
       }).then((_) =>
         _collectionHistory.insertAll(data.map((elem) =>
@@ -230,7 +230,7 @@ class MongoProvider implements DataProvider {
               "after" : elem,
               "action" : "add",
               "author" : author,
-              "version" : nextVersion
+              "version" : elem[VERSION_FIELD_NAME]
             }).toList(growable: false)),
       onError: (e) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -360,7 +360,7 @@ class MongoProvider implements DataProvider {
             "after" : {},
             "action" : "remove",
             "author" : author,
-            "version" : nextVersion
+            "version" : nextVersion++
         }).toList(growable: false)));
       },
       onError: (e) {

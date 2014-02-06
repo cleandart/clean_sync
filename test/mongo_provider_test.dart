@@ -108,7 +108,7 @@ void main() {
           strippedData = data['data'][1];
           expect(strippedData, equals(february));
 
-          expect(data['version'], equals(1));
+          expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(0))
         .then((dataDiff) {
           List diffList = dataDiff['diff'];
@@ -218,7 +218,7 @@ void main() {
         });
     });
 
-    test('removeAll data. (T07)', () {
+    test('removeAll data. (T07.1)', () {
       // given
       Future toRemove = ready.then((_) => months.addAll([january, february, march,
                                                          april], 'John Doe'))
@@ -230,20 +230,20 @@ void main() {
       return toRemove.then((_) => months.data())
         .then((data) {
           expect(data['data'].length, equals(2));
-          expect(data['version'], lessThanOrEqualTo(2));
-        }).then((_) => months.diffFromVersion(1))
+          expect(data['version'], equals(4));
+        }).then((_) => months.diffFromVersion(4))
         .then((dataDiff) {
           List diffList = dataDiff['diff'];
           expect(diffList.length, equals(2));
           Map diff = diffList[0];
           expect(diff['action'], equals('remove'));
           expect(diff['_id'], equals('january'));
-          expect(diff['version'], equals(2));
+          expect(diff['version'], equals(5));
 
           diff = diffList[1];
           expect(diff['action'], equals('remove'));
           expect(diff['_id'], equals('march'));
-          expect(diff['version'], equals(2));
+          expect(diff['version'], equals(6));
           expect(diff['author'], equals('Michael Smith'));
         });
     });
