@@ -4,9 +4,10 @@
 
 part of clean_sync.client;
 
-final Logger logger = new Logger('clean_sync');
+final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, DataSet collection, String author) {
+  logger.fine('handleData: ${data}');
   collection.clear(author: 'clean_sync');
   collection.addAll(data, author: 'clean_sync');
 }
@@ -55,7 +56,7 @@ bool applyChange (source, target, author) {
 
 
 num handleDiff(List<Map> diff, Subscription subscription, String author) {
-  logger.fine('handleDiff: $subscription $author $diff');
+  logger.fine('handleDiff: subscription: $subscription, author: $author, diff: $diff');
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
   var version = subscription._version;
@@ -63,6 +64,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   bool collectRes = true;
 
   diff.forEach((Map change) {
+    logger.finer('handling change $change');
 //     it can happen, that we get too old changes
     if (!change.containsKey('version')){
       logger.warning('change does not contain "version" field. If not testing, '
@@ -77,9 +79,10 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       if (change["action"] == "add") {
         if (collectRes) res = max(res, change['version']);
         if (collection.findBy('_id', change['_id']).isEmpty){
-          logger.fine('aplying changes!');
+          logger.finer('aplying changes (add)');
           collection.add(change["data"], author: 'clean_sync');
         } else {
+          logger.finer('add discarded; same id already present');
           assert(author == change['author']);
         }
     }
@@ -90,21 +93,22 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       // this change was not yet confirmed from server
       if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
         collectRes = false;
-        logger.fine('discarding diff');
+        logger.finer('discarding diff');
       }
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-        logger.fine('aplying changes!');
+        logger.finer('aplying changes (change)');
         if (collectRes) res = max(res, change['version']);
         applyChange(change["data"], record, 'clean_sync');
       }
     }
       else if (change["action"] == "remove" ) {
-      logger.fine('aplying changes!');
+      logger.finer('aplying changes (remove');
       if (collectRes) res = max(res, change['version']);
       collection.removeWhere((d) => d["_id"] == change["_id"], author: 'clean_sync');
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
+  logger.fine('handleDiff ends');
   return res;
 }
 
@@ -291,7 +295,6 @@ class Subscription {
           // id data and version was sent, diff is set to null
           if(response['diff'] == null) {
             _version = response['version'];
-            print(response);
             _handleData(response['data'], collection, _author);
           } else {
             if(!response['diff'].isEmpty) {

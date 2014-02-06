@@ -127,9 +127,6 @@ class MongoProvider implements DataProvider {
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
 
-//  Future<int> get _maxVersion => _collectionHistory.find({ORDERBY: {'version': -1}}).toList()
-//      .then((data){print('data: $data'); return data.first['version'];});
-
   Future<int> get _maxVersion =>
       _collectionHistory.find(where.sortBy('version', descending : true)
           .limit(1)).toList()

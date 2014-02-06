@@ -205,9 +205,13 @@ main() {
   });
 
   test('test collection mapped', () {
+    Subscription newSub;
     List actions = [
       () => colAll.add({'a': 1, 'b': 2}),
       () => expect(colMapped, equals([{'b': 2, '_id': 'a-1', 'aa': 'it works gr8'}])),
+      () => colAll.add({'a': {}, 'b': []}),
+      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+      () => expect(colMapped, unorderedEquals(newSub.collection)),
     ];
 
     return executeSubscriptionActions(actions);
