@@ -94,7 +94,7 @@ test3(){
  *  TimerEvent: 6m
  *  empry func: 25m
  *
- *  DataMap (o mne, after improvment): 427k, 456k, 570k
+ *  DataMap (o mne, after improvment): 427k, 456k, 570k, 687k
  *  DataMap (o mne, before improvment): 123k
  *  Map (o mne, plain map): 1285k
  *  Map.toString (o mne): 7065k
@@ -115,9 +115,9 @@ test4(){
     if (i%1000 == 0){
        print(i/1000);
     }
-    l.add(new Map.from({'meno': 'Tomas', 'adresa': 'gagarinova 47',
+    l.add(new DataMap.from({'meno': 'Tomas', 'adresa': 'gagarinova 47',
       'sex': 'male', 'iq': 'undefined', 'vek': '8',
-      'rodicia': {'mama': 'ma', 'otec': 'tiez ma'}}).toString());
+      'rodicia': {'mama': 'ma', 'otec': 'tiez ma'}}));
   }
 }
 
