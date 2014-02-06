@@ -217,6 +217,31 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
+  Future addAll(List<Map> data, String author) {
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion);
+        return collection.insertAll(data);
+      }).then((_) =>
+        _collectionHistory.insertAll(data.map((elem) =>
+            {
+              "before" : {},
+              "after" : elem,
+              "action" : "add",
+              "author" : author,
+              "version" : nextVersion
+            }).toList(growable: false)),
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
   Future deprecatedChange(String _id, Map change, String author) {
     num nextVersion;
     Map newRecord;
@@ -312,6 +337,31 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
           }));
         }
+      },
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
+  Future removeAll(query, String author) {
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        return collection.find(query).toList();
+      }).then((data) {
+        return collection.remove(query).then((_) =>
+          _collectionHistory.insertAll(data.map((elem) => {
+            "before" : elem,
+            "after" : {},
+            "action" : "remove",
+            "author" : author,
+            "version" : nextVersion
+        }).toList(growable: false)));
       },
       onError: (e) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
