@@ -11,7 +11,6 @@ import "dart:async";
 
 
 void handleDiff(List<Map> diff, List collection) {
-  print(diff);
   diff.forEach((Map change) {
     if (change["action"] == "add") {
       collection.add(new Map.from(change["data"]));

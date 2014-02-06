@@ -13,7 +13,7 @@ magicalTick(){
 var data;
 
 /*
- * enhance 8 level, 4 fork: 16s, 9s, 2.9s
+ * enhance 8 level, 4 fork: 16s, 9s, 2.9s, 1.4s
  */
 
 test1(){
@@ -21,7 +21,7 @@ test1(){
     if (level==0) {
       return m['value'] = 'a';
     } else {
-      for (int i=0; i<10; i++) {
+      for (int i=0; i<4; i++) {
         var mm = new Map();
         m['$i'] = mm;
         enhance(mm, level - 1);
@@ -44,10 +44,11 @@ test1(){
 
 //  magicalTick();
   var m = {};
-  enhance2(m, 5);
+  enhance(m, 7);
   print(m.toString().length);
   var s = new Stopwatch()..start();
   var a = cleanify(m);
+  print(a);
   a.dispose();
   print(s.elapsed);
   return new Future.delayed(new Duration(seconds: 500));
@@ -123,7 +124,7 @@ test4(){
 
 
 main() {
-  test4();
+  test1();
 }
 
 

@@ -10,6 +10,7 @@ import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:logging/logging.dart';
 
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
@@ -212,6 +213,34 @@ main() {
       () => colAll.add({'a': {}, 'b': []}),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
+  hierarchicalLoggingEnabled = true;
+  Logger.root.level = Level.OFF;
+  (new Logger('clean_sync')).level = Level.ALL;
+  (new Logger('clean_ajax')).level = Level.ALL;
+
+  Logger.root.onRecord.listen((LogRecord rec) {
+    print('${rec.loggerName} ${rec.message}');
+  });
+
+  test('test data list manipulation', () {
+    Subscription newSub;
+    DataMap morders = new DataMap();
+    DataList orders = new DataList();
+    List actions = [
+//      () => colAll.add({'morder' : morders}),
+      () => colAll.add({'order' : orders}),
+      () {orders.add(1); orders.add(2); orders.add(3); orders.add(4);},
+      () {orders.remove(2); orders.remove(3); orders.remove(4);},
+      () => print(orders),
+
+//      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+//      () => expect(colMapped, unorderedEquals(newSub.collection)),
     ];
 
     return executeSubscriptionActions(actions);

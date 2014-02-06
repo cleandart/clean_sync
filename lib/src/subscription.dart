@@ -13,7 +13,7 @@ void handleData(List<Map> data, DataSet collection, String author) {
 }
 
 void _applyChangeList (List source, DataList target, author) {
-  target.length = source.length;
+  target.setLength(source.length, author: 'clean_sync');
   for (num i=0; i<target.length; i++) {
     if (!applyChange(source[i], target[i], author)) {
       target.set(i, source[i], author: author);
