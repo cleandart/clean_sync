@@ -490,6 +490,9 @@ class MongoProvider implements DataProvider {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
           beforeOrAfter = result;
+          if (beforeOrAfter.isEmpty){
+            return {'diff' : [], 'version' : maxVersion};
+          } else
           return Future.wait([
             _collectionHistory.find(beforeSelector).toList(),
             _collectionHistory.find(afterSelector).toList()]);})

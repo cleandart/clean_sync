@@ -7,9 +7,12 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
 
-const ELEMENTS = 10;
-const CLIENTS = 10;
-final TIME = new Duration(seconds: 5);
+
+// 1k elem, 50clients: 640, 760
+const ELEMENTS = 1000;
+const CLIENTS = 50;
+
+final TIME = new Duration(seconds: 20);
 
 MongoDatabase mongodb;
 setup() {

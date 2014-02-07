@@ -189,6 +189,10 @@ class Subscription {
     markToken(id, result) {
       _modifiedItems[id] = result;
       result.then((nextVersion){
+//        print('------ ${this.version} --- ${nextVersion}');
+        if(this._version + 1 == nextVersion) {
+          this._version++;
+        }
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
         }
@@ -210,6 +214,7 @@ class Subscription {
             if (result is Map)
               if (result['error'] != null)
                 _errorStreamController.add(result['error']);
+            return result;
           });
           markToken(data['_id'], result);
         });
@@ -226,6 +231,7 @@ class Subscription {
             if (result is Map)
               if (result['error'] != null)
                 _errorStreamController.add(result['error']);
+            return result;
           });
           // TODO: check if server really accepted the change
           markToken(data['_id'], result);
@@ -242,6 +248,7 @@ class Subscription {
             if (result is Map)
               if (result['error'] != null)
                 _errorStreamController.add(result['error']);
+            return result;
           });
           markToken(data['_id'], result);
         });
