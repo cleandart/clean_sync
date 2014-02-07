@@ -103,8 +103,10 @@ class MongoDatabase {
     init.add(_conn.then((_) =>
         _db.createIndex(historyCollectionName(collectionName),
             keys: afterKeys)));
-    init.add(_conn.then((_) =>
-        _db.createIndex(collectionName, keys: keys, unique: unique)));
+    if (keys.isNotEmpty) {
+      init.add(_conn.then((_) =>
+          _db.createIndex(collectionName, keys: keys, unique: unique)));
+    }
   }
 
   MongoProvider collection(String collectionName) {
@@ -115,10 +117,10 @@ class MongoDatabase {
   }
 
   Future dropCollection(String collectionName) =>
-    Future.wait([
+    _conn.then((_) => Future.wait([
       _db.collection(collectionName).drop(),
       _db.collection(historyCollectionName(collectionName)).drop()
-    ]);
+    ]));
 
   Future removeLocks() => _lock.drop();
 }
@@ -129,9 +131,6 @@ class MongoProvider implements DataProvider {
   Map _sortParams = {};
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
-
-//  Future<int> get _maxVersion => _collectionHistory.find({ORDERBY: {'version': -1}}).toList()
-//      .then((data){print('data: $data'); return data.first['version'];});
 
   Future<int> get _maxVersion =>
       _collectionHistory.find(where.sortBy('version', descending : true)
@@ -185,14 +184,14 @@ class MongoProvider implements DataProvider {
   /**
    * Returns data and version of this data 7.
    */
-  Future<Map> data({stripVersion: true}) {
+  Future<Map> data({projection: null, stripVersion: true}) {
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
-      var version = data.length == 0 ? 0 :
-        data.map((item) => item['__clean_version']).reduce(max);
-
+      var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
-
+      if (projection != null){
+        data.forEach((e) => projection(e));
+      }
       return {'data': data, 'version': version};
     });
   }
@@ -211,6 +210,31 @@ class MongoProvider implements DataProvider {
           "author" : author,
           "version" : nextVersion
         }),
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
+  Future addAll(List<Map> data, String author) {
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
+        return collection.insertAll(data);
+      }).then((_) =>
+        _collectionHistory.insertAll(data.map((elem) =>
+            {
+              "before" : {},
+              "after" : elem,
+              "action" : "add",
+              "author" : author,
+              "version" : elem[VERSION_FIELD_NAME]
+            }).toList(growable: false)),
       onError: (e) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
@@ -379,13 +403,38 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future<Map> diffFromVersion(num version) {
+  Future removeAll(query, String author) {
+    num nextVersion;
+    return _get_locks().then((_) => _maxVersion).then((version) {
+        nextVersion = version + 1;
+        return collection.find(query).toList();
+      }).then((data) {
+        return collection.remove(query).then((_) =>
+          _collectionHistory.insertAll(data.map((elem) => {
+            "before" : elem,
+            "after" : {},
+            "action" : "remove",
+            "author" : author,
+            "version" : nextVersion++
+        }).toList(growable: false)));
+      },
+      onError: (e) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        // ...
+        return _release_locks().then((_) {
+          throw new MongoException(e);
+        });
+      }
+      ).then((_) => _release_locks()).then((_) => nextVersion);
+  }
+
+  Future<Map> diffFromVersion(num version, {projection: null}) {
     try{
-      return _diffFromVersion(version).then((d) {
+      return _diffFromVersion(version, projection: projection).then((d) {
         return d;
       });
     } on DiffNotPossibleException catch(e) {
-      return data().then((d) {
+      return data(projection: projection).then((d) {
         d['diff'] = null;
         return d;
       });
@@ -406,7 +455,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<Map> _diffFromVersion(num version) {
+  Future<Map> _diffFromVersion(num version, {projection:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
@@ -488,8 +537,18 @@ class MongoProvider implements DataProvider {
             });
 
             if (_limit > NOLIMIT || _skip > NOSKIP) {
+              throw new Exception('not correctly implemented');
               return _limitedDiffFromVersion(diff);
             }
+
+            if (projection!=null) {
+              for (Map elem in diff) {
+                if(elem.containsKey('data')){
+                  projection(elem['data']);
+                }
+              }
+            }
+
             if (diff.isEmpty) {
               return {'diff' : [], 'version' : maxVersion};
             } else {

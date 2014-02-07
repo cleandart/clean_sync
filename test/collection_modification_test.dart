@@ -10,22 +10,35 @@ import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:logging/logging.dart';
 
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
-main() {
+main(){
+  unittestConfiguration.timeout = null;
+  hierarchicalLoggingEnabled = true;
+  Logger.root.level = Level.WARNING;
+//  (new Logger('clean_sync')).level = Level.ALL;
+//  (new Logger('clean_ajax')).level = Level.ALL;
+  run();
+}
+
+run() {
 
   MongoDatabase mongodb;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
   DataSet colAa;
+  DataSet colMapped;
+
   Connection connection;
   Subscription subAll;
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
+  Subscription subMapped;
 
   DataMap data1;
   DataMap data2;
@@ -54,6 +67,13 @@ main() {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
 
+        pub.publish('mapped', (_) {
+          return mongodb.collection("random").find({});
+        }, projection: (Map elem){
+          elem.remove('a');
+          elem['aa'] = 'it works gr8';
+        });
+
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
@@ -67,6 +87,8 @@ main() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
+        subMapped = new Subscription('mapped', connection, 'author5', new IdGenerator('e'), {});
+        colMapped = subMapped.collection;
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -96,6 +118,7 @@ main() {
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
+    subMapped.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
@@ -150,6 +173,28 @@ main() {
 
   });
 
+  test('locking working properly', (){
+    preventUpdate(Subscription subscription){
+      return (event) => expect(subscription.updateLock, isTrue);
+    }
+    colAll2.onChangeSync.listen(preventUpdate(subAll2));
+    colA.onChangeSync.listen(preventUpdate(subA));
+    colAa.onChangeSync.listen(preventUpdate(subAa));
+    colMapped.onChangeSync.listen(preventUpdate(subMapped));
+    List actions = [
+      () { colAll.add(data1);
+           colAll.removeBy('_id', '0');
+           colAll.add(data1);
+           data1['name'] = 'phero';
+           data1['nums'] = [];
+           data1['nums'].add(1);
+           data1['nums'].remove(1);
+      },
+    ];
+
+    return executeSubscriptionActions(actions);
+  });
+
   test('test collection filtered add', () {
     List actions = [
       () => colAll.add(data1),
@@ -188,5 +233,70 @@ main() {
     return executeSubscriptionActions(actions);
 
   });
+
+  test('test collection mapped', () {
+    Subscription newSub;
+    List actions = [
+      () => colAll.add({'a': 1, 'b': 2}),
+      () => expect(colMapped, equals([{'b': 2, '_id': 'a-1', 'aa': 'it works gr8'}])),
+      () => colAll.add({'a': {}, 'b': []}),
+      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+      () => expect(colMapped, unorderedEquals(newSub.collection)),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
+  Logger.root.onRecord.listen((LogRecord rec) {
+    print('${rec.loggerName} ${rec.message}');
+  });
+
+  test('test data list manipulation', () {
+    Subscription newSub;
+    DataMap morders = new DataMap();
+    DataList orders = new DataList();
+    colAll2.onChangeSync.listen((event){
+      expect(subAll2.updateLock, isTrue);
+    });
+    List actions = [
+      () => colAll.add({'order' : orders}),
+      () {orders.add(1); orders.add(2); orders.add(3); orders.add(4);},
+      () {orders.remove(2); orders.remove(3); orders.remove(4);},
+      () => expect(orders, equals([1])),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
+
+  skip_test('big data performance', () {
+    print('tu');
+    var data = new DataMap();
+    for(int i=0; i<2000; i++) {
+      print('init $i');
+      data['$i'] = {'key' : i};
+    }
+    num i=-1;
+    return
+      mongodb.dropCollection('random').then((_) =>
+      mongodb.removeLocks()).then((_) =>
+      subAll.initialSync).then((_) =>
+      subAll2.initialSync).then((_) =>
+      colAll.add(data)).then((_) =>
+      Future.forEach(new List.filled(10000, null), (_) {
+      print(++i);
+      print(data);
+      data['${i%1000}']['key']='changed $i';
+      return new Future.delayed(new Duration(milliseconds: 500));
+    }).then((_){
+      return new Future.delayed(new Duration(seconds: 5));
+    }).then((_){
+      expect(colAll, unorderedEquals(colAll2));
+    }));
+
+  });
+
 
 }

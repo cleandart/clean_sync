@@ -181,6 +181,7 @@ void main() {
       mockHandleData = new FunctionMock();
       mockHandleDiff = new FunctionMock();
       collection = new DataSet();
+      collection.addIndex(['_id']);
     });
 
     tearDown(() {
@@ -211,7 +212,7 @@ void main() {
         'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
-      handleData(data, months.collection, 'author');
+      handleData(data, months, 'author');
 
       // then
       expect(months.collection.length, equals(1));
@@ -316,6 +317,7 @@ void main() {
       DataMap loom = new DataMap.from({'_id': '3', 'game': 'loom'});
       DataMap summary = new DataMap.from({'_id' : '2', 'characters': new DataList.from([new DataMap.from(guybrush)])});
       DataSet games = new DataSet.from([mi, summary, loom]);
+      games.addIndex(['_id']);
       Subscription gamesSubs  = new Subscription.config('games', games, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
       List<Map> diff = [

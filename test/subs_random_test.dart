@@ -21,7 +21,8 @@ const PROB_REMOVE = 0.1;
 const PROB_ADD = 0.3;
 
 // affect how collection is modified
-const PROB_CHANGE = 0.95;
+const PROB_TOP_CHANGE = 0.95;
+const PROB_NESTED_CHANGE = 0.5;
 
 prob(p) {
   return p > rng.nextDouble();
@@ -87,7 +88,7 @@ main() {
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
-        
+
         pub.publish('d', (_) {
           return mongodb.collection("random").find({'noMatch': 'noMatch'});
         });
@@ -105,7 +106,7 @@ main() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
-        subNoMatch = new Subscription('d', connection, 'author5', 
+        subNoMatch = new Subscription('d', connection, 'author5',
             new IdGenerator('e'), {});
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
@@ -120,7 +121,7 @@ main() {
     return list[rng.nextInt(list.length)];
   }
 
-  var allValues=['hello', 'world', 1];
+  var allValues=['hello', 'world', 1, null];
   var allKeys=['a','b','c'];
 
 
@@ -132,7 +133,7 @@ main() {
       if (data[key] is Map) {
         randomChangeMap(data[key]);
       } else if (data[key] is DataList){
-        randomChangeCollection(data[key], allowList: true);
+        randomChangeCollection(data[key], topLevel: false);
       } else {
         data[key] = randomChoice(allValues);
       }
@@ -141,9 +142,9 @@ main() {
     }
 
     if (data[key] is! Map && data[key] is! List && prob(PROB_ADD)) {
-      if(prob(0.5)){
+      if(prob(0.9)){
         data[key] = new DataList();
-        randomChangeCollection(data[key], allowList:true);
+        randomChangeCollection(data[key], topLevel: false);
       } else {
         data[key] = new DataMap();
         randomChangeMap(data[key]);
@@ -155,33 +156,34 @@ main() {
     }
   }
 
-  randomChangeCollection = (dynamic coll, {allowList: false}) {
-    var probAdd = (){
-      if(coll.length<5) return 1;
-      if(coll.length>15)return 0;
-      return rng.nextDouble();
-    };
+  randomChangeCollection = (Iterable coll, {topLevel: true}) {
+    var probMap = topLevel?1:0.5;
+    var probChange = topLevel?PROB_TOP_CHANGE:PROB_NESTED_CHANGE;
+    var maxLength = topLevel?10:2;
+    var probElem = 0.3;
 
-
-      if (!prob(coll.length/10)) {
-        // add
-          logger.finer('before add \n $coll');
-          if (prob(0.5) || !allowList) {
-            coll.add(new DataMap.from({}));
-          } else {
-            coll.add([]);
-          }
-          logger.finer('after add');
-          return true;
-      } else
-      if(!prob(PROB_CHANGE)){
-        // remove
-          if (coll.length == 0) return false;
-          logger.finer('before remo \n $coll');
-          coll.remove(randomChoice(coll));
-          logger.finer('before remo');
-          return true;
-      }
+    if (!prob(coll.length/maxLength)) {
+      // add
+        logger.finer('before add \n $coll');
+        if (prob(probMap)) {
+          coll.add(new DataMap.from({}));
+        } else
+        if (prob(probElem)){
+          coll.add(randomChoice(allValues));
+        } else {
+          coll.add([]);
+        }
+        logger.finer('after add');
+        return true;
+    } else
+    if(!prob(probChange)){
+      // remove
+        if (coll.length == 0) return false;
+        logger.finer('before remo \n $coll');
+        coll.remove(randomChoice(coll));
+        logger.finer('before remo');
+        return true;
+    }
     else {
       // change
       if (coll.length == 0) return false;
@@ -189,8 +191,11 @@ main() {
       logger.finer('before change \n $coll');
       if (data is Map) {
         randomChangeMap(data);
+      } else
+      if (data is List) {
+        randomChangeCollection(data, topLevel: false);
       } else {
-        randomChangeCollection(data);
+        //pass
       }
       logger.finer('after change: $data');
       return true;
@@ -224,12 +229,16 @@ main() {
 
   mongoEquals(dynamic obj, List<String> what, pattern, {allowList: true}){
     if (what.isEmpty) {
-      return obj == pattern;
+      if (obj is List && allowList) {
+        return obj.any((e) => mongoEquals(e, what, pattern, allowList: false));
+      } else {
+        return obj == pattern;
+      }
     }
     var key = what.first;
     var rest = what.sublist(1);
     if (obj is Map) {
-      return (obj.containsKey(what.first)) && mongoEquals(obj[key], what.sublist(1), pattern);
+      return (obj.containsKey(what.first)) && mongoEquals(obj[key], rest, pattern);
     }
     if (obj is List && allowList) {
       return obj.any((e) => mongoEquals(e, what, pattern, allowList: false));
@@ -246,7 +255,7 @@ main() {
       expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
           unorderedEquals(colAa));
       expect(subNoMatch.version == subAll.version, isTrue);
-      
+
     });
     if (checkGetData) {
       for (Subscription sub in [subAll]) {
@@ -296,7 +305,7 @@ main() {
         print('$i (${watchAverage.round()} ms per modif)');
         action();
 
-//        print(receiver);
+        print(colAll);
         bool end = false;
         return Future.forEach(times, (time){
           bool checkGetData = prob(0.1);
