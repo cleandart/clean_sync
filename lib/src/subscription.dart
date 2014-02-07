@@ -68,6 +68,10 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   bool collectRes = true;
 
   diff.forEach((Map change) {
+    var _records = collection.findBy("_id", change["_id"]);
+    DataMap record = _records.isNotEmpty? _records.first : null;
+    String action = change["action"];
+
     logger.finer('handling change $change');
 //     it can happen, that we get too old changes
     if (!change.containsKey('version')){
@@ -80,9 +84,9 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
     } else if(change['version'] <= version) {
       return;
     }
-      if (change["action"] == "add") {
+      if (action == "add") {
         if (collectRes) res = max(res, change['version']);
-        if (collection.findBy('_id', change['_id']).isEmpty){
+        if (record == null) {
           logger.finer('aplying changes (add)');
           collection.add(change["data"]);
         } else {
@@ -90,8 +94,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
           assert(author == change['author']);
         }
     }
-      else if (change["action"] == "change" ) {
-      DataMap record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse : () => null);
+      else if (action == "change" ) {
       // 1. the change may be for item that is currently not present in the collection;
       // 2. the field may be 'locked', because it was changed on user's machine, and
       // this change was not yet confirmed from server
@@ -105,10 +108,10 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         applyChange(change["data"], record);
       }
     }
-      else if (change["action"] == "remove" ) {
+      else if (action == "remove" ) {
       logger.finer('aplying changes (remove');
       if (collectRes) res = max(res, change['version']);
-      collection.removeWhere((d) => d["_id"] == change["_id"]);
+      collection.remove(record);
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
