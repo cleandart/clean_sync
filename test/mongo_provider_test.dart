@@ -315,7 +315,7 @@ void main() {
           .then((_) => months.update({'days': 31}, {SET: {'number': 47}}, 'John Doe', multiUpdate: true))
           .then((_) => months.data())
           .then((dataInfo) {
-            expect(dataInfo['version'], equals(12));
+            expect(dataInfo['version'], equals(17));
             var data = dataInfo['data'];
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], equals(47));
@@ -324,6 +324,8 @@ void main() {
           })
           .then((_) => months.diffFromVersion(11))
           .then((dataDiff) {
+            num version = 12;
+            dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
             List diffList = dataDiff['diff'];
             expect(diffList.length, equals(6));
           });
@@ -346,7 +348,7 @@ void main() {
           .then((_) => months.update({'days': 31}, {UNSET: {'number': 47}}, 'John Doe', multiUpdate: true))
           .then((_) => months.data())
           .then((dataInfo) {
-            expect(dataInfo['version'], equals(12));
+            expect(dataInfo['version'], equals(17));
             var data = dataInfo['data'];
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], isNull);
@@ -355,6 +357,8 @@ void main() {
           })
           .then((_) => months.diffFromVersion(11))
           .then((dataDiff) {
+            num version = 12;
+            dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
             List diffList = dataDiff['diff'];
             expect(diffList.length, equals(6));
           });

@@ -303,20 +303,32 @@ class MongoProvider implements DataProvider {
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
+        num versionUpdate = nextVersion;
+        var prepare;
         if(document.keys.any((K) => K.startsWith('\$'))) {
+          prepare = (doc) {
+            doc[SET][VERSION_FIELD_NAME] =  versionUpdate++;
+            return doc;
+          };
+
           if(document.containsKey(SET))
-            document[SET][VERSION_FIELD_NAME] =  nextVersion;
+            document[SET][VERSION_FIELD_NAME] =  versionUpdate;
           else
-            document[SET] = {VERSION_FIELD_NAME: nextVersion};
+            document[SET] = {VERSION_FIELD_NAME: versionUpdate};
         }
         else {
-          document[VERSION_FIELD_NAME] = nextVersion;
+          prepare = (doc) {
+            doc[VERSION_FIELD_NAME] =  versionUpdate++;
+            return doc;
+          };
+          document[VERSION_FIELD_NAME] = versionUpdate;
         }
 
         var col = collection.find(selector);
         return col.toList().then((data) {
           oldData = data;
-          return collection.update(selector, document, upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern);
+          return Future.wait(
+              data.map((item) => collection.update({'_id': item['_id']}, prepare(document), upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern)));
         }, onError: (e) => _release_locks().then((_) {
           throw new MongoException(e);
         }));
@@ -329,7 +341,7 @@ class MongoProvider implements DataProvider {
               "after" : newItem.single,
               "action" : "change",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion++
             }));
           }));
         },
