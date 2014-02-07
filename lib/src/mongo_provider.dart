@@ -323,15 +323,14 @@ class MongoProvider implements DataProvider {
         var col = collection.find(selector);
         return col.toList().then((data) {
           oldData = data;
-          return Future.wait(
-              data.map((item) => collection.update({'_id': item['_id']},
-                  prepare(document), upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern)));
-        }, onError: (e) => _release_locks().then((_) {
-          throw new MongoException(e);
-        }));
+          return Future.forEach(data,
+              (item) => collection.update({'_id': item['_id']},
+                  prepare(document), upsert: upsert, multiUpdate: multiUpdate,
+                  writeConcern: writeConcern));
+        });
       }).then((_) {
-        return Future.wait(
-          oldData.map((oldItem) {
+        return Future.forEach(oldData,
+          (oldItem) {
             return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
             _collectionHistory.insert({
               "before" : oldItem,
@@ -340,16 +339,15 @@ class MongoProvider implements DataProvider {
               "author" : author,
               "version" : nextVersion++
             }));
-          }));
-        },
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
+          });
+        }).then((_) => _release_locks()).then((_) => nextVersion)
+        .catchError( (e) {
+          // Errors thrown by MongoDatabase are Map objects with fields err, code,
+          // ...
+          return _release_locks().then((_) {
+            throw new MongoException(e);
+          });
         });
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
   Future remove(String _id, String author) {
