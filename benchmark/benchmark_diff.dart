@@ -7,19 +7,19 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
 
-const ELEMENTS = 1000;
-const CLIENTS = 1000;
+const ELEMENTS = 10;
+const CLIENTS = 10;
 final TIME = new Duration(seconds: 5);
 
-var mongodb;
+MongoDatabase mongodb;
 setup() {
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark_diff');
-  return Future.wait(mongodb.init)
-  .then((_) => mongodb.dropCollection('benchmark'))
+  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark');
+
+  return mongodb.dropCollection('benchmark')
   .then((_) => mongodb.removeLocks())
-  .then((_){
-    return new Future.value(mongodb.collection('benchmark'));
-  });
+  .then((_) => mongodb.create_collection('benchmark'))
+  .then((_) => Future.wait(mongodb.init))
+  .then((_) => mongodb.collection('benchmark'));
 }
 
 main() {
