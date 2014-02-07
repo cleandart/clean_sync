@@ -15,9 +15,16 @@ import 'package:logging/logging.dart';
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
-main() {
+main(){
+  unittestConfiguration.timeout = null;
+  hierarchicalLoggingEnabled = true;
+  Logger.root.level = Level.WARNING;
+//  (new Logger('clean_sync')).level = Level.ALL;
+//  (new Logger('clean_ajax')).level = Level.ALL;
+  run();
+}
 
-  unittestConfiguration.timeout=null;
+run() {
 
   MongoDatabase mongodb;
   DataSet colAll;
@@ -166,6 +173,28 @@ main() {
 
   });
 
+  test('locking working properly', (){
+    preventUpdate(Subscription subscription){
+      return (event) => expect(subscription.updateLock, isTrue);
+    }
+    colAll2.onChangeSync.listen(preventUpdate(subAll2));
+    colA.onChangeSync.listen(preventUpdate(subA));
+    colAa.onChangeSync.listen(preventUpdate(subAa));
+    colMapped.onChangeSync.listen(preventUpdate(subMapped));
+    List actions = [
+      () { colAll.add(data1);
+           colAll.removeBy('_id', '0');
+           colAll.add(data1);
+           data1['name'] = 'phero';
+           data1['nums'] = [];
+           data1['nums'].add(1);
+           data1['nums'].remove(1);
+      },
+    ];
+
+    return executeSubscriptionActions(actions);
+  });
+
   test('test collection filtered add', () {
     List actions = [
       () => colAll.add(data1),
@@ -219,11 +248,6 @@ main() {
 
   });
 
-  hierarchicalLoggingEnabled = true;
-  Logger.root.level = Level.OFF;
-  (new Logger('clean_sync')).level = Level.ALL;
-  (new Logger('clean_ajax')).level = Level.ALL;
-
   Logger.root.onRecord.listen((LogRecord rec) {
     print('${rec.loggerName} ${rec.message}');
   });
@@ -232,15 +256,14 @@ main() {
     Subscription newSub;
     DataMap morders = new DataMap();
     DataList orders = new DataList();
+    colAll2.onChangeSync.listen((event){
+      expect(subAll2.updateLock, isTrue);
+    });
     List actions = [
-//      () => colAll.add({'morder' : morders}),
       () => colAll.add({'order' : orders}),
       () {orders.add(1); orders.add(2); orders.add(3); orders.add(4);},
       () {orders.remove(2); orders.remove(3); orders.remove(4);},
-      () => print(orders),
-
-//      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
-//      () => expect(colMapped, unorderedEquals(newSub.collection)),
+      () => expect(orders, equals([1])),
     ];
 
     return executeSubscriptionActions(actions);

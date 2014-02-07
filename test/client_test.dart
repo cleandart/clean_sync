@@ -212,7 +212,7 @@ void main() {
         'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
-      handleData(data, months.collection, 'author');
+      handleData(data, months, 'author');
 
       // then
       expect(months.collection.length, equals(1));

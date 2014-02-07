@@ -33,5 +33,5 @@ run(configuration) {
   client_test.main();
   id_generator_test.main();
   exception_test.main();
-  collection_modification_test.main();
+  collection_modification_test.run();
 }

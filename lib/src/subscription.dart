@@ -6,45 +6,48 @@ part of clean_sync.client;
 
 final Logger logger = new Logger('clean_sync.subscription');
 
-void handleData(List<Map> data, DataSet collection, String author) {
+void handleData(List<Map> data, Subscription subscription, String author) {
   logger.fine('handleData: ${data}');
-  collection.clear(author: 'clean_sync');
-  collection.addAll(data, author: 'clean_sync');
+  var collection = subscription.collection;
+  subscription.updateLock = true;
+  collection.clear();
+  collection.addAll(data);
+  subscription.updateLock = false;
 }
 
-void _applyChangeList (List source, DataList target, author) {
-  target.setLength(source.length, author: 'clean_sync');
+void _applyChangeList (List source, DataList target) {
+  target.length = source.length;
   for (num i=0; i<target.length; i++) {
-    if (!applyChange(source[i], target[i], author)) {
-      target.set(i, source[i], author: author);
+    if (!applyChange(source[i], target[i])) {
+      target.set(i, source[i]);
     }
   }
 }
 
-void _applyChangeMap (Map source, DataMap target, author) {
+void _applyChangeMap (Map source, DataMap target) {
   for (var key in new List.from(source.keys)) {
     if (target.containsKey(key)) {
-      if(!applyChange(source[key], target[key], author)){
-        target.add(key, source[key], author: author);
+      if(!applyChange(source[key], target[key])){
+        target.add(key, source[key]);
       }
     } else {
-      target.add(key, source[key], author: author);
+      target.add(key, source[key]);
     }
   }
   for (var key in new List.from(target.keys)) {
     if (!source.containsKey(key)) {
-      target.remove(key, author: author);
+      target.remove(key);
     }
   }
 }
 
-bool applyChange (source, target, author) {
+bool applyChange (source, target) {
   if (source is Map && target is Map) {
-    _applyChangeMap(source, target, author);
+    _applyChangeMap(source, target);
     return true;
   }
   if (source is List && target is List) {
-    _applyChangeList(source, target, author);
+    _applyChangeList(source, target);
     return true;
   }
   if(source == target) {
@@ -57,6 +60,7 @@ bool applyChange (source, target, author) {
 
 num handleDiff(List<Map> diff, Subscription subscription, String author) {
   logger.fine('handleDiff: subscription: $subscription, author: $author, diff: $diff');
+  subscription.updateLock = true;
   DataSet collection = subscription.collection;
   List<String> modifiedFields;
   var version = subscription._version;
@@ -80,7 +84,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         if (collectRes) res = max(res, change['version']);
         if (collection.findBy('_id', change['_id']).isEmpty){
           logger.finer('aplying changes (add)');
-          collection.add(change["data"], author: 'clean_sync');
+          collection.add(change["data"]);
         } else {
           logger.finer('add discarded; same id already present');
           assert(author == change['author']);
@@ -98,17 +102,18 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
        if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
         logger.finer('aplying changes (change)');
         if (collectRes) res = max(res, change['version']);
-        applyChange(change["data"], record, 'clean_sync');
+        applyChange(change["data"], record);
       }
     }
       else if (change["action"] == "remove" ) {
       logger.finer('aplying changes (remove');
       if (collectRes) res = max(res, change['version']);
-      collection.removeWhere((d) => d["_id"] == change["_id"], author: 'clean_sync');
+      collection.removeWhere((d) => d["_id"] == change["_id"]);
     }
     logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
   });
   logger.fine('handleDiff ends');
+  subscription.updateLock = false;
   return res;
 }
 
@@ -117,7 +122,8 @@ class Subscription {
   String collectionName;
   DataSet collection;
   Connection _connection;
-  bool lock = false;
+  bool requestLock = false;
+  bool updateLock = false;
   String _author;
   String toString() => 'Subscription(${_author}, ver: ${_version})';
   IdGenerator _idGenerator;
@@ -241,7 +247,7 @@ class Subscription {
     }
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
-      if (event["author"] != 'clean_sync') {
+      if (!this.updateLock) {
         var newChange = event['change'];
         assert(newChange is ChangeSet);
         change.mergeIn(newChange);
@@ -257,10 +263,10 @@ class Subscription {
   });
 
   _createDiffRequest() {
-    if (lock) {
+    if (requestLock) {
       return null;
     } else {
-      lock = true;
+      requestLock = true;
       return new ClientRequest("sync", {
       "action" : "get_diff",
       "collection" : collectionName,
@@ -280,7 +286,7 @@ class Subscription {
         return;
       }
       _version = response['version'];
-      _handleData(response['data'], collection, _author);
+      _handleData(response['data'], this, _author);
 
       logger.info("Got initial data, synced to version ${_version}");
 
@@ -291,11 +297,11 @@ class Subscription {
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
-          lock = false;
+          requestLock = false;
           // id data and version was sent, diff is set to null
           if(response['diff'] == null) {
             _version = response['version'];
-            _handleData(response['data'], collection, _author);
+            _handleData(response['data'], this, _author);
           } else {
             if(!response['diff'].isEmpty) {
               _version = max(_version, _handleDiff(response['diff'], this, _author));
