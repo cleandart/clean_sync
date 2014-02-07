@@ -310,25 +310,22 @@ class MongoProvider implements DataProvider {
             doc[SET][VERSION_FIELD_NAME] =  versionUpdate++;
             return doc;
           };
-
-          if(document.containsKey(SET))
-            document[SET][VERSION_FIELD_NAME] =  versionUpdate;
-          else
-            document[SET] = {VERSION_FIELD_NAME: versionUpdate};
+          if(!document.containsKey(SET))
+            document[SET] = {};
         }
         else {
           prepare = (doc) {
             doc[VERSION_FIELD_NAME] =  versionUpdate++;
             return doc;
           };
-          document[VERSION_FIELD_NAME] = versionUpdate;
         }
 
         var col = collection.find(selector);
         return col.toList().then((data) {
           oldData = data;
           return Future.wait(
-              data.map((item) => collection.update({'_id': item['_id']}, prepare(document), upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern)));
+              data.map((item) => collection.update({'_id': item['_id']},
+                  prepare(document), upsert: upsert, multiUpdate: multiUpdate, writeConcern: writeConcern)));
         }, onError: (e) => _release_locks().then((_) {
           throw new MongoException(e);
         }));
