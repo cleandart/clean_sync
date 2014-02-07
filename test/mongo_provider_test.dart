@@ -313,12 +313,14 @@ void main() {
           .then((_) => months.add(new Map.from(november), 'John Doe'))
           .then((_) => months.add(new Map.from(december), 'John Doe'))
           .then((_) => months.update({'days': 31}, {SET: {'number': 47}}, 'John Doe', multiUpdate: true))
-          .then((_) => months.data())
+          .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
             expect(dataInfo['version'], equals(17));
             var data = dataInfo['data'];
+            num version = 12;
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], equals(47));
+               if( month['days'] == 31) expect(month['__clean_version'], equals(version++));
             });
             return dataInfo;
           })
@@ -346,12 +348,14 @@ void main() {
           .then((_) => months.add(new Map.from(november), 'John Doe'))
           .then((_) => months.add(new Map.from(december), 'John Doe'))
           .then((_) => months.update({'days': 31}, {UNSET: {'number': 47}}, 'John Doe', multiUpdate: true))
-          .then((_) => months.data())
+          .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
             expect(dataInfo['version'], equals(17));
             var data = dataInfo['data'];
+            num version = 12;
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], isNull);
+               if( month['days'] == 31) expect(month['__clean_version'], equals(version++));
             });
             return dataInfo;
           })

@@ -185,13 +185,13 @@ class MongoProvider implements DataProvider {
   /**
    * Returns data and version of this data 7.
    */
-  Future<Map> data() {
+  Future<Map> data({stripVersion: true}) {
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 :
         data.map((item) => item['__clean_version']).reduce(max);
 
-      _stripCleanVersion(data);
+      if(stripVersion) _stripCleanVersion(data);
 
       return {'data': data, 'version': version};
     });
