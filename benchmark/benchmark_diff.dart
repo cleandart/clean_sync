@@ -44,11 +44,13 @@ main() {
     return collection.data().then((data) => data['version']);
   }).then((version) {
     print('Publishing collection with version $version....');
-    publish('benchmark', (_) => mongodb.collection('benchmark'));
+    var versionProvider = mongodb.collection('benchmark');
+    publish('benchmark', (_) => mongodb.collection('benchmark'),
+        versionProvider: versionProvider);
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
-       "version" : version-4 }, null, null);
+       "version" : version}, null, null);
 
     Stopwatch stopwatch = new Stopwatch();
     num countRequest = 0;

@@ -77,21 +77,23 @@ main() {
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
         pub = new Publisher();
+        var versionProvider = mongodb.collection("random");
+//        var versionProvider = null;
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        }, collectionName: 'random');
+        }, versionProvider: versionProvider);
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        }, collectionName: 'random');
+        }, versionProvider: versionProvider);
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        }, collectionName: 'random');
+        }, versionProvider: versionProvider);
 
         pub.publish('d', (_) {
           return mongodb.collection("random").find({'noMatch': 'noMatch'});
-        }, collectionName: 'random');
+        }, versionProvider: versionProvider);
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -253,13 +255,12 @@ main() {
       expect(colAll2, unorderedEquals(colAll));
       expect(colAll.where((d) => mongoEquals(d, ['a'], 'hello')),
           unorderedEquals(colA));
-      //XXX
-//      expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
-//          unorderedEquals(colAa));
+      expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
+          unorderedEquals(colAa));
 //      expect(subNoMatch.version == subAll.version, isTrue);
 
     });
-    if (checkGetData && false ) {
+    if (checkGetData) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res
@@ -285,10 +286,8 @@ main() {
     var watchElems = 0;
     mongodb.create_collection('random');
 
-    new Timer.periodic(new Duration(seconds: 10), (_){
-//      print('removing')
-      var bound = [subAll.version, subAll2.version, subA.version, subAa.version, subNoMatch.version].reduce(min)-100;
-      print('deleting from: $bound');
+    new Timer.periodic(new Duration(seconds: 60), (_){
+      var bound = [subAll.version, subAll2.version, subA.version, subAa.version, subNoMatch.version].reduce(min);
       mongodb.collection('random').deleteHistory(bound);
     });
 

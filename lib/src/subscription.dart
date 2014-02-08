@@ -67,54 +67,61 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   num res = -1;
   bool collectRes = true;
 
-  diff.forEach((Map change) {
-    var _records = collection.findBy("_id", change["_id"]);
-    DataMap record = _records.isNotEmpty? _records.first : null;
-    String action = change["action"];
+  try {
+    diff.forEach((Map change) {
+      var _records = collection.findBy("_id", change["_id"]);
+      DataMap record = _records.isNotEmpty? _records.first : null;
+      String action = change["action"];
 
-    logger.finer('handling change $change');
-//     it can happen, that we get too old changes
-    if (!change.containsKey('version')){
-      logger.warning('change does not contain "version" field. If not testing, '
-                     'this is probably bug. (change: $change)');
-      change['version'] = 0;
-    } else if (version == null) {
-      logger.warning('Subscription $subscription version is null. If not testing, '
-                     'this is probably bug.');
-    } else if(change['version'] <= version) {
-      return;
-    }
-      if (action == "add") {
-        if (collectRes) res = max(res, change['version']);
-        if (record == null) {
-          logger.finer('aplying changes (add)');
-          collection.add(change["data"]);
-        } else {
-          logger.finer('add discarded; same id already present');
-//          assert(author == change['author']);
+      logger.finer('handling change $change');
+  //     it can happen, that we get too old changes
+      if (!change.containsKey('version')){
+        logger.warning('change does not contain "version" field. If not testing, '
+                       'this is probably bug. (change: $change)');
+        change['version'] = 0;
+      } else if (version == null) {
+        logger.warning('Subscription $subscription version is null. If not testing, '
+                       'this is probably bug.');
+      } else if(change['version'] <= version) {
+        return;
+      }
+        if (action == "add") {
+          if (collectRes) res = max(res, change['version']);
+          if (record == null) {
+            logger.finer('aplying changes (add)');
+            collection.add(change["data"]);
+          } else {
+            logger.finer('add discarded; same id already present');
+            assert(author == change['author']);
+          }
+      }
+        else if (action == "change" ) {
+        // 1. the change may be for item that is currently not present in the collection;
+        // 2. the field may be 'locked', because it was changed on user's machine, and
+        // this change was not yet confirmed from server
+        if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
+          throw "should stop";
+          collectRes = false;
+          logger.finer('discarding diff');
         }
-    }
-      else if (action == "change" ) {
-      // 1. the change may be for item that is currently not present in the collection;
-      // 2. the field may be 'locked', because it was changed on user's machine, and
-      // this change was not yet confirmed from server
-      if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
-        collectRes = false;
-        logger.finer('discarding diff');
+         if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
+          logger.finer('aplying changes (change)');
+          if (collectRes) res = max(res, change['version']);
+          applyChange(change["data"], record);
+        }
       }
-       if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-        logger.finer('aplying changes (change)');
+        else if (action == "remove" ) {
+        logger.finer('aplying changes (remove');
         if (collectRes) res = max(res, change['version']);
-        applyChange(change["data"], record);
+        collection.remove(record);
       }
+      logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
+    });
+  } catch (e){
+    if (e is Exception) {
+      throw e;
     }
-      else if (action == "remove" ) {
-      logger.finer('aplying changes (remove');
-      if (collectRes) res = max(res, change['version']);
-      collection.remove(record);
-    }
-    logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
-  });
+  };
   logger.fine('handleDiff ends');
   subscription.updateLock = false;
   return res;
@@ -189,10 +196,9 @@ class Subscription {
     markToken(id, result) {
       _modifiedItems[id] = result;
       result.then((nextVersion){
-//        print('------ ${this.version} --- ${nextVersion}');
-//        if(this._version + 1 == nextVersion) {
-//          this._version++;
-//        }
+        if(this._version + 1 == nextVersion) {
+          this._version++;
+        }
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
         }
@@ -314,9 +320,6 @@ class Subscription {
           }
           if(response['diff'] == null) {
             _version = response['version'];
-            if(_version == null){
-              print(response);
-            }
             _handleData(response['data'], this, _author);
           } else {
             if(!response['diff'].isEmpty) {

@@ -294,9 +294,7 @@ class MongoProvider implements DataProvider {
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          return true;
-//          throw new MongoException(null,
-//              'Change was not applied, document with id $_id does not exist.');
+          throw null;
         } else if (change.containsKey('_id') && change['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${change['_id']} should be same as old one $_id.');
@@ -315,15 +313,15 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
             }));
         }
-      },
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
-        });
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+      }).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
+
   }
 
   Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
@@ -394,33 +392,10 @@ class MongoProvider implements DataProvider {
               "action" : "remove",
               "author" : author,
               "version" : nextVersion
-          }, writeConcern: WriteConcern.ACKNOWLEDGED)
-          .then((res){
-            print('insert res: ${res}');
-            return maxVersion;
-          })
-          .then((mv){
-            print('max version: $mv');
-          })
-          );
+          }));
         }
-      },
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
-        });
       }
-//      ).then((_) => _release_locks()).then((_) => nextVersion)
-      ).then((_) => _release_locks())
-      .then((_) => maxVersion)
-      .then((mv) {
-        if(mv != nextVersion){
-          print('POZOR: max: $mv next: $nextVersion');
-        }
-      })
-      .then((_) => nextVersion)
+      ).then((_) => _release_locks()).then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
