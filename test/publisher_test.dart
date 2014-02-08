@@ -85,7 +85,7 @@ void main() {
       });
     });
 
-    test("handle get diff.", () {
+    solo_test("handle get diff.", () {
       // given
       request = new ServerRequestMock({
         "action": "get_diff",

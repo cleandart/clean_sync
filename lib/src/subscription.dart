@@ -91,7 +91,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
           collection.add(change["data"]);
         } else {
           logger.finer('add discarded; same id already present');
-          assert(author == change['author']);
+//          assert(author == change['author']);
         }
     }
       else if (action == "change" ) {
@@ -190,9 +190,9 @@ class Subscription {
       _modifiedItems[id] = result;
       result.then((nextVersion){
 //        print('------ ${this.version} --- ${nextVersion}');
-        if(this._version + 1 == nextVersion) {
-          this._version++;
-        }
+//        if(this._version + 1 == nextVersion) {
+//          this._version++;
+//        }
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
         }
@@ -309,14 +309,21 @@ class Subscription {
         .listen((response) {
           requestLock = false;
           // id data and version was sent, diff is set to null
+          if (response['error'] != null) {
+            throw new Exception(response['error']);
+          }
           if(response['diff'] == null) {
             _version = response['version'];
+            if(_version == null){
+              print(response);
+            }
             _handleData(response['data'], this, _author);
           } else {
             if(!response['diff'].isEmpty) {
               _version = max(_version, _handleDiff(response['diff'], this, _author));
               } else {
-                _version = response['version'];
+                if (response.containsKey('version'))
+                   _version = response['version'];
               }
             }
         }, onError: (e){if (e is! CancelError)throw e;});

@@ -8,7 +8,7 @@ import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
 
 
-// 1k elem, 50clients: 640, 760
+// 1k elem, 50clients: 640, 770, 1420
 const ELEMENTS = 1000;
 const CLIENTS = 50;
 
@@ -48,7 +48,7 @@ main() {
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
-       "version" : version }, null, null);
+       "version" : version-4 }, null, null);
 
     Stopwatch stopwatch = new Stopwatch();
     num countRequest = 0;
@@ -70,6 +70,7 @@ main() {
 
     createRequest() {
       if(stop) return;
+//      collection.maxVersion.then((_){ countRequest++; createRequest();});
       sync.handleSyncRequest(request).then((_) { countRequest++; createRequest(); });
     }
     for(int i=0; i < CLIENTS; i++) {

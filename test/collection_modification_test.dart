@@ -57,22 +57,22 @@ run() {
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        });
+        }, collectionName: 'random');
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        });
+        }, collectionName: 'random');
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        });
+        }, collectionName: 'random');
 
         pub.publish('mapped', (_) {
           return mongodb.collection("random").find({});
         }, projection: (Map elem){
           elem.remove('a');
           elem['aa'] = 'it works gr8';
-        });
+        }, collectionName: 'random');
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();

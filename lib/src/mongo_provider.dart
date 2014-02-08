@@ -132,6 +132,9 @@ class MongoProvider implements DataProvider {
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
 
+  //for testing purposes
+  Future<int> get maxVersion => _maxVersion;
+
   Future<int> get _maxVersion =>
       _collectionHistory.find(where.sortBy('version', descending : true)
           .limit(1)).toList()
@@ -192,6 +195,7 @@ class MongoProvider implements DataProvider {
       if (projection != null){
         data.forEach((e) => projection(e));
       }
+      assert(version != null);
       return {'data': data, 'version': version};
     });
   }
@@ -381,7 +385,7 @@ class MongoProvider implements DataProvider {
         return collection.findOne({'_id': _id});
       }).then((record) {
         if (record == null) {
-          return true;
+          throw null;
         } else {
           return collection.remove({'_id': _id}).then((_) =>
             _collectionHistory.insert({
@@ -390,7 +394,15 @@ class MongoProvider implements DataProvider {
               "action" : "remove",
               "author" : author,
               "version" : nextVersion
-          }));
+          }, writeConcern: WriteConcern.ACKNOWLEDGED)
+          .then((res){
+            print('insert res: ${res}');
+            return maxVersion;
+          })
+          .then((mv){
+            print('max version: $mv');
+          })
+          );
         }
       },
       onError: (e) {
@@ -400,7 +412,22 @@ class MongoProvider implements DataProvider {
           throw new MongoException(e);
         });
       }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+//      ).then((_) => _release_locks()).then((_) => nextVersion)
+      ).then((_) => _release_locks())
+      .then((_) => maxVersion)
+      .then((mv) {
+        if(mv != nextVersion){
+          print('POZOR: max: $mv next: $nextVersion');
+        }
+      })
+      .then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
   }
 
   Future removeAll(query, String author) {
@@ -483,15 +510,17 @@ class MongoProvider implements DataProvider {
     beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
                                         {AND: _afterSelector}];
 
+    beforeOrAfterSelector[QUERY]['version'] = {GT: version};
+
     Set before, after;
     List beforeOrAfter, diff;
 
-     return _maxVersion.then((maxVersion) {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
           beforeOrAfter = result;
+          // TUTU
           if (beforeOrAfter.isEmpty){
-            return {'diff' : [], 'version' : maxVersion};
+            throw [];
           } else
           return Future.wait([
             _collectionHistory.find(beforeSelector).toList(),
@@ -552,12 +581,17 @@ class MongoProvider implements DataProvider {
               }
             }
 
-            if (diff.isEmpty) {
-              return {'diff' : [], 'version' : maxVersion};
-            } else {
-              return {'diff' : pretify(diff)};
-            }
-        });
+            return pretify(diff);
+
+//            if (diff.isEmpty) {
+//              return {'diff' : [], 'version' : maxVersion};
+//            } else {
+//              return {'diff' : pretify(diff)};
+//            }
+    }).catchError((e){
+     if (e is List) {
+       return e;
+     }
     });
   }
 

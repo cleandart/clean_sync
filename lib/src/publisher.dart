@@ -10,25 +10,125 @@ final int prefix_random_part = new Random().nextInt(MAX);
 
 final Logger logger = new Logger('clean_sync');
 
+class Version {
+  Version(){
+    print('CONSTRUCTING VERSION!!');
+  }
+  num value = 0;
+}
+
 class Resource {
   DataGenerator generator;
   Function beforeRequestCallback;
   Function projection;
-  int version;
+  Version version;
 
-  Resource(this.generator, this.beforeRequestCallback, this.projection);
+
+  Future handleSyncRequest (Map data) {
+    var action = data["action"];
+    var reqVersion = data['version'];
+    List<String> modifications = ['add', 'change', 'remove'];
+
+    if (modifications.contains(action) && projection != null) {
+      throw new Exception('Thou shall not modify projected data!');
+    }
+
+    Future beforeRequest = new Future.value(null);
+    if (beforeRequestCallback != null && modifications.contains(action)) {
+      var value;
+      if (action == 'add') value = data['data'];
+      else if (action == 'change') value = data['change'];
+      else if (action == 'remove') value = {};
+      beforeRequest = beforeRequestCallback(value, data['args']);
+    }
+
+    var myVer = version.value;
+
+    MongoProvider dp;
+    num maxVersion;
+
+    return beforeRequest
+        .then((_) => generator(data['args']))
+        .then((DataProvider _dp) {
+          dp = _dp;
+          return dp.maxVersion.then((v){
+            if(action == 'get_diff') {
+//              print('maxversion: $v, reqversion: $reqVersion');
+              maxVersion = v;
+              if(maxVersion<myVer){
+                print('ZAUJIMAVE max: ${maxVersion} my: ${myVer}');
+                dp.maxVersion.then((ver){
+                  print('este raz: $ver');
+                });
+              }
+//              assert(myVer<=maxVersion);
+            }
+          });
+        }).then((_){
+      if (action == "get_data") {
+        return dp.data(projection: projection);
+      }
+      else if (action == "get_diff") {
+//        print('req version: $reqVersion myversion: ${version.value}');
+        if (reqVersion == myVer) {
+          return new Future.delayed(new Duration(milliseconds: 10), () => {'diff': [], 'version': myVer});
+        } else {
+          return dp.diffFromVersion(reqVersion, projection: projection)
+          .then((diff){
+            if(diff.isEmpty){
+//              assert(myVer<=maxVersion);
+              assert(myVer!=null);
+              return {'diff': diff, 'version': myVer };
+            } else {
+              return {'diff': diff};
+            }
+          });
+        }
+      }
+      else if (action == "add") {
+        return memoizeVersion(dp.add(data['data'], data['author']), 'add');
+      }
+      else if (action == "change") {
+        return memoizeVersion(dp.change(data['_id'], data['change'], data['author']), 'change');
+      }
+      else if (action == "remove") {
+        return memoizeVersion(dp.remove(data['_id'], data['author']), 'remove');
+      }
+    });
+
+  }
+
+  memoizeVersion(Future<num> result, [action]){
+    return result.then((val){
+      if (val is num) {
+        version.value = val;
+      }
+      print('memoize: $val (${action})');
+      return val;
+    });
+  }
+
+  Resource(this.generator, this.beforeRequestCallback, this.projection, this.version);
 }
 
 class Publisher {
   int counter = 0;
 
   Map<String, Resource> _resources = {};
+  Map<String, Version> _versions = {};
 
   Publisher();
 
   void publish(String collection, DataGenerator generator, {beforeRequest: null,
-    projection: null}) {
-    _resources[collection] = new Resource(generator, beforeRequest, projection);
+    projection: null, collectionName: null}) {
+    Version ver;
+    if (collectionName != null && _versions.containsKey(collectionName)) {
+      ver = _versions[collectionName];
+    } else {
+      ver = new Version();
+      _versions[collectionName] = ver;
+    }
+    _resources[collection] = new Resource(generator, beforeRequest, projection, ver);
   }
 
   bool isPublished(String collection) {
@@ -51,44 +151,14 @@ class Publisher {
       return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
     }
 
-    List<String> modifications = ['add', 'change', 'remove'];
-
-    if (modifications.contains(action) && resource.projection != null) {
-      throw new Exception('Thou shall not modify projected data!');
-    }
-
-    Future beforeRequest = new Future.value(null);
-    if (resource.beforeRequestCallback != null && modifications.contains(action)) {
-      var value;
-      if (action == 'add') value = data['data'];
-      else if (action == 'change') value = data['change'];
-      else if (action == 'remove') value = {};
-      beforeRequest = resource.beforeRequestCallback(value, data['args']);
-    }
-
-    return beforeRequest
-        .then((_) => resource.generator(data['args']))
-        .then((DataProvider dp) {
-      if (action == "get_data") {
-        return dp.data(projection: resource.projection);
-      }
-      else if (action == "get_diff") {
-        return dp.diffFromVersion(data["version"], projection: resource.projection);
-      }
-      else if (action == "add") {
-        return dp.add(data['data'], data['author']);
-      }
-      else if (action == "change") {
-        return dp.change(data['_id'], data['change'], data['author']);
-      }
-      else if (action == "remove") {
-        return dp.remove(data['_id'], data['author']);
-      }
-    }).catchError((e) {
+    return resource.handleSyncRequest(data).
+      catchError((e, s) {
+      logger.shout('error', e, s);
       return new Future.value({
         'error': e.toString(),
       });
     });
+
   }
 
   String getIdPrefix() {
