@@ -195,7 +195,9 @@ class Subscription {
 
     markToken(id, result) {
       _modifiedItems[id] = result;
+//      requestLock = true;
       result.then((nextVersion){
+//        requestLock = false;
         if(this._version + 1 == nextVersion) {
           this._version++;
         }
@@ -279,7 +281,7 @@ class Subscription {
   });
 
   _createDiffRequest() {
-    if (requestLock) {
+    if (requestLock || _modifiedItems.isNotEmpty) {
       return null;
     } else {
       requestLock = true;

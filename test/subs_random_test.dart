@@ -119,7 +119,12 @@ main() {
   });
 
   randomChoice(Iterable iter) {
-    var list = new List.from(iter);
+    var list;
+    if (iter is List) {
+      list = iter;
+    } else {
+      list = iter.toList();
+    }
     return list[rng.nextInt(list.length)];
   }
 
@@ -158,7 +163,7 @@ main() {
     }
   }
 
-  randomChangeCollection = (Iterable coll, {topLevel: true}) {
+  _randomChangeCollection(Iterable coll, {topLevel: true}) {
     var probMap = topLevel?1:0.5;
     var probChange = topLevel?PROB_TOP_CHANGE:PROB_NESTED_CHANGE;
     var maxLength = topLevel?10:2;
@@ -203,6 +208,8 @@ main() {
       return true;
     }
   };
+
+  randomChangeCollection = _randomChangeCollection;
 
   executeSubscriptionActions(List actions) {
     return
