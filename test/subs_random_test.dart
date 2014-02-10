@@ -45,7 +45,7 @@ main() {
   hierarchicalLoggingEnabled = true;
   logger.level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.message}');
+    print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
 
 
@@ -77,21 +77,23 @@ main() {
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
         pub = new Publisher();
+        var versionProvider = mongodb.collection("random");
+//        var versionProvider = null;
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        });
+        }, versionProvider: versionProvider);
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        });
+        }, versionProvider: versionProvider);
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        });
+        }, versionProvider: versionProvider);
 
         pub.publish('d', (_) {
           return mongodb.collection("random").find({'noMatch': 'noMatch'});
-        });
+        }, versionProvider: versionProvider);
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -117,7 +119,12 @@ main() {
   });
 
   randomChoice(Iterable iter) {
-    var list = new List.from(iter);
+    var list;
+    if (iter is List) {
+      list = iter;
+    } else {
+      list = iter.toList();
+    }
     return list[rng.nextInt(list.length)];
   }
 
@@ -156,7 +163,7 @@ main() {
     }
   }
 
-  randomChangeCollection = (Iterable coll, {topLevel: true}) {
+  _randomChangeCollection(var coll, {topLevel: true}) {
     var probMap = topLevel?1:0.5;
     var probChange = topLevel?PROB_TOP_CHANGE:PROB_NESTED_CHANGE;
     var maxLength = topLevel?10:2;
@@ -165,8 +172,8 @@ main() {
     if (!prob(coll.length/maxLength)) {
       // add
         logger.finer('before add \n $coll');
-        if (prob(probMap)) {
-          coll.add(new DataMap.from({}));
+        if (probMap == 1 || prob(probMap)) {
+          coll.add({});
         } else
         if (prob(probElem)){
           coll.add(randomChoice(allValues));
@@ -202,25 +209,12 @@ main() {
     }
   };
 
-  executeSubscriptionActions(List actions) {
-    return
-    mongodb.dropCollection('random').then((_) =>
-    mongodb.removeLocks()).then((_) =>
-    subAll.initialSync).then((_) =>
-    subAll2.initialSync).then((_) =>
-    subA.initialSync).then((_) =>
-    subAa.initialSync).then((_) =>
-    Future.forEach(actions, (action) {
-      action();
-      return new Future.delayed(new Duration(milliseconds: 200));
-    }));
-  }
-
+  randomChangeCollection = _randomChangeCollection;
 
   test('test random', () {
 
   var action = (){
-    for (int i=0; i<5; i++) {
+    for (int i=0; i<rng.nextInt(10); i++) {
       Subscription toChangeSub = randomChoice(
           [subAll, subAll2]);
       randomChangeCollection(toChangeSub.collection);
@@ -245,6 +239,7 @@ main() {
     }
     return false;
   }
+
 
 
   Future makeExpects({checkGetData: true}) {
@@ -275,7 +270,7 @@ main() {
     return res;
   };
 
-    var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
+    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
     var i=0;
 
     var watch = new Stopwatch()..start();
@@ -284,8 +279,8 @@ main() {
     mongodb.create_collection('random');
 
     new Timer.periodic(new Duration(seconds: 60), (_){
-      mongodb.collection('random').deleteHistory(
-          [subAll.version, subAll2.version, subA.version, subAa.version].reduce(min));
+      var bound = [subAll.version, subAll2.version, subA.version, subAa.version, subNoMatch.version].reduce(min);
+      mongodb.collection('random').deleteHistory(bound);
     });
 
     return

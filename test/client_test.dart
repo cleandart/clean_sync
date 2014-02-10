@@ -142,7 +142,6 @@ void main() {
     IdGeneratorMock idGenerator;
     Subscription months;
     DataMap january, february;
-    CommunicatorMock communicator;
     DataSet collection;
     FunctionMock mockHandleData;
     FunctionMock mockHandleDiff;
@@ -237,9 +236,9 @@ void main() {
           }]});
           case ('change'): {
             return new Future.delayed(new Duration(milliseconds: 200),
-               () => new Future.value(null));
+               () => new Future.value(1));
           }
-          default: return new Future.value(null);
+          default: return new Future.value(1);
         }
       });
 

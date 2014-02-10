@@ -25,11 +25,12 @@ run(configuration) {
   hierarchicalLoggingEnabled = true;
   logger.level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.level.name}: ${rec.time}: ${rec.message}');
+    print('${rec.loggerName} ${rec.level.name}: ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
+  Logger.root.level = Level.WARNING;
 
   mongo_provider_test.main();
-  publisher_test.main();
+  publisher_test.run();
   client_test.main();
   id_generator_test.main();
   exception_test.main();

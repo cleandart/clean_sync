@@ -132,6 +132,9 @@ class MongoProvider implements DataProvider {
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
 
+  //for testing purposes
+  Future<int> get maxVersion => _maxVersion;
+
   Future<int> get _maxVersion =>
       _collectionHistory.find(where.sortBy('version', descending : true)
           .limit(1)).toList()
@@ -192,6 +195,7 @@ class MongoProvider implements DataProvider {
       if (projection != null){
         data.forEach((e) => projection(e));
       }
+      assert(version != null);
       return {'data': data, 'version': version};
     });
   }
@@ -290,9 +294,7 @@ class MongoProvider implements DataProvider {
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          return true;
-//          throw new MongoException(null,
-//              'Change was not applied, document with id $_id does not exist.');
+          throw true;
         } else if (change.containsKey('_id') && change['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${change['_id']} should be same as old one $_id.');
@@ -311,15 +313,15 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
             }));
         }
-      },
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
-        });
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+      }).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
+
   }
 
   Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
@@ -381,7 +383,7 @@ class MongoProvider implements DataProvider {
         return collection.findOne({'_id': _id});
       }).then((record) {
         if (record == null) {
-          return true;
+          throw true;
         } else {
           return collection.remove({'_id': _id}).then((_) =>
             _collectionHistory.insert({
@@ -392,15 +394,15 @@ class MongoProvider implements DataProvider {
               "version" : nextVersion
           }));
         }
-      },
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
-        });
       }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+      ).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
   }
 
   Future removeAll(query, String author) {
@@ -445,6 +447,9 @@ class MongoProvider implements DataProvider {
     Set seen = new Set();
     var res = [];
     for (Map change in diff.reversed) {
+      if (change['_id'] is! String) {
+        throw new Exception('prettify: found ID that is not String ${change}');
+      }
       var id = change['_id']+change['action'];
       assert(id is String);
       if (!seen.contains(id)) {
@@ -483,13 +488,17 @@ class MongoProvider implements DataProvider {
     beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
                                         {AND: _afterSelector}];
 
+    beforeOrAfterSelector[QUERY]['version'] = {GT: version};
+
     Set before, after;
     List beforeOrAfter, diff;
 
-     return _maxVersion.then((maxVersion) {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
           beforeOrAfter = result;
+          if (beforeOrAfter.isEmpty){
+            throw [];
+          } else
           return Future.wait([
             _collectionHistory.find(beforeSelector).toList(),
             _collectionHistory.find(afterSelector).toList()]);})
@@ -549,12 +558,13 @@ class MongoProvider implements DataProvider {
               }
             }
 
-            if (diff.isEmpty) {
-              return {'diff' : [], 'version' : maxVersion};
-            } else {
-              return {'diff' : pretify(diff)};
-            }
-        });
+            return pretify(diff);
+    }).catchError((e){
+     if (e is List) {
+       return e;
+     } else {
+       throw e;
+     }
     });
   }
 

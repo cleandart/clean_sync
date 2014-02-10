@@ -137,7 +137,7 @@ main() {
     ids = new Set();
     var lastVersion = 0;
 
-    return Future.forEach(new List.filled(30, 0) , (_) {
+    return Future.forEach(new List.filled(100, 0) , (_) {
       return currCollection.data().then(
         (data) {
           dataStart = data['data'];
@@ -148,8 +148,8 @@ main() {
           .then((data){ dataEnd = data['data']; })
           .then((_) => currCollection.diffFromVersion(lastVersion))
           .then((currCollection) {
-            (currCollection['diff'] as List).forEach((e) => lastVersion = max(lastVersion, e['version']));
-            handleDiff(currCollection['diff'], dataStart);
+            (currCollection as List).forEach((e) => lastVersion = max(lastVersion, e['version']));
+            handleDiff(currCollection, dataStart);
             print(toStringOrdered(dataEnd));
             expect(toStringOrdered(dataStart), equals(toStringOrdered(dataEnd)));
           });

@@ -26,7 +26,7 @@ main() {
         .then((_) => mongodb.removeLocks()).then((_){
           pub = new Publisher();
           pub.publish('a', (_) {
-            throw new ArgumentError('Error');
+            throw new ArgumentError('__TEST__: Error');
           });
 
           MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -54,7 +54,7 @@ main() {
 
       var beforeRequest = (value, args) {
         testvalue(value);
-        return new Future.error(new ArgumentError("No!"));
+        return new Future.error(new ArgumentError("__TEST__ : No!"));
       };
 
       pub.publish('b', (_) {

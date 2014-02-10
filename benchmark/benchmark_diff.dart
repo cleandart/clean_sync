@@ -7,9 +7,12 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
 
-const ELEMENTS = 10;
-const CLIENTS = 10;
-final TIME = new Duration(seconds: 5);
+
+// 1k elem, 50clients: 640, 770, 1420
+const ELEMENTS = 1000;
+const CLIENTS = 50;
+
+final TIME = new Duration(seconds: 20);
 
 MongoDatabase mongodb;
 setup() {
@@ -41,11 +44,13 @@ main() {
     return collection.data().then((data) => data['version']);
   }).then((version) {
     print('Publishing collection with version $version....');
-    publish('benchmark', (_) => mongodb.collection('benchmark'));
+    var versionProvider = mongodb.collection('benchmark');
+    publish('benchmark', (_) => mongodb.collection('benchmark'),
+        versionProvider: versionProvider);
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
-       "version" : version }, null, null);
+       "version" : version}, null, null);
 
     Stopwatch stopwatch = new Stopwatch();
     num countRequest = 0;
@@ -67,6 +72,7 @@ main() {
 
     createRequest() {
       if(stop) return;
+//      collection.maxVersion.then((_){ countRequest++; createRequest();});
       sync.handleSyncRequest(request).then((_) { countRequest++; createRequest(); });
     }
     for(int i=0; i < CLIENTS; i++) {
