@@ -11,9 +11,7 @@ final int prefix_random_part = new Random().nextInt(MAX);
 final Logger logger = new Logger('clean_sync');
 
 class Version {
-  Version(){
-//    print('CONSTRUCTING VERSION!!');
-  }
+  Version();
   num value = 0;
 }
 

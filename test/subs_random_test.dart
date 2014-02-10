@@ -163,7 +163,7 @@ main() {
     }
   }
 
-  _randomChangeCollection(Iterable coll, {topLevel: true}) {
+  _randomChangeCollection(var coll, {topLevel: true}) {
     var probMap = topLevel?1:0.5;
     var probChange = topLevel?PROB_TOP_CHANGE:PROB_NESTED_CHANGE;
     var maxLength = topLevel?10:2;
@@ -172,8 +172,8 @@ main() {
     if (!prob(coll.length/maxLength)) {
       // add
         logger.finer('before add \n $coll');
-        if (prob(probMap)) {
-          coll.add(new DataMap.from({}));
+        if (probMap == 1 || prob(probMap)) {
+          coll.add({});
         } else
         if (prob(probElem)){
           coll.add(randomChoice(allValues));
@@ -211,25 +211,10 @@ main() {
 
   randomChangeCollection = _randomChangeCollection;
 
-  executeSubscriptionActions(List actions) {
-    return
-    mongodb.dropCollection('random').then((_) =>
-    mongodb.removeLocks()).then((_) =>
-    subAll.initialSync).then((_) =>
-    subAll2.initialSync).then((_) =>
-    subA.initialSync).then((_) =>
-    subAa.initialSync).then((_) =>
-    Future.forEach(actions, (action) {
-      action();
-      return new Future.delayed(new Duration(milliseconds: 200));
-    }));
-  }
-
-
   test('test random', () {
 
   var action = (){
-    for (int i=0; i<5; i++) {
+    for (int i=0; i<rng.nextInt(10); i++) {
       Subscription toChangeSub = randomChoice(
           [subAll, subAll2]);
       randomChangeCollection(toChangeSub.collection);
@@ -285,7 +270,7 @@ main() {
     return res;
   };
 
-    var times=[50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
+    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
     var i=0;
 
     var watch = new Stopwatch()..start();

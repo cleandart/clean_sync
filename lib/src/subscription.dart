@@ -65,7 +65,6 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   List<String> modifiedFields;
   var version = subscription._version;
   num res = -1;
-  bool collectRes = true;
 
   try {
     diff.forEach((Map change) {
@@ -85,43 +84,42 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       } else if(change['version'] <= version) {
         return;
       }
-        if (action == "add") {
-          if (collectRes) res = max(res, change['version']);
-          if (record == null) {
-            logger.finer('aplying changes (add)');
-            collection.add(change["data"]);
-          } else {
-            logger.finer('add discarded; same id already present');
-            assert(author == change['author']);
-          }
+      if (action == "add") {
+        res = max(res, change['version']);
+        if (record == null) {
+          logger.finer('aplying changes (add)');
+          collection.add(change["data"]);
+        } else {
+          logger.finer('add discarded; same id already present');
+          assert(author == change['author']);
+        }
       }
-        else if (action == "change" ) {
+      else if (action == "change" ) {
         // 1. the change may be for item that is currently not present in the collection;
         // 2. the field may be 'locked', because it was changed on user's machine, and
         // this change was not yet confirmed from server
         if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
-          throw "should stop";
-          collectRes = false;
+          throw "stop";
           logger.finer('discarding diff');
         }
          if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
           logger.finer('aplying changes (change)');
-          if (collectRes) res = max(res, change['version']);
+          res = max(res, change['version']);
           applyChange(change["data"], record);
         }
       }
-        else if (action == "remove" ) {
+      else if (action == "remove" ) {
         logger.finer('aplying changes (remove');
-        if (collectRes) res = max(res, change['version']);
+        res = max(res, change['version']);
         collection.remove(record);
       }
       logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
     });
-  } catch (e){
+  } catch (e) {
     if (e is Exception) {
       throw e;
     }
-  };
+  }
   logger.fine('handleDiff ends');
   subscription.updateLock = false;
   return res;
