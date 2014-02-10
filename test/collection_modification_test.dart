@@ -19,8 +19,10 @@ main(){
   unittestConfiguration.timeout = null;
   hierarchicalLoggingEnabled = true;
   Logger.root.level = Level.WARNING;
-//  (new Logger('clean_sync')).level = Level.ALL;
-//  (new Logger('clean_ajax')).level = Level.ALL;
+  (new Logger('clean_sync')).level = Level.WARNING;
+  Logger.root.onRecord.listen((LogRecord rec) {
+    print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
+  });
   run();
 }
 
@@ -42,8 +44,7 @@ run() {
 
   DataMap data1;
   DataMap data2;
-  DataMap data3;
-  DataMap data4;
+  DataMap dataA;
 
   Publisher pub;
 
@@ -57,22 +58,22 @@ run() {
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        }, collectionName: 'random');
+        });
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        }, collectionName: 'random');
+        });
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        }, collectionName: 'random');
+        });
 
         pub.publish('mapped', (_) {
           return mongodb.collection("random").find({});
         }, projection: (Map elem){
           elem.remove('a');
           elem['aa'] = 'it works gr8';
-        }, collectionName: 'random');
+        });
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -92,8 +93,7 @@ run() {
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
-        data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
-        data4 = new DataMap.from({'a' : 'hello'});
+        dataA = new DataMap.from({'_id': '2', 'a': 'hello'});
     });
   });
 
@@ -102,12 +102,14 @@ run() {
       subAll,
       subAll2,
       subA,
-      subAa
+      subAa,
+      subMapped
     ];
 
     return Future.forEach(itemsToClose, (item) {
       return item.close();
-    }).then((_) => mongodb.close());
+    }).then((_) => mongodb.close())
+    .then((_) => pub.close());
   });
 
   executeSubscriptionActions(List actions) {
@@ -141,7 +143,7 @@ run() {
     List actions = [
       () => colAll.add(data1),
       () => expect(colAll2, unorderedEquals([data1])),
-      () {colAll2.add(data2); colAll.add(data3);},
+      () {colAll2.add(data2); colAll.add(dataA);},
       () => expect(colAll, unorderedEquals(colAll2)),
     ];
 
@@ -199,8 +201,8 @@ run() {
     List actions = [
       () => colAll.add(data1),
       () => expect(colA.isEmpty, isTrue),
-      () => colAll.add(data3),
-      () => expect(colA, unorderedEquals([data3])),
+      () => colAll.add(dataA),
+      () => expect(colA, unorderedEquals([dataA])),
     ];
 
     return executeSubscriptionActions(actions);
@@ -209,22 +211,35 @@ run() {
 
   test('test collection filtered change', () {
     List actions = [
-      () => colAll.add(data3),
-      () => colA.first['a'] = data4,
-      () => expect(colAa, unorderedEquals([
-        {'_id' : '2', 'a' : data4}
-      ])),
-      () => colAa.first['a'] = 'hello',
-      () => expect(colA, unorderedEquals([data3])),
+      () => colAll.add(dataA),
+      () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello'}])),
+      () => expect(colAa, unorderedEquals([])),
+      () => dataA['a'] = {'a': 'hello'},
+      () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'}}])),
+      () => expect(colA, unorderedEquals([])),
     ];
 
     return executeSubscriptionActions(actions);
 
   });
 
+
+  test('test remove from filtered collection by changing element', () {
+    List actions = [
+      () => colA.add({'_id': '1', 'a': 'hello', 'b': 'world'}),
+      () => colA.first['a'] = 'chello',
+      () => expect(colA.isEmpty, isTrue),
+      () => colAa.add({'_id': '2', 'a': {'a': 'hello'}, 'b': 'world'}),
+      () => colAa.first['a'].remove('a'),
+      () => expect(colAa.isEmpty, isTrue),
+    ];
+    return executeSubscriptionActions(actions);
+  });
+
+
   test('test collection filtered remove', () {
     List actions = [
-      () => colA.add(data3),
+      () => colA.add(dataA),
       () => colAll.removeBy('_id', '2'),
       () => expect(colA.isEmpty, isTrue),
       () => expect(colAll.isEmpty, isTrue),
@@ -286,15 +301,15 @@ run() {
       subAll2.initialSync).then((_) =>
       colAll.add(data)).then((_) =>
       Future.forEach(new List.filled(10000, null), (_) {
-      print(++i);
-      print(data);
-      data['${i%1000}']['key']='changed $i';
-      return new Future.delayed(new Duration(milliseconds: 500));
-    }).then((_){
-      return new Future.delayed(new Duration(seconds: 5));
-    }).then((_){
-      expect(colAll, unorderedEquals(colAll2));
-    }));
+        print(++i);
+        print(data);
+        data['${i%1000}']['key']='changed $i';
+        return new Future.delayed(new Duration());
+      }).then((_){
+        return new Future.delayed(new Duration(seconds: 5));
+      }).then((_){
+        expect(colAll, unorderedEquals(colAll2));
+      }));
 
   });
 

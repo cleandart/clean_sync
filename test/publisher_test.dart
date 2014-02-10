@@ -30,7 +30,11 @@ class ServerRequestMock extends Mock implements ServerRequest {
   }
 }
 
-void main() {
+void main(){
+  run();
+}
+
+void run() {
   group("Publisher", () {
 
     Publisher publisher;
@@ -85,7 +89,7 @@ void main() {
       });
     });
 
-    solo_test("handle get diff.", () {
+    test("handle get diff.", () {
       // given
       request = new ServerRequestMock({
         "action": "get_diff",
@@ -102,7 +106,7 @@ void main() {
         var callToDiff = dataProvider.getLogs(callsTo('diffFromVersion'));
         callToDiff.verify(happenedOnce);
         expect(callToDiff.first.args.first, equals(5));
-        expect(result, equals(DataProviderMock.response));
+        expect(result, equals({'diff': DataProviderMock.response}));
       });
     });
 

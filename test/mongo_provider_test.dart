@@ -250,7 +250,6 @@ void main() {
       // when
       Future shouldNotThrow = ready.then((_) => months.remove('january', 'Michael Smith'))
           .then(expectAsync1((res){
-            expect(res is num, isTrue);
           }));
       // then
     });

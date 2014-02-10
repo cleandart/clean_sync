@@ -294,7 +294,7 @@ class MongoProvider implements DataProvider {
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          throw null;
+          throw true;
         } else if (change.containsKey('_id') && change['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${change['_id']} should be same as old one $_id.');
@@ -383,7 +383,7 @@ class MongoProvider implements DataProvider {
         return collection.findOne({'_id': _id});
       }).then((record) {
         if (record == null) {
-          throw null;
+          throw true;
         } else {
           return collection.remove({'_id': _id}).then((_) =>
             _collectionHistory.insert({
@@ -447,6 +447,9 @@ class MongoProvider implements DataProvider {
     Set seen = new Set();
     var res = [];
     for (Map change in diff.reversed) {
+      if (change['_id'] is! String) {
+        throw new Exception('prettify: found ID that is not String ${change}');
+      }
       var id = change['_id']+change['action'];
       assert(id is String);
       if (!seen.contains(id)) {
@@ -566,6 +569,8 @@ class MongoProvider implements DataProvider {
     }).catchError((e){
      if (e is List) {
        return e;
+     } else {
+       throw e;
      }
     });
   }

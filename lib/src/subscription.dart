@@ -146,8 +146,9 @@ class Subscription {
   Map<String, Future> _modifiedItems = {};
 
 
-  num _version;
+  num _version = 0;
   get version => _version;
+  set version(i){_version=i;}
 
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
@@ -193,12 +194,7 @@ class Subscription {
 
     markToken(id, result) {
       _modifiedItems[id] = result;
-//      requestLock = true;
       result.then((nextVersion){
-//        requestLock = false;
-        if(this._version + 1 == nextVersion) {
-          this._version++;
-        }
         if (_modifiedItems[id] == result) {
           _modifiedItems.remove(id);
         }

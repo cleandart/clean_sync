@@ -40,7 +40,7 @@ class Resource {
       beforeRequest = beforeRequestCallback(value, data['args']);
     }
 
-    MongoProvider dp;
+    DataProvider dp;
 
     return beforeRequest
       .then((_) => generator(data['args']))
@@ -92,12 +92,13 @@ class Resource {
 
 class Publisher {
   int counter = 0;
+  Timer updateVersionTimer;
 
   Map<String, Resource> _resources = {};
   Map<MongoProvider, Version> _versions = {};
 
   Publisher(){
-    new Timer.periodic(new Duration(milliseconds: 100), (_){
+    updateVersionTimer = new Timer.periodic(new Duration(milliseconds: 100), (_){
       updateVersions();
     });
   }
@@ -108,6 +109,12 @@ class Publisher {
        _versions[col].value = ver;
      })
     );
+  }
+
+  close(){
+    if (updateVersionTimer != null) {
+      updateVersionTimer.cancel();
+    }
   }
 
   void publish(String collection, DataGenerator generator, {beforeRequest: null,
@@ -147,13 +154,14 @@ class Publisher {
     }
 
     return resource.handleSyncRequest(data).
-      catchError((e, s) {
-      logger.shout('error', e, s);
+    catchError((e, s) {
+      if(!e.toString().contains("__TEST__")) {
+        logger.shout('handle sync request error:', e, s);
+      }
       return new Future.value({
         'error': e.toString(),
       });
     });
-
   }
 
   String getIdPrefix() {
