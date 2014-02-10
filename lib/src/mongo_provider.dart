@@ -496,7 +496,6 @@ class MongoProvider implements DataProvider {
         return _collectionHistory.find(beforeOrAfterSelector).toList()
         .then((result) {
           beforeOrAfter = result;
-          // TUTU
           if (beforeOrAfter.isEmpty){
             throw [];
           } else
@@ -560,12 +559,6 @@ class MongoProvider implements DataProvider {
             }
 
             return pretify(diff);
-
-//            if (diff.isEmpty) {
-//              return {'diff' : [], 'version' : maxVersion};
-//            } else {
-//              return {'diff' : pretify(diff)};
-//            }
     }).catchError((e){
      if (e is List) {
        return e;

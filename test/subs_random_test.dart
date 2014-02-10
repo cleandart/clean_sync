@@ -249,7 +249,7 @@ main() {
           unorderedEquals(colA));
       expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
           unorderedEquals(colAa));
-//      expect(subNoMatch.version == subAll.version, isTrue);
+      expect(subNoMatch.version == subAll.version, isTrue);
 
     });
     if (checkGetData) {

@@ -148,7 +148,6 @@ class Subscription {
 
   num _version = 0;
   get version => _version;
-  set version(i){_version=i;}
 
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
