@@ -286,7 +286,7 @@ run() {
   });
 
 
-  skip_test('big data performance', () {
+  solo_test('big data performance', () {
     print('tu');
     var data = new DataMap();
     for(int i=0; i<2000; i++) {

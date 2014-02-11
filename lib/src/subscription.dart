@@ -56,7 +56,35 @@ bool applyChange (source, target) {
   return false;
 }
 
+void destroyMap(Map m) {
+  m.forEach((k,v){
+    destroyStructure(v);
+  });
+  for (var k in new List.from(m.keys)) {
+    m.remove(k);
+  }
+}
 
+void destroyIterable(var l) {
+  l.forEach((v){
+    destroyStructure(v);
+  });
+  for (var v in new List.from(l)) {
+    l.remove(v);
+  }
+
+}
+
+
+void destroyStructure(s){
+  if (s is Map) {
+    destroyMap(s);
+  } else
+  if (s is Iterable) {
+    destroyIterable(s);
+  } else {}
+
+}
 
 num handleDiff(List<Map> diff, Subscription subscription, String author) {
   logger.fine('handleDiff: subscription: $subscription, author: $author, diff: $diff');
@@ -121,6 +149,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
     }
   }
   logger.fine('handleDiff ends');
+  destroyStructure(diff);
   subscription.updateLock = false;
   return res;
 }
@@ -198,12 +227,17 @@ class Subscription {
           _modifiedItems.remove(id);
         }
       });
+//      print('modified items: ${_modifiedItems.length}');
+//      print('listeners: ${this.collection.dataListeners.keys.length}');
+//      print('coll length: ${this.collection.length}');
+//      print('inner listeners: ${this.collection.first.dataListeners.keys.length}');
     }
 
     var change = new ChangeSet();
 
     notify(){
       new Timer(new Duration(), (){
+//        print('notify ${change.changedItems.keys.length}');
         change.addedItems.forEach((data) {
           Future result = _connection.send(() => new ClientRequest("sync", {
             "action" : "add",
@@ -262,6 +296,7 @@ class Subscription {
         var newChange = event['change'];
         assert(newChange is ChangeSet);
         change.mergeIn(newChange);
+//        print('notifying');
         notify();
       }
     }));
