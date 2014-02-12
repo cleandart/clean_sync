@@ -234,6 +234,11 @@ class MongoProvider implements DataProvider {
     return sel;
   }
 
+  Future<int> maxClientVersion(String author) =>
+      _collectionHistory.find(where.eq('author', author).sortBy('clientVersion', descending : true)
+          .limit(1)).toList()
+      .then((data) => data.isEmpty? 0: data.first['clientVersion']);
+  
   /**
    * Returns data and version of this data.
    */
@@ -259,7 +264,7 @@ class MongoProvider implements DataProvider {
    * Adds document [data] to database. If document with same [_id] alreay
    * exists, nothing happens and [true] is returned.
    */
-  Future add(Map data, String author) {
+  Future add(Map data, String author, num clientVersion) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) =>
@@ -277,7 +282,8 @@ class MongoProvider implements DataProvider {
           "after" : data,
           "action" : "add",
           "author" : author,
-          "version" : nextVersion
+          "version" : nextVersion,
+          "clientVersion" : clientVersion
         })
       ).then((_) => _release_locks()).then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
@@ -303,7 +309,7 @@ class MongoProvider implements DataProvider {
               "after" : elem,
               "action" : "add",
               "author" : author,
-              "version" : elem[VERSION_FIELD_NAME]
+              "version" : elem[VERSION_FIELD_NAME],
             }).toList(growable: false)),
       onError: (e) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -358,7 +364,7 @@ class MongoProvider implements DataProvider {
    * Changes document with id [_id] to [newData]. If such document does not
    * exist, nothing happens and [true] is returned.
    */
-  Future change(String _id, Map newData, String author) {
+  Future change(String _id, Map newData, String author, num clientVersion) {
     cache.invalidate();
     num nextVersion;
     Map newRecord;
@@ -381,10 +387,18 @@ class MongoProvider implements DataProvider {
               "after" : newRecord,
               "action" : "change",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "clientVersion" : clientVersion
             }));
         }
-      }).then((_) => _release_locks()).then((_) => nextVersion)
+      }).then((_) => _release_locks()).then((_) {
+        
+        print("change request, saved");
+        sleep(new Duration(milliseconds: 3000));
+        print("w8 finished");
+        
+        return nextVersion;
+      }) //.then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
@@ -437,7 +451,7 @@ class MongoProvider implements DataProvider {
         });
   }
 
-  Future remove(String _id, String author) {
+  Future remove(String _id, String author, num clientVersion) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
@@ -453,7 +467,8 @@ class MongoProvider implements DataProvider {
               "after" : {},
               "action" : "remove",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "clientVersion" : clientVersion
           }));
         }
       }
@@ -644,7 +659,7 @@ class MongoProvider implements DataProvider {
             });
 
             if (_limit > NOLIMIT || _skip > NOSKIP) {
-              throw new Exception('not correctly implemented');
+              //throw new Exception('not correctly implemented');
               return _limitedDiffFromVersion(diff);
             }
 

@@ -40,7 +40,10 @@ class Resource {
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {
         dp = _dp;
-        if (action == "get_data") {
+        if (action == "get_max_client_version") {
+          return dp.maxClientVersion(data['author']);
+        }
+        else if (action == "get_data") {
           return dp.data().then((result) {
             stopWatch(watchID);
             return result;
@@ -54,21 +57,21 @@ class Resource {
              });
         }
         else if (action == "add") {
-          return dp.add(data['data'], data['author'])
+          return dp.add(data['data'], data['author'], data['clientVersion'])
           .then((result) {
             stopWatch(watchID);
             return result;
           });
         }
         else if (action == "change") {
-          return dp.change(data['_id'], data['change'], data['author'])
+          return dp.change(data['_id'], data['change'], data['author'], data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;
               });
         }
         else if (action == "remove") {
-          return dp.remove(data['_id'], data['author'])
+          return dp.remove(data['_id'], data['author'], data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;
