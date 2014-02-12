@@ -139,7 +139,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         }
       }
       else if (action == "remove" ) {
-        logger.finer('aplying changes (remove');
+        logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
       }
@@ -165,6 +165,7 @@ class Subscription {
   // and logging purposes
   String _author;
   IdGenerator _idGenerator;
+  IdGenerator _clientVersionGenerator;
   Function _handleData = handleData;
   Function _handleDiff = handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
@@ -191,6 +192,11 @@ class Subscription {
   // all changes with version < _version MUST be already applied by this subscription.
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
+  Queue<Map> _requestQueue = new Queue<Map>();
+  num _ongoingRequests = 0;
+  bool _connected = false;
+
+
   num _version = 0;
 
   // version exposed only for testing and debugging
@@ -209,11 +215,11 @@ class Subscription {
   Future get initialSync => _initialSync.future;
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._author, this._idGenerator, this._handleData, this._handleDiff,
+      this._author, this._idGenerator, this._clientVersionGenerator, this._handleData, this._handleDiff,
       this._forceDataRequesting, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
-      this._idGenerator, [this.args]) {
+      this._idGenerator, this._clientVersionGenerator, [this.args]) {
     collection = new DataSet();
     collection.addIndex(['_id']);
     _errorStreamController = new StreamController.broadcast();
@@ -229,6 +235,140 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
+  void resync(Connection connection) {
+    if (_ongoingRequests == 0) {
+      _connection = connection;
+      _connection.send(_createMaxClientVersionRequest).then((maxClientVersion) {
+        print("max client version is: ${maxClientVersion}");
+        
+        List<Map> requests = [];
+        Map data;
+        
+        while (_requestQueue.isNotEmpty) {
+          data = _requestQueue.removeFirst();
+          if (data['clientVersion'] > maxClientVersion) {
+            requests.add(data);
+          }
+        }
+        
+        _connected = true;
+        
+        requests.forEach((data) => _send(data));
+        
+        _setupPeriodicDiffRequesting();
+      }, onError: (e) {
+        if (e is FailedRequestException) {
+          print("resync failed");
+        }
+        else throw e;
+      });
+    }
+    else {
+      print("resync cannot be called if there are some ongoing requests");
+    }
+  }
+  
+  void _send(Map data) {
+    print("trying to send: ${data}");
+    _requestQueue.add(data);
+    
+    if (_connected) {
+      Future result = _connection.send(() {
+        _ongoingRequests++;
+        return new ClientRequest("sync", data);
+      }).then((result) {
+        if (result is Map && result['error'] != null) {
+          _errorStreamController.add(result['error']);
+        }
+        
+        return result;
+      }).then((response) {
+        print(response);
+        _ongoingRequests--;
+        Map first = _requestQueue.removeFirst();
+        
+        if (first != data) {
+          // nuke the universe, this cannot happen
+          print("universe nuked");
+        }
+        else {
+          print("universe at peace");
+        }
+        
+        return response;
+      }, onError: (e) {
+        if (e is FailedRequestException) {
+          _ongoingRequests--;
+          print("ou jeee padlo spojenie ked sa posielali zmeny");
+          _connected = false;
+        }
+        else if (e is CancelError) { /* do nothing */ }
+        else throw e;
+      });
+      
+      var id = data['elem']['_id'];
+      _sentItems[id] = result;
+      result.then((nextVersion){
+        // if the request that already finished was last request modifying
+        // current field, mark the field as free
+        if (_sentItems[id] == result) {
+          _sentItems.remove(id);
+          // if there are some more changes, sent them
+          if (_modifiedItems.changedItems.containsKey(data['elem'])){
+            _sendRequest(data['elem']);
+          };
+        }
+      });
+    }
+    else {
+      print("not connected, storing in queue");
+    }
+    
+    print(_requestQueue);
+  }
+  
+  void _sendRequest(dynamic elem) {
+    assert(_modifiedItems.changedItems.containsKey(elem));
+    Map data;
+    
+    if (_modifiedItems.addedItems.contains(elem)) {
+      data = {
+        "action" : "add",
+        "collection" : collectionName,
+        "data" : elem,
+        "elem" : elem,
+        'args': args,
+        "author" : _author,
+        "clientVersion" : _clientVersionGenerator.nextInt()
+      };
+    }
+    if (_modifiedItems.strictlyChanged.containsKey(elem)) {
+      data = {
+        "action" : "change",
+        "collection" : collectionName,
+        'args': args,
+        "_id" : elem["_id"],
+        "elem" : elem,
+        "change" : elem,
+        "author" : _author,
+        "clientVersion" : _clientVersionGenerator.nextInt()
+      };
+    }
+    if (_modifiedItems.removedItems.contains(elem)) {
+      data = {
+        "action" : "remove",
+        "collection" : collectionName,
+        'args': args,
+        "_id" : elem["_id"],
+        "elem" : elem,
+        "author" : _author,
+        "clientVersion" : _clientVersionGenerator.nextInt()
+      };
+    }
+    
+    _send(data);
+  }
+  
   // TODO rename to something private-like
   void setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
@@ -241,71 +381,13 @@ class Subscription {
 
     var change = new ChangeSet();
 
-    sendRequest(dynamic elem){
-        Future result = _connection.send((){
-          assert(_modifiedItems.changedItems.containsKey(elem));
-          var req;
-          if (_modifiedItems.addedItems.contains(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "add",
-              "collection" : collectionName,
-              "data" : elem,
-              'args': args,
-              "author" : _author
-            });
-          }
-          if (_modifiedItems.strictlyChanged.containsKey(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "change",
-              "collection" : collectionName,
-              'args': args,
-              "_id": elem["_id"],
-              "change" : elem,
-              "author" : _author
-            });
-          }
-          if (_modifiedItems.removedItems.contains(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "remove",
-              "collection" : collectionName,
-              'args': args,
-              "_id" : elem["_id"],
-              "author" : _author
-            });
-          }
-          _modifiedItems.changedItems.remove(elem);
-          return req;
-        }).then((result){
-          if (result is Map)
-            if (result['error'] != null)
-              _errorStreamController.add(result['error']);
-          return result;
-        }).catchError((e){
-          if(e is! CancelError) throw e;
-        });
-
-        var id = elem['_id'];
-        _sentItems[id] = result;
-        result.then((nextVersion){
-          // if the request that already finished was last request modifying
-          // current field, mark the field as free
-          if (_sentItems[id] == result) {
-            _sentItems.remove(id);
-            // if there are some more changes, sent them
-            if (_modifiedItems.changedItems.containsKey(elem)){
-              sendRequest(elem);
-            };
-          }
-        });
-    };
-
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
         _modifiedItems.mergeIn(change);
         for (var key in change.changedItems.keys) {
           if (!_sentItems.containsKey(key['_id'])) {
-            sendRequest(key);
+            _sendRequest(key);
           }
         }
       }
@@ -318,6 +400,12 @@ class Subscription {
     'args': args
   });
 
+  _createMaxClientVersionRequest() => new ClientRequest("sync", {
+    "action" : "get_max_client_version",
+    "collection" : collectionName,
+    "author" : _author
+  });
+  
   _createDiffRequest() {
     if (requestLock || _sentItems.isNotEmpty) {
       return null;
@@ -343,13 +431,19 @@ class Subscription {
       }
       _version = response['version'];
       _handleData(response['data'], this, _author);
-
+      _connected = true;
+      
       logger.info("Got initial data, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
 
-      var subscription = _connection
+      _setupPeriodicDiffRequesting();
+    });
+  }
+
+  void _setupPeriodicDiffRequesting() {
+    var subscription = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
@@ -370,12 +464,17 @@ class Subscription {
             }
           }
         }, onError: (e){
-          if (e is! CancelError)throw e;
+          if (e is CancelError) { /* do nothing */ }
+          else if (e is FailedRequestException) {
+            // connection failed
+            print("Connection failed.");
+            requestLock = false;
+          }
+          else throw e;
         });
       _subscriptions.add(subscription);
-    });
   }
-
+  
   void start() {
     setupListeners();
     setupDataRequesting();

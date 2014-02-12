@@ -21,6 +21,7 @@ LIElement createListElement(person, persons) {
 
   ButtonElement save = new ButtonElement()
   ..text = "save"
+  ..className = "save-button"
   ..dataset["_id"] = person["_id"]
   ..onClick.listen((MouseEvent event) {
     ButtonElement e = event.toElement;
@@ -64,7 +65,7 @@ LIElement createListElement(person, persons) {
 }
 
 void main() {
-  Subscription personsDiff, personsDiff24, personsData, personsData24;
+  Subscription personsDiff, personsDiff24, personsData, personsData24;  
 
   // initialization of these Subscriptions
   Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
@@ -131,6 +132,17 @@ void main() {
 
       name.value = '';
       age.value = '';
+    });
+   
+    querySelector('#resync').onClick.listen((_) {
+      Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
+          new Duration(milliseconds: 100));
+      personsDiff.resync(connection);
+      personsDiff24.resync(connection);
+    });
+   
+    querySelector('#saveAll').onClick.listen((_) {
+      querySelectorAll(".save-button").forEach((n) => n.click()); 
     });
   });
 }
