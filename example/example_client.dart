@@ -32,7 +32,7 @@ LIElement createListElement(person, persons) {
     InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
 
     if (pers != null) {
-      pers["name"] = name.value;
+      //pers["name"] = name.value;
       pers["age"] = int.parse(age.value);
     }
   });
@@ -137,8 +137,8 @@ void main() {
     querySelector('#resync').onClick.listen((_) {
       Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
           new Duration(milliseconds: 100));
-      personsDiff.resync(connection);
-      personsDiff24.resync(connection);
+      personsDiff.resync();
+      personsDiff24.resync();
     });
    
     querySelector('#saveAll').onClick.listen((_) {

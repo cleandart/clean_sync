@@ -225,6 +225,7 @@ class Subscription {
   Completer _initialSync;
   List<StreamSubscription> _subscriptions = [];
   StreamController _errorStreamController = new StreamController.broadcast();
+  StreamSubscription _periodicDiffRequesting;
   Stream get errorStream {
     if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
     return _errorStreamController.stream;
@@ -259,12 +260,9 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
-  void resync(Connection connection) {
-    if (_ongoingRequests == 0) {
-      _connection = connection;
+  void _resync() {
+    if (_ongoingRequests == 0) {      
       _connection.send(_createMaxClientVersionRequest).then((maxClientVersion) {
-        print("max client version is: ${maxClientVersion}");
-        
         List<Map> requests = [];
         Map data;
         
@@ -279,7 +277,7 @@ class Subscription {
         
         requests.forEach((data) => _send(data));
         
-        _setupPeriodicDiffRequesting();
+        _periodicDiffRequesting.resume();
       }, onError: (e) {
         if (e is FailedRequestException) {
           print("resync failed");
@@ -292,8 +290,19 @@ class Subscription {
     }
   }
   
+  void setupConnectionRecovery() {
+    _connection.onDisconnected.listen((_) {
+      _connected = false;
+    });
+    
+    _connection.onConnected.listen((_) {
+      _resync();
+    });
+  }
+  
   void _send(Map data) {
     print("trying to send: ${data}");
+
     _requestQueue.add(data);
     
     if (_connected) {
@@ -307,24 +316,18 @@ class Subscription {
         
         return result;
       }).then((response) {
-        print(response);
+
         _ongoingRequests--;
         Map first = _requestQueue.removeFirst();
         
         if (first != data) {
-          // nuke the universe, this cannot happen
-          print("universe nuked");
-        }
-        else {
-          print("universe at peace");
+          // throw NukeTheUniverse exception, this must not happen
         }
         
         return response;
       }, onError: (e) {
         if (e is FailedRequestException) {
           _ongoingRequests--;
-          print("ou jeee padlo spojenie ked sa posielali zmeny");
-          _connected = false;
         }
         else if (e is CancelError) { /* do nothing */ }
         else throw e;
@@ -344,11 +347,6 @@ class Subscription {
         }
       });
     }
-    else {
-      print("not connected, storing in queue");
-    }
-    
-    print(_requestQueue);
   }
   
   void _sendRequest(dynamic elem) {
@@ -441,11 +439,12 @@ class Subscription {
     } else {
       logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
+
       return new ClientRequest("sync", {
-      "action" : "get_diff",
-      "collection" : collectionName,
-      'args': args,
-      "version" : _version
+        "action" : "get_diff",
+        "collection" : collectionName,
+        'args': args,
+        "version" : _version
       });
     }
   }
@@ -463,7 +462,7 @@ class Subscription {
       _connected = true;
       
       logger.info("Got initial data, synced to version ${_version}");
-
+      
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
 
@@ -472,7 +471,7 @@ class Subscription {
   }
 
   void _setupPeriodicDiffRequesting() {
-    var subscription = _connection
+    _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
@@ -496,12 +495,12 @@ class Subscription {
           if (e is CancelError) { /* do nothing */ }
           else if (e is FailedRequestException) {
             // connection failed
-            print("Connection failed.");
+            _periodicDiffRequesting.pause();
             requestLock = false;
           }
           else throw e;
         });
-      _subscriptions.add(subscription);
+    _subscriptions.add(_periodicDiffRequesting);
   }
   
   void start() {
@@ -511,6 +510,7 @@ class Subscription {
         logger.shout('errorStreamController error: ${error}');
       }
     });
+    setupConnectionRecovery();
     setupListeners();
     setupDataRequesting();
   }
