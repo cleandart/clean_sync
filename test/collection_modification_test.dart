@@ -285,33 +285,20 @@ run() {
 
   });
 
+  test('add-remove-add', () {
+    Subscription newSub;
+    List actions = [
+      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
+      () => expect(colAll, unorderedEquals([data1])),
+      () {colAll.remove(data1); colAll.add(data1);},
+      () => expect(colAll, unorderedEquals([data1])),
+    ];
 
-  solo_test('big data performance', () {
-    print('tu');
-    var data = new DataMap();
-    for(int i=0; i<2000; i++) {
-      print('init $i');
-      data['$i'] = {'key' : i};
-    }
-    num i=-1;
-    return
-      mongodb.dropCollection('random').then((_) =>
-      mongodb.removeLocks()).then((_) =>
-      subAll.initialSync).then((_) =>
-      subAll2.initialSync).then((_) =>
-      colAll.add(data)).then((_) =>
-      Future.forEach(new List.filled(10000, null), (_) {
-        print(++i);
-        print(data);
-        data['${i%1000}']['key']='changed $i';
-        return new Future.delayed(new Duration());
-      }).then((_){
-        return new Future.delayed(new Duration(seconds: 5));
-      }).then((_){
-        expect(colAll, unorderedEquals(colAll2));
-      }));
+    return executeSubscriptionActions(actions);
 
   });
+
+
 
 
 }

@@ -14,10 +14,13 @@ import 'dart:async';
 
 class BareConnectionMock extends Mock implements Connection {}
 
+var lastRequest;
+
 class ConnectionMock extends Mock implements Connection {
   ConnectionMock() {
     when(callsTo('send')).alwaysCall((requestFactory) {
-      switch (requestFactory().args['action']) {
+      lastRequest = requestFactory();
+      switch (lastRequest.args['action']) {
         case ('get_diff'): return new Future.value({'diff': null});
         case ('get_data'): return new Future.value({'version': 2, 'data': null});
         case ('get_id_prefix'): return new Future.value({'id_prefix': 'prefix'});
@@ -389,19 +392,21 @@ void main() {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
-      collection.add(january);
+      collection = new DataSet.from([january]);
+//      collection.add(january);
       months = new Subscription.config('months', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.setupListeners();
+      lastRequest = null;
       january.addAll({'length': 31});
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
-        var request = connection.getLogs().last.args[0]();
-        expect(request.type, equals("sync"));
-        expect(request.args, equals({"action": "change", "collection": "months",
+//        var request = connection.getLogs().last.args[0]();
+        expect(lastRequest.type, equals("sync"));
+        expect(lastRequest.args, equals({"action": "change", "collection": "months",
                                      "_id": "11", "change": january,
                                      "author": "author", "args": null}));
       });

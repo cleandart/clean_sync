@@ -203,7 +203,12 @@ class MongoProvider implements DataProvider {
   Future add(Map data, String author) {
     print('mongodb add');
     num nextVersion;
-    return _get_locks().then((_) => _maxVersion).then((version) {
+    return _get_locks().then((_) =>
+         collection.findOne({"_id" : data['_id']}))
+        .then((Map record) {
+          if(record != null) throw true;
+          }).
+        then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
         data[VERSION_FIELD_NAME] = nextVersion;
         return collection.insert(data);
@@ -214,15 +219,15 @@ class MongoProvider implements DataProvider {
           "action" : "add",
           "author" : author,
           "version" : nextVersion
-        }),
-      onError: (e) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e);
-        });
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+        })
+      ).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
   }
 
   Future addAll(List<Map> data, String author) {

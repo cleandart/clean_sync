@@ -40,8 +40,6 @@ main() {
   config.timeout = null;
   unittestConfiguration = config;
 
-
-
   hierarchicalLoggingEnabled = true;
   logger.level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
@@ -194,7 +192,9 @@ main() {
     else {
       // change
       if (coll.length == 0) return false;
-      var data = randomChoice(coll);
+      var index = rng.nextInt(coll.length);
+      var data = new List.from(coll)[index];
+
       logger.finer('before change \n $coll');
       if (data is Map) {
         randomChangeMap(data);
@@ -202,7 +202,7 @@ main() {
       if (data is List) {
         randomChangeCollection(data, topLevel: false);
       } else {
-        //pass
+        coll[index] = randomChoice(allValues);
       }
       logger.finer('after change: $data');
       return true;

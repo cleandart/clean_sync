@@ -90,7 +90,6 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   logger.fine('handleDiff: subscription: $subscription, author: $author, diff: $diff');
   subscription.updateLock = true;
   DataSet collection = subscription.collection;
-  List<String> modifiedFields;
   var version = subscription._version;
   num res = -1;
 
@@ -126,14 +125,16 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         // 1. the change may be for item that is currently not present in the collection;
         // 2. the field may be 'locked', because it was changed on user's machine, and
         // this change was not yet confirmed from server
-        if (record != null && subscription._modifiedItems.containsKey(record['_id'])) {
-          throw "stop";
-          logger.finer('discarding diff');
-        }
-         if (record != null && !subscription._modifiedItems.containsKey(record['_id'])) {
-          logger.finer('aplying changes (change)');
-          res = max(res, change['version']);
-          applyChange(change["data"], record);
+         if (record != null) {
+           if(!subscription._sentItems.containsKey(record['_id'])
+             && !subscription._modifiedItems.containsKey('_id')) {
+              logger.finer('aplying changes (change)');
+              res = max(res, change['version']);
+              applyChange(change["data"], record);
+           } else {
+             logger.finer('discarding diff');
+             throw "stop";
+           }
         }
       }
       else if (action == "remove" ) {
@@ -158,6 +159,7 @@ class Subscription {
   // constructor arguments:
   String collectionName;
   DataSet collection;
+  DataSet oldCollection;
   Connection _connection;
   bool requestLock = false;
   bool updateLock = false;
@@ -172,7 +174,8 @@ class Subscription {
   Map args = {};
   /// Maps _id of a document to Future, that completes when server response
   /// to document's update is completed
-  Map<String, Future> _modifiedItems = {};
+  Map<String, Future> _sentItems = {};
+  Map _modifiedItems = new Map();
 
 
   num _version = 0;
@@ -221,10 +224,10 @@ class Subscription {
     }));
 
     markToken(id, result) {
-      _modifiedItems[id] = result;
+      _sentItems[id] = result;
       result.then((nextVersion){
-        if (_modifiedItems[id] == result) {
-          _modifiedItems.remove(id);
+        if (_sentItems[id] == result) {
+          _sentItems.remove(id);
         }
       });
 //      print('modified items: ${_modifiedItems.length}');
@@ -235,69 +238,65 @@ class Subscription {
 
     var change = new ChangeSet();
 
-    notify(){
-      new Timer(new Duration(), (){
-//        print('notify ${change.changedItems.keys.length}');
-        change.addedItems.forEach((data) {
-          Future result = _connection.send(() => new ClientRequest("sync", {
-            "action" : "add",
-            "collection" : collectionName,
-            "data" : data,
-            'args': args,
-            "author" : _author
-          })).then((result) {
-            if (result is Map)
-              if (result['error'] != null)
-                _errorStreamController.add(result['error']);
-            return result;
-          });
-          markToken(data['_id'], result);
-        });
+    sendRequest(dynamic elem){
 
-        change.strictlyChanged.forEach((DataMap data, ChangeSet changeSet) {
-          Future result = _connection.send(() => new ClientRequest("sync", {
-            "action" : "change",
-            "collection" : collectionName,
-            'args': args,
-            "_id": data["_id"],
-            "change" : data,
-            "author" : _author
-          })).then((result) {
-            if (result is Map)
-              if (result['error'] != null)
-                _errorStreamController.add(result['error']);
-            return result;
-          });
-          // TODO: check if server really accepted the change
-          markToken(data['_id'], result);
+      print(_modifiedItems);
+        Future result = _connection.send((){
+          var req;
+          if (_modifiedItems[elem] == 'add') {
+            req = new ClientRequest("sync", {
+              "action" : "add",
+              "collection" : collectionName,
+              "data" : elem,
+              'args': args,
+              "author" : _author
+            });
+          }
+          if (_modifiedItems[elem] == 'change') {
+            req = new ClientRequest("sync", {
+              "action" : "change",
+              "collection" : collectionName,
+              'args': args,
+              "_id": elem["_id"],
+              "change" : elem,
+              "author" : _author
+            });
+          }
+          if (_modifiedItems[elem] == 'remove') {
+            req = new ClientRequest("sync", {
+              "action" : "remove",
+              "collection" : collectionName,
+              'args': args,
+              "_id" : elem["_id"],
+              "author" : _author
+            });
+          }
+          _modifiedItems.remove(elem);
+          return req;
+        }).then((result){
+          if (result is Map)
+            if (result['error'] != null)
+              _errorStreamController.add(result['error']);
+          return result;
         });
-
-        change.removedItems.forEach((data) {
-          Future result = _connection.send(() => new ClientRequest("sync", {
-            "action" : "remove",
-            "collection" : collectionName,
-            'args': args,
-            "_id" : data["_id"],
-            "author" : _author
-          })).then((result) {
-            if (result is Map)
-              if (result['error'] != null)
-                _errorStreamController.add(result['error']);
-            return result;
-          });
-          markToken(data['_id'], result);
-        });
-        change = new ChangeSet();
-      });
+        markToken(elem['_id'], result);
     }
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
-        var newChange = event['change'];
-        assert(newChange is ChangeSet);
-        change.mergeIn(newChange);
-//        print('notifying');
-        notify();
+        ChangeSet change = event['change'];
+        for (var k in change.changedItems.keys) {
+          if (!_modifiedItems.containsKey(k)) {
+            _modifiedItems[k] = 'change';
+            sendRequest(k);
+          }
+        }
+        change.addedItems.forEach((elem){
+          _modifiedItems[elem] = 'add';
+        });
+        change.removedItems.forEach((elem){
+          _modifiedItems[elem] = 'remove';
+        });
       }
     }));
   }
@@ -309,7 +308,7 @@ class Subscription {
   });
 
   _createDiffRequest() {
-    if (requestLock || _modifiedItems.isNotEmpty) {
+    if (requestLock || _sentItems.isNotEmpty) {
       return null;
     } else {
       requestLock = true;
@@ -376,7 +375,7 @@ class Subscription {
   Future close() {
     return dispose()
       .then((_) =>
-        Future.wait(_modifiedItems.values))
+        Future.wait(_sentItems.values))
       .then((_) =>
          new Future.delayed(new Duration(milliseconds: 100), (){
           collection.dispose();
