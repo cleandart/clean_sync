@@ -152,6 +152,7 @@ void main() {
     Function listenersAreOn = () {
       january = new DataMap.from({'name': 'January', 'order': 1});
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
+      lastRequest = null;
       months.collection.add(january);
       // ID is generated and changes are propagated to server when listeners are
       // on.
@@ -163,9 +164,8 @@ void main() {
           changeWasSent = false;
         } else {
           LogEntry log = connection.getLogs().last;
-          var request = log.args[0]();
           changeWasSent = log.methodName == 'send' &&
-              request.args['data']['_id'] == 'prefix-123';
+              lastRequest.args['data']['_id'] == 'prefix-123';
         }
         if(idWasGenerated && changeWasSent) {
           return true;
@@ -377,13 +377,13 @@ void main() {
 
       // when
       months.setupListeners();
+      lastRequest = null;
       months.collection.add(january);
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
-        var request = connection.getLogs().last.args[0]();
-        expect(request.type, equals("sync"));
-        expect(request.args, equals({"action": "add", "collection": "months",
+        expect(lastRequest.type, equals("sync"));
+        expect(lastRequest.args, equals({"action": "add", "collection": "months",
                                     "data": january, "author": "author", "args": null}));
       });
     });
@@ -422,13 +422,13 @@ void main() {
 
       // when
       months.setupListeners();
+      lastRequest = null;
       months.collection.remove(january);
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
-        var request = connection.getLogs().first.args[0]();
-        expect(request.type, equals("sync"));
-        expect(request.args, equals({"action": "remove", "collection": "months",
+        expect(lastRequest.type, equals("sync"));
+        expect(lastRequest.args, equals({"action": "remove", "collection": "months",
                                      "_id": "12", "author": "author", "args": null}));
       });
     });

@@ -87,7 +87,8 @@ void destroyStructure(s){
 }
 
 num handleDiff(List<Map> diff, Subscription subscription, String author) {
-  logger.fine('handleDiff: subscription: $subscription, author: $author, diff: $diff');
+  logger.fine('handleDiff: subscription: $subscription, author: $author,'
+              'diffSize: ${diff.length}, diff: $diff');
   subscription.updateLock = true;
   DataSet collection = subscription.collection;
   var version = subscription._version;
@@ -127,7 +128,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         // this change was not yet confirmed from server
          if (record != null) {
            if(!subscription._sentItems.containsKey(record['_id'])
-             && !subscription._modifiedItems.containsKey('_id')) {
+             && !subscription._modifiedItems.changedItems.containsKey('_id')) {
               logger.finer('aplying changes (change)');
               res = max(res, change['version']);
               applyChange(change["data"], record);
@@ -150,7 +151,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
     }
   }
   logger.fine('handleDiff ends');
-  destroyStructure(diff);
+//  destroyStructure(diff);
   subscription.updateLock = false;
   return res;
 }
@@ -175,7 +176,7 @@ class Subscription {
   /// Maps _id of a document to Future, that completes when server response
   /// to document's update is completed
   Map<String, Future> _sentItems = {};
-  Map _modifiedItems = new Map();
+  ChangeSet _modifiedItems = new ChangeSet();
 
 
   num _version = 0;
@@ -223,27 +224,23 @@ class Subscription {
       }
     }));
 
-    markToken(id, result) {
+    markToken(elem, result) {
+      var id = elem['_id'];
       _sentItems[id] = result;
       result.then((nextVersion){
         if (_sentItems[id] == result) {
           _sentItems.remove(id);
         }
       });
-//      print('modified items: ${_modifiedItems.length}');
-//      print('listeners: ${this.collection.dataListeners.keys.length}');
-//      print('coll length: ${this.collection.length}');
-//      print('inner listeners: ${this.collection.first.dataListeners.keys.length}');
     }
 
     var change = new ChangeSet();
 
     sendRequest(dynamic elem){
-
-      print(_modifiedItems);
         Future result = _connection.send((){
+          assert(_modifiedItems.changedItems.containsKey(elem));
           var req;
-          if (_modifiedItems[elem] == 'add') {
+          if (_modifiedItems.addedItems.contains(elem)) {
             req = new ClientRequest("sync", {
               "action" : "add",
               "collection" : collectionName,
@@ -252,7 +249,7 @@ class Subscription {
               "author" : _author
             });
           }
-          if (_modifiedItems[elem] == 'change') {
+          if (_modifiedItems.strictlyChanged.containsKey(elem)) {
             req = new ClientRequest("sync", {
               "action" : "change",
               "collection" : collectionName,
@@ -262,7 +259,7 @@ class Subscription {
               "author" : _author
             });
           }
-          if (_modifiedItems[elem] == 'remove') {
+          if (_modifiedItems.removedItems.contains(elem)) {
             req = new ClientRequest("sync", {
               "action" : "remove",
               "collection" : collectionName,
@@ -271,32 +268,30 @@ class Subscription {
               "author" : _author
             });
           }
-          _modifiedItems.remove(elem);
+
+          _modifiedItems.changedItems.remove(elem);
           return req;
         }).then((result){
           if (result is Map)
             if (result['error'] != null)
               _errorStreamController.add(result['error']);
           return result;
+        }).catchError((e){
+          if(e is! CancelError) throw e;
         });
-        markToken(elem['_id'], result);
+        markToken(elem, result);
     }
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
-        for (var k in change.changedItems.keys) {
-          if (!_modifiedItems.containsKey(k)) {
-            _modifiedItems[k] = 'change';
-            sendRequest(k);
+        var keys = new List.from(_modifiedItems.changedItems.keys);
+        _modifiedItems.mergeIn(change);
+        for (var key in change.changedItems.keys) {
+          if (!keys.contains(key)) {
+            sendRequest(key);
           }
         }
-        change.addedItems.forEach((elem){
-          _modifiedItems[elem] = 'add';
-        });
-        change.removedItems.forEach((elem){
-          _modifiedItems[elem] = 'remove';
-        });
       }
     }));
   }
@@ -358,7 +353,9 @@ class Subscription {
                    _version = response['version'];
               }
             }
-        }, onError: (e){if (e is! CancelError)throw e;});
+        }, onError: (e){
+          if (e is! CancelError)throw e;
+        });
       _subscriptions.add(subscription);
     });
   }

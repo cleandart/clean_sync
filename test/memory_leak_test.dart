@@ -14,7 +14,8 @@ main(){
   unittestConfiguration.timeout = null;
   hierarchicalLoggingEnabled = true;
   Logger.root.level = Level.WARNING;
-  (new Logger('clean_sync')).level = Level.WARNING;
+//  (new Logger('clean_sync')).level = Level.FINEST;
+//  Logger.root.level = Level.FINE;
   Logger.root.onRecord.listen((LogRecord rec) {
     print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
@@ -23,22 +24,9 @@ main(){
 
 run() {
   MongoDatabase mongodb;
-  DataSet colAll;
-  DataSet colAll2;
-  DataSet colA;
-  DataSet colAa;
-  DataSet colMapped;
-
   Connection connection;
+  DataSet colAll;
   Subscription subAll;
-  Subscription subAll2;
-  Subscription subA;
-  Subscription subAa;
-  Subscription subMapped;
-
-  DataMap data1;
-  DataMap data2;
-  DataMap dataA;
 
   Publisher pub;
 
@@ -52,7 +40,9 @@ run() {
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        });
+        }
+        , versionProvider: mongodb.collection("random")
+        );
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
@@ -63,8 +53,7 @@ run() {
 
   solo_test('big data performance', () {
     var data = new DataMap();
-    for(int i=0; i<10; i++) {
-      print('init $i');
+    for(int i=0; i<2000; i++) {
       data['$i'] = {'key' : i};
     }
     num i=-1;
@@ -76,18 +65,17 @@ run() {
       Future.forEach(new List.filled(100, null), (_) {
         subAll = new Subscription('a', connection, 'author1', idGen, {});
         colAll = subAll.collection;
-//        colAll = new DataSet();
         data.remove('_id');
         return subAll.initialSync.then((_) =>
           colAll.removeAll(new Set.from(colAll))
         ).then((_) =>
           colAll.add(data)
         ).then((_) =>
-          Future.forEach(new List.filled(10, null), (_) {
+          Future.forEach(new List.filled(2000, null), (_) {
             print(++i);
 //            print(data);
-            data['${i%1}']['key']='changed $i';
-            return new Future.delayed(new Duration(milliseconds: 200));
+            data['${i%1000}']['key']='changed $i';
+            return new Future.delayed(new Duration(milliseconds: 3));
           })).then((_) => subAll.close());
       }));
   });
