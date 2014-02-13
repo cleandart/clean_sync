@@ -224,16 +224,6 @@ class Subscription {
       }
     }));
 
-    markToken(elem, result) {
-      var id = elem['_id'];
-      _sentItems[id] = result;
-      result.then((nextVersion){
-        if (_sentItems[id] == result) {
-          _sentItems.remove(id);
-        }
-      });
-    }
-
     var change = new ChangeSet();
 
     sendRequest(dynamic elem){
@@ -268,7 +258,6 @@ class Subscription {
               "author" : _author
             });
           }
-
           _modifiedItems.changedItems.remove(elem);
           return req;
         }).then((result){
@@ -279,16 +268,28 @@ class Subscription {
         }).catchError((e){
           if(e is! CancelError) throw e;
         });
-        markToken(elem, result);
-    }
+
+        var id = elem['_id'];
+        _sentItems[id] = result;
+        result.then((nextVersion){
+          // if the request that already finished was last request modifying
+          // current field, mark the field as free
+          if (_sentItems[id] == result) {
+            _sentItems.remove(id);
+            // if there are some more changes, sent them
+            if (_modifiedItems.changedItems.containsKey(elem)){
+              sendRequest(elem);
+            };
+          }
+        });
+    };
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
-        var keys = new List.from(_modifiedItems.changedItems.keys);
         _modifiedItems.mergeIn(change);
         for (var key in change.changedItems.keys) {
-          if (!keys.contains(key)) {
+          if (!_sentItems.containsKey(key['_id'])) {
             sendRequest(key);
           }
         }
