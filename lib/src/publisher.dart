@@ -56,7 +56,8 @@ class Resource {
                 () => {'diff': [], 'version': myVer});
           } else {
             return dp.diffFromVersion(reqVersion, projection: projection)
-            .then((diff){
+            .then((diff) {
+              if(diff['diff'] == null) return diff;
               if(diff['diff'].isEmpty && version != null){
                 assert(myVer != null);
                 diff['version'] = myVer;
