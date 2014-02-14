@@ -188,7 +188,9 @@ class MongoProvider implements DataProvider {
    * Returns data and version of this data 7.
    */
   Future<Map> data({projection: null, stripVersion: true}) {
+    num watchID = startWatch('MP data', collection.collectionName);
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
+      getElapsed(watchID);
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
@@ -197,6 +199,9 @@ class MongoProvider implements DataProvider {
       }
       assert(version != null);
       return {'data': data, 'version': version};
+    }).then((result) {
+      stopWatch(watchID);
+      return result;
     });
   }
 
@@ -438,7 +443,7 @@ class MongoProvider implements DataProvider {
   Future<Map> diffFromVersion(num version, {projection: null}) {
     try{
       return _diffFromVersion(version, projection: projection).then((d) {
-        return d;
+        return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
       return data(projection: projection).then((d) {
@@ -465,7 +470,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<Map> _diffFromVersion(num version, {projection:null}) {
+  Future<List> _diffFromVersion(num version, {projection:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
