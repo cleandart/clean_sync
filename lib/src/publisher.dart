@@ -52,16 +52,16 @@ class Resource {
         else if (action == "get_diff") {
           var myVer = version == null ? null : version.value;
           if (version != null && reqVersion == myVer) {
-            return new Future.delayed(new Duration(milliseconds: 0), () => {'diff': [], 'version': myVer});
+            return new Future.delayed(new Duration(milliseconds: 0),
+                () => {'diff': [], 'version': myVer});
           } else {
             return dp.diffFromVersion(reqVersion, projection: projection)
             .then((diff){
-              if(diff.isEmpty && version != null){
-                assert(myVer!=null);
-                return {'diff': diff, 'version': myVer };
-              } else {
-                return {'diff': diff};
+              if(diff['diff'].isEmpty && version != null){
+                assert(myVer != null);
+                diff['version'] = myVer;
               }
+              return diff;
             });
           }
         }

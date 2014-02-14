@@ -438,7 +438,7 @@ class MongoProvider implements DataProvider {
   Future<Map> diffFromVersion(num version, {projection: null}) {
     try{
       return _diffFromVersion(version, projection: projection).then((d) {
-        return d;
+        return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
       return data(projection: projection).then((d) {
@@ -465,7 +465,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<Map> _diffFromVersion(num version, {projection:null}) {
+  Future<List> _diffFromVersion(num version, {projection:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
