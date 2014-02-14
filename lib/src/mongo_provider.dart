@@ -129,6 +129,8 @@ class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
   List<Map> _selectorList = [];
   Map _sortParams = {};
+  List _excludeFields = [];
+  List _fields = [];
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
 
@@ -150,10 +152,20 @@ class MongoProvider implements DataProvider {
     this._selectorList = new List.from(mp._selectorList);
     this._limit = mp._limit;
     this._skip = mp._skip;
+    this._fields = mp._fields;
+    this._excludeFields = mp._excludeFields;
   }
 
   Future deleteHistory(num version) {
     return _collectionHistory.remove({'version': {LT: version}});
+  }
+
+  MongoProvider fields(List<String> fields) {
+    this._fields.addAll(fields);
+  }
+
+  MongoProvider excludeFields(List<String> excludeFields) {
+    this._excludeFields.addAll(excludeFields);
   }
 
   MongoProvider find(Map params) {
@@ -188,7 +200,8 @@ class MongoProvider implements DataProvider {
    * Returns data and version of this data 7.
    */
   Future<Map> data({projection: null, stripVersion: true}) {
-    return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
+    return collection.find(where.raw(_rawSelector).fields(_fields)
+        .excludeFields(_excludeFields).limit(_limit).skip(_skip)).toList().then((data) {
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
