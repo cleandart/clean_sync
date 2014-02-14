@@ -185,12 +185,12 @@ class MongoProvider implements DataProvider {
   }
 
   /**
-   * Returns data and version of this data 7.
+   * Returns data and version of this data.
    */
   Future<Map> data({projection: null, stripVersion: true}) {
-    num watchID = startWatch('MP data', collection.collectionName);
+    num watchID = startWatch('MP data ${collection.collectionName}');
     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((data) {
-      getElapsed(watchID);
+      logElapsedTime(watchID);
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);

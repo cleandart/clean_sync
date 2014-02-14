@@ -23,7 +23,7 @@ class Resource {
 
 
   Future handleSyncRequest (Map data) {
-    num watchID = startWatch(data["action"], data['collection']);
+    num watchID = startWatch('${data["action"]}, ${data['collection']}');
 
     var action = data["action"];
     var reqVersion = data['version'];

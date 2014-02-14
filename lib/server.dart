@@ -23,25 +23,24 @@ part 'src/mongo_provider.dart';
 Map watches = {};
 var watchID = 0;
 
-num startWatch(action, colName) {
+num startWatch(identifier) {
   watchID++;
-  watches[watchID] = [new Stopwatch()..start(), action, colName];
-  logger.info('$watchID Started processing request ($action, $colName).');
+  watches[watchID] = [new Stopwatch()..start(), identifier];
+  logger.info('$watchID Started processing request ($identifier).');
   return watchID;
 }
 stopWatch(watchID) {
   var watch = watches[watchID][0];
-  var action = watches[watchID][1];
-  var colName = watches[watchID][2];
-  logger.info('$watchID Processing request ($action, $colName) took ${watch.elapsed}.');
+  var identifier = watches[watchID][1];
+  logger.info('$watchID Processing request ($identifier) took ${watch.elapsed}.');
   watch.stop();
   watches.remove(watchID);
 }
 
-getElapsed(watchID) {
+logElapsedTime(watchID) {
   var watch = watches[watchID][0];
-  var action = watches[watchID][1];
-  var colName = watches[watchID][2];
-  logger.info('$watchID Processing request ($action, $colName) currently elapsed ${watch.elapsed}.');
+  var identifier = watches[watchID][1];
+  logger.info('$watchID Processing request ($identifier) currently elapsed '
+              '${watch.elapsed}.');
 }
 // end profiling
