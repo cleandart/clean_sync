@@ -9,6 +9,10 @@ import "package:clean_sync/server.dart";
 import "dart:async";
 
 
+c(Map m){
+  return new Map.from(m);
+}
+
 void handleDiff(List<Map> diff, List collection) {
   diff.forEach((Map change) {
     if (change["action"] == "add") {
@@ -126,6 +130,48 @@ void main() {
           expect(diff['author'], equals('John Doe'));
         });
     });
+
+    test('find', () {
+      // when
+      return ready.then((_) => months.addAll([c(january), c(february),
+                                  c(march), c(april)], 'John Doe'))
+        .then((_) => months.find({'days': 31}).data())
+        .then((data){
+          expect(data['data'], unorderedEquals([january, march]));
+        });
+    });
+
+    test('take_fields', () {
+      // when
+      return ready.then((_) => months.addAll([c(january), c(february),
+                                  c(march), c(april)], 'John Doe'))
+        .then((_) => months.find({'days': 31}).fields(['days']).data())
+        .then((data){
+          expect(data['data'], unorderedEquals([{'days': 31, '_id': 'january'},
+                                                {'days': 31, '_id': 'march'}]));
+        });
+    });
+
+    test('exclude_fields', () {
+      // when
+      return ready.then((_) => months.addAll([c(january), c(february),
+                                              c(march), c(april)], 'John Doe'))
+      .then((_) => months.find({'days': 31}).excludeFields(['days', 'number', '_id']).data())
+        .then((data){
+          expect(data['data'], unorderedEquals([{'name': 'January'}, {'name': 'March'}]));
+        });
+    });
+
+    test('exclude_nested', () {
+      // when
+      return ready.then((_) => months.addAll([{'a': {'b': 'c', 'd': 'e'}}], 'JD'))
+      .then((_) => months.find().excludeFields(['_id', 'a.b']).data())
+        .then((data){
+          expect(data['data'], unorderedEquals([{'a': {'d': 'e'}}]));
+        });
+    });
+
+
 
     //temporarily, mongodb just ignores multiple ids
 
