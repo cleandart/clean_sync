@@ -162,13 +162,18 @@ class MongoProvider implements DataProvider {
 
   MongoProvider fields(List<String> fields) {
     this._fields.addAll(fields);
+    if (!_fields.contains(VERSION_FIELD_NAME)) {
+      _fields.add(VERSION_FIELD_NAME);
+    }
+    return this;
   }
 
   MongoProvider excludeFields(List<String> excludeFields) {
     this._excludeFields.addAll(excludeFields);
+    return this;
   }
 
-  MongoProvider find(Map params) {
+  MongoProvider find([Map params = const {}]) {
     var mp = new MongoProvider(collection, _collectionHistory, _lock);
     mp._copySelection(this);
     mp._selectorList.add(params);
@@ -200,10 +205,12 @@ class MongoProvider implements DataProvider {
    * Returns data and version of this data.
    */
   Future<Map> data({projection: null, stripVersion: true}) {
-    return collection.find(where.raw(_rawSelector).fields(_fields)
-        .excludeFields(_excludeFields).limit(_limit).skip(_skip)).toList().then((data) {
-    num watchID = startWatch('MP data ${collection.collectionName}');
-      logElapsedTime(watchID);
+    SelectorBuilder selector = where.raw(_rawSelector);
+    if(_fields.isNotEmpty) selector = selector.fields(_fields);
+    if(_excludeFields.isNotEmpty) selector = selector.excludeFields(_excludeFields);
+    selector = selector.limit(_limit).skip(_skip);
+    return collection.find(selector).toList().then((data) {
+      num watchID = startWatch('MP data ${collection.collectionName}');
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
