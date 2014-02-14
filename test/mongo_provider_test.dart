@@ -82,7 +82,7 @@ void main() {
           expect(data['version'], equals(1));
       }).then((_) => months.diffFromVersion(0))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(1));
           Map diff = diffList[0];
           expect(diff['action'], equals('add'));
@@ -109,7 +109,7 @@ void main() {
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(0))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(2));
           Map diff = diffList[0];
           expect(diff['action'], equals('add'));
@@ -172,7 +172,7 @@ void main() {
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(1));
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
@@ -208,7 +208,7 @@ void main() {
           expect(data['version'], lessThanOrEqualTo(2));
         }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(1));
           Map diff = diffList[0];
           expect(diff['action'], equals('remove'));
@@ -233,7 +233,7 @@ void main() {
           expect(data['version'], equals(4));
         }).then((_) => months.diffFromVersion(4))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(2));
           Map diff = diffList[0];
           expect(diff['action'], equals('remove'));
@@ -283,7 +283,7 @@ void main() {
 
       // then
       .then((dataDiff) {
-         handleDiff(dataDiff, dataStart);
+         handleDiff(dataDiff['diff'], dataStart);
          expect(dataStart, unorderedEquals(dataEnd));
       });
     });
@@ -310,7 +310,7 @@ void main() {
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
-          List diffList = dataDiff;
+          List diffList = dataDiff['diff'];
           expect(diffList.length, equals(1));
           Map diff = diffList[0];
           expect(diff['action'], equals('change'));
@@ -365,7 +365,7 @@ void main() {
           })
           .then((_) => months.diffFromVersion(11))
           .then((dataDiff) {
-            List diffList = dataDiff;
+            List diffList = dataDiff['diff'];
             expect(diffList.length, equals(1));
             Map diff = diffList[0];
             expect(diff['action'], equals('change'));
@@ -405,8 +405,8 @@ void main() {
           .then((_) => months.diffFromVersion(11))
           .then((dataDiff) {
             num version = 12;
-            dataDiff.forEach((elem) => expect(elem['version'], equals(version++)));
-            List diffList = dataDiff;
+            dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
+            List diffList = dataDiff['diff'];
             expect(diffList.length, equals(6));
           });
     });
@@ -440,8 +440,8 @@ void main() {
           .then((_) => months.diffFromVersion(11))
           .then((dataDiff) {
             num version = 12;
-            dataDiff.forEach((elem) => expect(elem['version'], equals(version++)));
-            List diffList = dataDiff;
+            dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
+            List diffList = dataDiff['diff'];
             expect(diffList.length, equals(6));
           });
     });

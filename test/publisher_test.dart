@@ -14,10 +14,11 @@ import 'package:clean_ajax/server.dart';
 class DataProviderMock extends Mock implements DataProvider {
   static const response = 'response';
   final responseFuture = new Future.value(response);
+  final responseToDiff = new Future.value({'diff': response});
 
   DataProviderMock() {
     when(callsTo("data")).alwaysReturn(responseFuture);
-    when(callsTo("diffFromVersion", anything)).alwaysReturn(responseFuture);
+    when(callsTo("diffFromVersion", anything)).alwaysReturn(responseToDiff);
     when(callsTo("add")).alwaysReturn(responseFuture);
     when(callsTo("change")).alwaysReturn(responseFuture);
     when(callsTo("remove")).alwaysReturn(responseFuture);
