@@ -23,11 +23,14 @@ class Resource {
 
 
   Future handleSyncRequest (Map data) {
+    num watchID = startWatch('${data["action"]}, ${data['collection']}');
+
     var action = data["action"];
     var reqVersion = data['version'];
     List<String> modifications = ['add', 'change', 'remove'];
 
     if (modifications.contains(action) && projection != null) {
+      stopWatch(watchID);
       throw new Exception('Thou shall not modify projected data!');
     }
 
@@ -47,7 +50,10 @@ class Resource {
       .then((DataProvider _dp) {
         dp = _dp;
         if (action == "get_data") {
-          return dp.data(projection: projection);
+          return dp.data(projection: projection).then((result) {
+            stopWatch(watchID);
+            return result;
+          });
         }
         else if (action == "get_diff") {
           var myVer = version == null ? null : version.value;
@@ -63,17 +69,32 @@ class Resource {
                 diff['version'] = myVer;
               }
               return diff;
+            }).then((result) {
+              stopWatch(watchID);
+              return result;
             });
           }
         }
         else if (action == "add") {
-          return memoizeVersion(dp.add(data['data'], data['author']), 'add');
+          return memoizeVersion(dp.add(data['data'], data['author']), 'add')
+          .then((result) {
+            stopWatch(watchID);
+            return result;
+          });
         }
         else if (action == "change") {
-          return memoizeVersion(dp.change(data['_id'], data['change'], data['author']), 'change');
+          return memoizeVersion(dp.change(data['_id'], data['change'], data['author']), 'change')
+              .then((result) {
+                stopWatch(watchID);
+                return result;
+              });
         }
         else if (action == "remove") {
-          return memoizeVersion(dp.remove(data['_id'], data['author']), 'remove');
+          return memoizeVersion(dp.remove(data['_id'], data['author']), 'remove')
+              .then((result) {
+                stopWatch(watchID);
+                return result;
+              });
         }
       });
 
@@ -163,6 +184,7 @@ class Publisher {
         'error': e.toString(),
       });
     });
+
   }
 
   String getIdPrefix() {

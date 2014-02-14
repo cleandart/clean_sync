@@ -19,3 +19,28 @@ part 'src/publisher.dart';
 part 'src/data_provider.dart';
 part 'src/mongo_provider.dart';
 
+// profiling
+Map watches = {};
+var watchID = 0;
+
+num startWatch(identifier) {
+  watchID++;
+  watches[watchID] = [new Stopwatch()..start(), identifier];
+  logger.info('$watchID Started processing request ($identifier).');
+  return watchID;
+}
+stopWatch(watchID) {
+  var watch = watches[watchID][0];
+  var identifier = watches[watchID][1];
+  logger.info('$watchID Processing request ($identifier) took ${watch.elapsed}.');
+  watch.stop();
+  watches.remove(watchID);
+}
+
+logElapsedTime(watchID) {
+  var watch = watches[watchID][0];
+  var identifier = watches[watchID][1];
+  logger.info('$watchID Processing request ($identifier) currently elapsed '
+              '${watch.elapsed}.');
+}
+// end profiling

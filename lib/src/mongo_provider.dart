@@ -197,11 +197,13 @@ class MongoProvider implements DataProvider {
   }
 
   /**
-   * Returns data and version of this data 7.
+   * Returns data and version of this data.
    */
   Future<Map> data({projection: null, stripVersion: true}) {
     return collection.find(where.raw(_rawSelector).fields(_fields)
         .excludeFields(_excludeFields).limit(_limit).skip(_skip)).toList().then((data) {
+    num watchID = startWatch('MP data ${collection.collectionName}');
+      logElapsedTime(watchID);
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
@@ -210,6 +212,9 @@ class MongoProvider implements DataProvider {
       }
       assert(version != null);
       return {'data': data, 'version': version};
+    }).then((result) {
+      stopWatch(watchID);
+      return result;
     });
   }
 
