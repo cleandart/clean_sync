@@ -42,6 +42,7 @@ main() {
 
   hierarchicalLoggingEnabled = true;
   logger.level = Level.WARNING;
+  Logger.root.level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
     print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
