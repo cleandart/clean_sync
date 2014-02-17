@@ -148,8 +148,8 @@ main() {
           .then((data){ dataEnd = data['data']; })
           .then((_) => currCollection.diffFromVersion(lastVersion))
           .then((currCollection) {
-            (currCollection as List).forEach((e) => lastVersion = max(lastVersion, e['version']));
-            handleDiff(currCollection, dataStart);
+            currCollection['diff'].forEach((e) => lastVersion = max(lastVersion, e['version']));
+            handleDiff(currCollection['diff'], dataStart);
             print(toStringOrdered(dataEnd));
             expect(toStringOrdered(dataStart), equals(toStringOrdered(dataEnd)));
           });
