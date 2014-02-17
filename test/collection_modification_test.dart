@@ -21,7 +21,7 @@ main(){
   Logger.root.level = Level.WARNING;
   (new Logger('clean_sync')).level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
+    print('${rec.loggerName} ${rec.level} ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
   run();
 }
@@ -55,25 +55,27 @@ run() {
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
+        cacheFactory() => new Cache(new Duration(milliseconds: 10), 10000);
+
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        });
+        }, cacheFactory: cacheFactory);
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        });
+        }, cacheFactory: cacheFactory);
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        });
+        }, cacheFactory: cacheFactory);
 
         pub.publish('mapped', (_) {
           return mongodb.collection("random").find({});
         }, projection: (Map elem){
           elem.remove('a');
           elem['aa'] = 'it works gr8';
-        });
+        }, cacheFactory: cacheFactory);
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
@@ -261,10 +263,6 @@ run() {
 
     return executeSubscriptionActions(actions);
 
-  });
-
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.message}');
   });
 
   test('test data list manipulation', () {

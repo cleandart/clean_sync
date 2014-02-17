@@ -8,7 +8,7 @@ abstract class DataProvider {
   /** Returns collection of items in the following form:
    * {'data': [List<Map>] data, 'version': [num] version_num}
    */
-  Future<Map> data({projection: null});
+  Future<Map> data({projection: null, Cache cache: null});
   /** Returns collection of items in the following form:
    *  {'diff': [List<Map>]} or
    *  {'diff': null, 'data': [List<Map>] data, 'version': [num] version_num}
@@ -31,7 +31,7 @@ abstract class DataProvider {
    *  was added. In case of 'change', value of 'data' is a [Map] containing new
    *  key-value pairs and/or pairs of already existing keys and updated values.
    */
-  Future<Map> diffFromVersion(num version, {projection: null});
+  Future<Map> diffFromVersion(num version, {projection: null, Cache cache: null});
   Future add(Map data, String author);
   Future change(String_id, Map change, String author);
   Future remove(String id, String author);

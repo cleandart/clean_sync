@@ -201,10 +201,19 @@ class MongoProvider implements DataProvider {
     return mp;
   }
 
+  String get repr{
+    return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
+  }
+
+
+  Future<Map> data({projection: null, stripVersion: true, Cache cache: dummyCache}) {
+    return cache.putIfAbsent('data $repr', () => _data(projection: projection, stripVersion: stripVersion));
+  }
+
   /**
    * Returns data and version of this data.
    */
-  Future<Map> data({projection: null, stripVersion: true}) {
+  Future<Map> _data({projection: null, stripVersion: true}) {
     SelectorBuilder selector = where.raw(_rawSelector);
     if(_fields.isNotEmpty) selector = selector.fields(_fields);
     if(_excludeFields.isNotEmpty) selector = selector.excludeFields(_excludeFields);
@@ -460,9 +469,30 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future<Map> diffFromVersion(num version, {projection: null}) {
+  num diffCount = 0;
+
+  Future<Map> diffFromVersion(num version, {projection: null, Cache cache: dummyCache}) {
+    String verKey = 'version $repr';
+    return cache.putIfAbsent(verKey, () => _maxVersion)
+      .then((maxVer) {
+        if (maxVer == version) {
+          return {'diff': []};
+        }
+
+        addVer(Future<Map> diffRes) {
+          return diffRes.then((res) {
+            res['version'] = maxVer;
+            return res;
+          });
+        }
+
+        return cache.putIfAbsent('$version  $repr', () => addVer(_diffFromVersion(version, projection: projection)));
+      });
+  }
+
+  Future<Map> _diffFromVersion(num version, {projection: null}) {
     try{
-      return _diffFromVersion(version, projection: projection).then((d) {
+      return __diffFromVersion(version, projection: projection).then((d) {
         return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
@@ -490,7 +520,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<List> _diffFromVersion(num version, {projection:null}) {
+  Future<List> __diffFromVersion(num version, {projection:null}) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change

@@ -15,9 +15,14 @@ typedef Future ValueGenerator();
 class Cache {
   Map m;
   Duration _timeOut;
+  num capacity;
   LinkedHashMap<dynamic, Entry> entries = {};
 
-  Cache(this._timeOut);
+  Cache(this._timeOut, this.capacity);
+
+  _removeFirst(){
+    entries.remove(entries.keys.first);
+  }
 
   clear(){
     var toRemove = [];
@@ -25,6 +30,9 @@ class Cache {
       if ((new DateTime.now()).isAfter(entries[k].expirationDate)) {
         toRemove.add(k);
       }
+    }
+    while(entries.length > capacity) {
+      _removeFirst();
     }
     toRemove.forEach((e){entries.remove(e);});
   }
@@ -39,12 +47,17 @@ class Cache {
   Future putIfAbsent(key, ValueGenerator val){
     clear();
     if (entries.containsKey(key)) {
-      return new Future.value(entries[key].value);
+//      print('hit');
+      return new Future.delayed(new Duration(), () => entries[key].value);
     } else {
+//      print('miss');
       return val().then((value){
         put(key, value);
         return value;
       });
+    }
+    if (entries.length > capacity) {
+      _removeFirst();
     }
   }
 
@@ -63,3 +76,14 @@ class Cache {
   }
 
 }
+
+class DummyCache implements Cache {
+  const DummyCache();
+  put(key, val) => null;
+  putIfAbsent(key, ValueGenerator val) => val();
+  getEntry(key) => null;
+  get(key) => null;
+  clear(){}
+}
+
+const dummyCache = const DummyCache();

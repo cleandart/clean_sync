@@ -72,6 +72,7 @@ main() {
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
 
   setUp((){
+    cacheFactory() => new Cache(new Duration(milliseconds: 10), 10000);
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
@@ -80,19 +81,19 @@ main() {
 //        var versionProvider = null;
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        }, versionProvider: versionProvider);
+        }, cacheFactory: cacheFactory);
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        }, versionProvider: versionProvider);
+        }, cacheFactory: cacheFactory);
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        }, versionProvider: versionProvider);
+        }, cacheFactory: cacheFactory);
 
         pub.publish('d', (_) {
           return mongodb.collection("random").find({'noMatch': 'noMatch'});
-        }, versionProvider: versionProvider);
+        }, cacheFactory: cacheFactory);
 
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();

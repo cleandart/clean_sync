@@ -12,7 +12,7 @@ import 'package:logging/logging.dart';
 const ELEMENTS = 1000;
 const CLIENTS = 50;
 
-final TIME = new Duration(seconds: 20);
+final TIME = new Duration(seconds: 10);
 
 MongoDatabase mongodb;
 setup() {
@@ -45,12 +45,13 @@ main() {
   }).then((version) {
     print('Publishing collection with version $version....');
     var versionProvider = mongodb.collection('benchmark');
-    publish('benchmark', (_) => mongodb.collection('benchmark'),
-        versionProvider: versionProvider);
+    cacheFactory() => new Cache(new Duration(milliseconds: 200), 10000);
+//    cacheFactory() => dummyCache;
+    publish('benchmark', (_) => mongodb.collection('benchmark'), cacheFactory: cacheFactory);
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
-       "version" : version}, null, null);
+       "version" : version-20}, null, null);
 
     Stopwatch stopwatch = new Stopwatch();
     num countRequest = 0;
