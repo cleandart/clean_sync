@@ -1,5 +1,5 @@
 
-import 'dart:collection';
+part of clean_sync.server;
 
 class Entry {
   DateTime timeAdded;
@@ -10,10 +10,12 @@ class Entry {
   }
 }
 
+typedef Future ValueGenerator();
+
 class Cache {
   Map m;
   Duration _timeOut;
-  LinkedHashMap<dynamic, Entry> entries;
+  LinkedHashMap<dynamic, Entry> entries = {};
 
   Cache(this._timeOut);
 
@@ -27,11 +29,37 @@ class Cache {
     toRemove.forEach((e){entries.remove(e);});
   }
 
-  save(key, val){
+  put(key, val){
     var timeAdded = new DateTime.now();
     var expirationDate = timeAdded.add(_timeOut);
-
-    entries[key] = new Entry(value);
-
+    entries[key] = new Entry(val, timeAdded, expirationDate);
   }
+
+
+  Future putIfAbsent(key, ValueGenerator val){
+    clear();
+    if (entries.containsKey(key)) {
+      return new Future.value(entries[key].value);
+    } else {
+      return val().then((value){
+        put(key, value);
+        return value;
+      });
+    }
+  }
+
+  Entry getEntry(key){
+    clear();
+    return entries[key];
+  }
+
+  get(key){
+    Entry res = getEntry(key);
+    if (res == null) {
+      return res;
+    } else {
+      return res.value;
+    }
+  }
+
 }
