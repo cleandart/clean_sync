@@ -18,8 +18,6 @@ class Version {
 class Resource {
   DataGenerator generator;
   Function beforeRequestCallback;
-  Cache cache;
-
 
   Future handleSyncRequest (Map data) {
     num watchID = startWatch('${data["action"]}, ${data['collection']}');
@@ -50,7 +48,7 @@ class Resource {
           });
         }
         else if(action == "get_diff") {
-          return dp.diffFromVersion(reqVersion, cache: cache)
+          return dp.diffFromVersion(reqVersion)
             .then((result) {
                 stopWatch(watchID);
                 return result;
@@ -81,7 +79,7 @@ class Resource {
 
   }
 
-  Resource(this.generator, this.beforeRequestCallback, this.cache);
+  Resource(this.generator, this.beforeRequestCallback);
 }
 
 class Publisher {
@@ -89,15 +87,8 @@ class Publisher {
 
   Map<String, Resource> _resources = {};
 
-  void publish(String collection, DataGenerator generator, {beforeRequest: null,
-     cacheFactory: null}) {
-    Cache cache;
-    if (cacheFactory != null) {
-      cache = cacheFactory();
-    } else {
-      cache = dummyCache;
-    }
-    _resources[collection] = new Resource(generator, beforeRequest, cache);
+  void publish(String collection, DataGenerator generator, {beforeRequest: null}) {
+    _resources[collection] = new Resource(generator, beforeRequest);
   }
 
   bool isPublished(String collection) {
@@ -142,10 +133,8 @@ class Publisher {
 }
 
 final PUBLISHER = new Publisher();
-void publish(String c, DataGenerator dg, {beforeRequest: null,
-  cacheFactory: null}) {
-  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest,
-       cacheFactory: cacheFactory);
+void publish(String c, DataGenerator dg, {beforeRequest: null}) {
+  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest);
 }
 
 bool isPublished(String collection) {

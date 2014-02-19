@@ -61,8 +61,9 @@ class MongoDatabase {
   Future _conn;
   List<Future> init = [];
   DbCollection _lock;
+  Cache cache;
 
-  MongoDatabase(String url) {
+  MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
     _conn = _db.open(); // open connection to database
     init.add(_conn);
@@ -113,7 +114,7 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    return new MongoProvider(collection, collectionHistory, _lock);
+    return new MongoProvider(collection, collectionHistory, _lock, cache);
   }
 
   Future dropCollection(String collectionName) =>
@@ -142,6 +143,7 @@ class MongoProvider implements DataProvider {
   List _fields = [];
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
+  Cache cache;
 
   //for testing purposes
   Future<int> get maxVersion => _maxVersion;
@@ -154,7 +156,7 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(this.collection, this._collectionHistory, this._lock);
+  MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
 
   void _copySelection(MongoProvider mp) {
     this._sortParams = new Map.from(mp._sortParams);
@@ -180,28 +182,28 @@ class MongoProvider implements DataProvider {
   }
 
   MongoProvider find([Map params = const {}]) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
     mp._copySelection(this);
     mp._selectorList.add(params);
     return mp;
   }
 
   MongoProvider sort(Map params) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
     mp._copySelection(this);
     mp._sortParams.addAll(params);
     return mp;
   }
 
   MongoProvider limit(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
     mp._copySelection(this);
     mp._limit = value;
     return mp;
   }
 
   MongoProvider skip(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
+    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
     mp._copySelection(this);
     mp._skip = value;
     return mp;
@@ -212,7 +214,7 @@ class MongoProvider implements DataProvider {
   }
 
 
-  Future<Map> data({stripVersion: true, Cache cache: dummyCache}) {
+  Future<Map> data({stripVersion: true}) {
     return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
   }
 
@@ -485,7 +487,7 @@ class MongoProvider implements DataProvider {
 
   num diffCount = 0;
 
-  Future<Map> diffFromVersion(num version, {Cache cache: dummyCache}) {
+  Future<Map> diffFromVersion(num version) {
     String verKey = 'version $repr';
     return cache.putIfAbsent(verKey, () => _maxVersion)
       .then((maxVer) {

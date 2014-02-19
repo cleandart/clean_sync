@@ -48,34 +48,33 @@ run() {
 
 
   setUp((){
-    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
+    Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
+    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
 
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
-//        cacheFactory() => new Cache(new Duration(milliseconds: 10), 10000);
-        cacheFactory() => new DummyCache();
 
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
-        }, cacheFactory: cacheFactory);
+        });
 
         pub.publish('b', (_) {
           return mongodb.collection("random").find({'a': 'hello'});
-        }, cacheFactory: cacheFactory);
+        });
 
         pub.publish('c', (_) {
           return mongodb.collection("random").find({'a.a': 'hello'});
-        }, cacheFactory: cacheFactory);
+        });
 
         pub.publish('mapped_pos', (_) {
           return mongodb.collection("random").find({'b': 3}).fields(['a']);
-        }, cacheFactory: cacheFactory);
+        });
 
         pub.publish('mapped_neg', (_) {
           return mongodb.collection("random").find({'b': 3}).excludeFields(['a']);
-        }, cacheFactory: cacheFactory);
+        });
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);

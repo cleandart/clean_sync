@@ -16,7 +16,8 @@ final TIME = new Duration(seconds: 10);
 
 MongoDatabase mongodb;
 setup() {
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark');
+  Cache cache = new Cache(new Duration(milliseconds: 200), 10000);
+  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', cache: cache);
 
   return mongodb.dropCollection('benchmark')
   .then((_) => mongodb.removeLocks())
@@ -45,9 +46,7 @@ main() {
   }).then((version) {
     print('Publishing collection with version $version....');
     var versionProvider = mongodb.collection('benchmark');
-    cacheFactory() => new Cache(new Duration(milliseconds: 200), 10000);
-//    cacheFactory() => dummyCache;
-    publish('benchmark', (_) => mongodb.collection('benchmark'), cacheFactory: cacheFactory);
+    publish('benchmark', (_) => mongodb.collection('benchmark'));
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
