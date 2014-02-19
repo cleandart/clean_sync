@@ -72,7 +72,7 @@ main() {
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
 
   setUp((){
-    cacheFactory() => new Cache(new Duration(milliseconds: 10), 10000);
+    cacheFactory() => new Cache(new Duration(milliseconds: 100), 10000);
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){

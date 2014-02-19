@@ -18,7 +18,6 @@ class Version {
 class Resource {
   DataGenerator generator;
   Function beforeRequestCallback;
-  Function projection;
   Cache cache;
 
 
@@ -28,11 +27,6 @@ class Resource {
     var action = data["action"];
     var reqVersion = data['version'];
     List<String> modifications = ['add', 'change', 'remove'];
-
-    if (modifications.contains(action) && projection != null) {
-      stopWatch(watchID);
-      throw new Exception('Thou shall not modify projected data!');
-    }
 
     Future beforeRequest = new Future.value(null);
     if (beforeRequestCallback != null && modifications.contains(action)) {
@@ -50,13 +44,13 @@ class Resource {
       .then((DataProvider _dp) {
         dp = _dp;
         if (action == "get_data") {
-          return dp.data(projection: projection).then((result) {
+          return dp.data().then((result) {
             stopWatch(watchID);
             return result;
           });
         }
         else if(action == "get_diff") {
-          return dp.diffFromVersion(reqVersion, projection: projection, cache: cache)
+          return dp.diffFromVersion(reqVersion, cache: cache)
             .then((result) {
                 stopWatch(watchID);
                 return result;
@@ -87,7 +81,7 @@ class Resource {
 
   }
 
-  Resource(this.generator, this.beforeRequestCallback, this.projection, this.cache);
+  Resource(this.generator, this.beforeRequestCallback, this.cache);
 }
 
 class Publisher {
@@ -96,14 +90,14 @@ class Publisher {
   Map<String, Resource> _resources = {};
 
   void publish(String collection, DataGenerator generator, {beforeRequest: null,
-    projection: null, cacheFactory: null}) {
+     cacheFactory: null}) {
     Cache cache;
     if (cacheFactory != null) {
       cache = cacheFactory();
     } else {
       cache = dummyCache;
     }
-    _resources[collection] = new Resource(generator, beforeRequest, projection, cache);
+    _resources[collection] = new Resource(generator, beforeRequest, cache);
   }
 
   bool isPublished(String collection) {
@@ -149,9 +143,9 @@ class Publisher {
 
 final PUBLISHER = new Publisher();
 void publish(String c, DataGenerator dg, {beforeRequest: null,
-  projection: null, cacheFactory: null}) {
+  cacheFactory: null}) {
   PUBLISHER.publish(c, dg, beforeRequest: beforeRequest,
-      projection: projection, cacheFactory: cacheFactory);
+       cacheFactory: cacheFactory);
 }
 
 bool isPublished(String collection) {
