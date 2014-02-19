@@ -1,5 +1,4 @@
 import 'dart:html';
-import 'dart:async';
 import "package:clean_data/clean_data.dart";
 import "package:clean_sync/client.dart";
 import "package:clean_ajax/client_browser.dart";
@@ -112,7 +111,9 @@ void main() {
         event.strictlyChanged.forEach((DataMap person, ChangeSet changes) {
           changes.changedItems.forEach((String key, Change value) {
             InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
-            e.value = value.newValue.toString();
+            if (e != null) {
+              e.value = value.newValue.toString();
+            }
           });
         });
         event.removedItems.forEach((person) {
@@ -134,12 +135,12 @@ void main() {
       age.value = '';
     });
    
-    querySelector('#resync').onClick.listen((_) {
-      Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
-          new Duration(milliseconds: 100));
-      personsDiff.resync();
-      personsDiff24.resync();
-    });
+//    querySelector('#resync').onClick.listen((_) {
+//      Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
+//          new Duration(milliseconds: 100));
+//      personsDiff.resync();
+//      personsDiff24.resync();
+//    });
    
     querySelector('#saveAll').onClick.listen((_) {
       querySelectorAll(".save-button").forEach((n) => n.click()); 

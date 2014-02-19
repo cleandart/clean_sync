@@ -255,7 +255,7 @@ class Subscription {
         
         _periodicDiffRequesting.resume();
       }, onError: (e) {
-        if (e is FailedRequestException) {
+        if (e is ConnectionError) {
           print("resync failed");
         }
         else throw e;
@@ -284,7 +284,9 @@ class Subscription {
     if (_connected) {
       Future result = _connection.send(() {
         _ongoingRequests++;
-        return new ClientRequest("sync", data);
+        ClientRequest req = new ClientRequest("sync", data);
+        _modifiedItems.changedItems.remove(data['elem']);
+        return req;
       }).then((result) {
         if (result is Map && result['error'] != null) {
           _errorStreamController.add(result['error']);
@@ -302,7 +304,7 @@ class Subscription {
         
         return response;
       }, onError: (e) {
-        if (e is FailedRequestException) {
+        if (e is ConnectionError) {
           _ongoingRequests--;
         }
         else if (e is CancelError) { /* do nothing */ }
@@ -347,7 +349,7 @@ class Subscription {
         'args': args,
         "_id" : elem["_id"],
         "elem" : elem,
-        "change" : elem,
+        "change" : new DataMap.from(elem),
         "author" : _author,
         "clientVersion" : _clientVersionGenerator.nextInt()
       };
@@ -464,7 +466,7 @@ class Subscription {
           }
         }, onError: (e){
           if (e is CancelError) { /* do nothing */ }
-          else if (e is FailedRequestException) {
+          else if (e is ConnectionError) {
             // connection failed
             _periodicDiffRequesting.pause();
             requestLock = false;

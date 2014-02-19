@@ -256,7 +256,7 @@ class MongoProvider implements DataProvider {
     });
   }
   
-  Future add(Map data, String author, num clientVersion) {
+  Future add(Map data, String author, {num clientVersion: -1}) {
     num nextVersion;
     return _get_locks().then((_) =>
          collection.findOne({"_id" : data['_id']}))
@@ -350,7 +350,7 @@ class MongoProvider implements DataProvider {
   }
 
   //TODO: change means new data, rename it
-  Future change(String _id, Map change, String author, num clientVersion) {
+  Future change(String _id, Map change, String author, {num clientVersion: -1}) {
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
@@ -445,7 +445,7 @@ class MongoProvider implements DataProvider {
         });
   }
 
-  Future remove(String _id, String author, num clientVersion) {
+  Future remove(String _id, String author, {num clientVersion: -1}) {
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
