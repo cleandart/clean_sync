@@ -182,31 +182,23 @@ class MongoProvider implements DataProvider {
   }
 
   MongoProvider find([Map params = const {}]) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
-    mp._copySelection(this);
-    mp._selectorList.add(params);
-    return mp;
+    this._selectorList.add(params);
+    return this;
   }
 
   MongoProvider sort(Map params) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
-    mp._copySelection(this);
-    mp._sortParams.addAll(params);
-    return mp;
+    this._sortParams.addAll(params);
+    return this;
   }
 
   MongoProvider limit(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
-    mp._copySelection(this);
-    mp._limit = value;
-    return mp;
+    this._limit = value;
+    return this;
   }
 
   MongoProvider skip(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock, cache);
-    mp._copySelection(this);
-    mp._skip = value;
-    return mp;
+    this._skip = value;
+    return this;
   }
 
   String get repr{
