@@ -376,14 +376,8 @@ class MongoProvider implements DataProvider {
               "clientVersion" : clientVersion
             }));
         }
-      }).then((_) => _release_locks()).then((_) {
-        
-        print("change request, saved");
-        sleep(new Duration(milliseconds: 3000));
-        print("w8 finished");
-        
-        return nextVersion;
-      }) //.then((_) => nextVersion)
+      }).then((_) => _release_locks())
+      .then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
