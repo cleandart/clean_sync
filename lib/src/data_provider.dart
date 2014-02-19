@@ -32,8 +32,8 @@ abstract class DataProvider {
    *  key-value pairs and/or pairs of already existing keys and updated values.
    */
   Future<Map> diffFromVersion(num version);
-  Future add(Map data, String author, num clientVersion);
-  Future change(String_id, Map change, String author, num clientVersion);
-  Future remove(String id, String author, num clientVersion);
+  Future add(Map data, String author, {num clientVersion : null});
+  Future change(String_id, Map change, String author, {num clientVersion : null});
+  Future remove(String id, String author, {num clientVersion : null});
   Future<int> maxClientVersion(String author);
 }

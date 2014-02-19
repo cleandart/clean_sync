@@ -57,21 +57,21 @@ class Resource {
              });
         }
         else if (action == "add") {
-          return dp.add(data['data'], data['author'], data['clientVersion'])
+          return dp.add(data['data'], data['author'], clientVersion: data['clientVersion'])
           .then((result) {
             stopWatch(watchID);
             return result;
           });
         }
         else if (action == "change") {
-          return dp.change(data['_id'], data['change'], data['author'], data['clientVersion'])
+          return dp.change(data['_id'], data['change'], data['author'], clientVersion: data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;
               });
         }
         else if (action == "remove") {
-          return dp.remove(data['_id'], data['author'], data['clientVersion'])
+          return dp.remove(data['_id'], data['author'], clientVersion: data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;

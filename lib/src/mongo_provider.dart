@@ -264,7 +264,7 @@ class MongoProvider implements DataProvider {
    * Adds document [data] to database. If document with same [_id] alreay
    * exists, nothing happens and [true] is returned.
    */
-  Future add(Map data, String author, num clientVersion) {
+  Future add(Map data, String author, {num clientVersion: -1}) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) =>
@@ -364,7 +364,7 @@ class MongoProvider implements DataProvider {
    * Changes document with id [_id] to [newData]. If such document does not
    * exist, nothing happens and [true] is returned.
    */
-  Future change(String _id, Map newData, String author, num clientVersion) {
+  Future change(String _id, Map newData, String author, {num clientVersion: -1}) {
     cache.invalidate();
     num nextVersion;
     Map newRecord;
@@ -451,7 +451,7 @@ class MongoProvider implements DataProvider {
         });
   }
 
-  Future remove(String _id, String author, num clientVersion) {
+  Future remove(String _id, String author, {num clientVersion: -1}) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
