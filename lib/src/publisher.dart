@@ -18,9 +18,6 @@ class Version {
 class Resource {
   DataGenerator generator;
   Function beforeRequestCallback;
-  Function projection;
-  Version version;
-
 
   Future handleSyncRequest (Map data) {
     num watchID = startWatch('${data["action"]}, ${data['collection']}');
@@ -28,11 +25,6 @@ class Resource {
     var action = data["action"];
     var reqVersion = data['version'];
     List<String> modifications = ['add', 'change', 'remove'];
-
-    if (modifications.contains(action) && projection != null) {
-      stopWatch(watchID);
-      throw new Exception('Thou shall not modify projected data!');
-    }
 
     Future beforeRequest = new Future.value(null);
     if (beforeRequestCallback != null && modifications.contains(action)) {
@@ -50,47 +42,34 @@ class Resource {
       .then((DataProvider _dp) {
         dp = _dp;
         if (action == "get_data") {
-          return dp.data(projection: projection).then((result) {
+          return dp.data().then((result) {
             stopWatch(watchID);
             return result;
           });
         }
-        else if (action == "get_diff") {
-          var myVer = version == null ? null : version.value;
-          if (version != null && reqVersion == myVer) {
-            return new Future.delayed(new Duration(milliseconds: 0),
-                () => {'diff': [], 'version': myVer});
-          } else {
-            return dp.diffFromVersion(reqVersion, projection: projection)
-            .then((diff) {
-              if(diff['diff'] == null) return diff;
-              if(diff['diff'].isEmpty && version != null){
-                assert(myVer != null);
-                diff['version'] = myVer;
-              }
-              return diff;
-            }).then((result) {
-              stopWatch(watchID);
-              return result;
-            });
-          }
+        else if(action == "get_diff") {
+          return dp.diffFromVersion(reqVersion)
+            .then((result) {
+                stopWatch(watchID);
+                return result;
+             });
         }
         else if (action == "add") {
-          return memoizeVersion(dp.add(data['data'], data['author']), 'add')
+          return dp.add(data['data'], data['author'])
           .then((result) {
             stopWatch(watchID);
             return result;
           });
         }
         else if (action == "change") {
-          return memoizeVersion(dp.change(data['_id'], data['change'], data['author']), 'change')
+          return dp.change(data['_id'], data['change'], data['author'])
               .then((result) {
                 stopWatch(watchID);
                 return result;
               });
         }
         else if (action == "remove") {
-          return memoizeVersion(dp.remove(data['_id'], data['author']), 'remove')
+          return dp.remove(data['_id'], data['author'])
               .then((result) {
                 stopWatch(watchID);
                 return result;
@@ -100,59 +79,16 @@ class Resource {
 
   }
 
-  memoizeVersion(Future<num> result, [action]){
-    return result.then((val){
-      if (val is num && version!=null) {
-        version.value = val;
-      }
-      return val;
-    });
-  }
-
-  Resource(this.generator, this.beforeRequestCallback, this.projection, this.version);
+  Resource(this.generator, this.beforeRequestCallback);
 }
 
 class Publisher {
   int counter = 0;
-  Timer updateVersionTimer;
 
   Map<String, Resource> _resources = {};
-  Map<MongoProvider, Version> _versions = {};
 
-  Publisher(){
-    updateVersionTimer = new Timer.periodic(new Duration(milliseconds: 100), (_){
-      updateVersions();
-    });
-  }
-
-  updateVersions(){
-    Future.forEach(_versions.keys, (MongoProvider col) =>
-     col.maxVersion.then((ver){
-       _versions[col].value = ver;
-     })
-    );
-  }
-
-  close(){
-    if (updateVersionTimer != null) {
-      updateVersionTimer.cancel();
-    }
-  }
-
-  void publish(String collection, DataGenerator generator, {beforeRequest: null,
-    projection: null, MongoProvider versionProvider: null}) {
-    Version ver;
-    if (versionProvider != null) {
-       if (_versions.containsKey(versionProvider)) {
-        ver = _versions[versionProvider];
-      } else {
-        ver = new Version();
-        _versions[versionProvider] = ver;
-      }
-    } else {
-      ver = null;
-    }
-    _resources[collection] = new Resource(generator, beforeRequest, projection, ver);
+  void publish(String collection, DataGenerator generator, {beforeRequest: null}) {
+    _resources[collection] = new Resource(generator, beforeRequest);
   }
 
   bool isPublished(String collection) {
@@ -197,10 +133,8 @@ class Publisher {
 }
 
 final PUBLISHER = new Publisher();
-void publish(String c, DataGenerator dg, {beforeRequest: null,
-  projection: null, MongoProvider versionProvider: null}) {
-  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest,
-      projection: projection, versionProvider: versionProvider);
+void publish(String c, DataGenerator dg, {beforeRequest: null}) {
+  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest);
 }
 
 bool isPublished(String collection) {

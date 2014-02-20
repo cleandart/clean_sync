@@ -21,7 +21,7 @@ main(){
   Logger.root.level = Level.WARNING;
   (new Logger('clean_sync')).level = Level.WARNING;
   Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
+    print('${rec.loggerName} ${rec.level} ${rec.message} ${rec.error} ${rec.stackTrace}');
   });
   run();
 }
@@ -33,14 +33,12 @@ run() {
   DataSet colAll2;
   DataSet colA;
   DataSet colAa;
-  DataSet colMapped;
 
   Connection connection;
   Subscription subAll;
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
-  Subscription subMapped;
 
   DataMap data1;
   DataMap data2;
@@ -50,11 +48,13 @@ run() {
 
 
   setUp((){
-    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
+    Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
+    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
 
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
+
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
@@ -68,13 +68,13 @@ run() {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
 
-        pub.publish('mapped', (_) {
-          return mongodb.collection("random").find({});
-        }, projection: (Map elem){
-          elem.remove('a');
-          elem['aa'] = 'it works gr8';
+        pub.publish('mapped_pos', (_) {
+          return mongodb.collection("random").find({'b': 3}).fields(['a']);
         });
 
+        pub.publish('mapped_neg', (_) {
+          return mongodb.collection("random").find({'b': 3}).excludeFields(['a']);
+        });
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
@@ -88,8 +88,6 @@ run() {
         colA = subA.collection;
         subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
         colAa = subAa.collection;
-        subMapped = new Subscription('mapped', connection, 'author5', new IdGenerator('e'), {});
-        colMapped = subMapped.collection;
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -103,13 +101,11 @@ run() {
       subAll2,
       subA,
       subAa,
-      subMapped
     ];
 
     return Future.forEach(itemsToClose, (item) {
       return item.close();
-    }).then((_) => mongodb.close())
-    .then((_) => pub.close());
+    }).then((_) => mongodb.close());
   });
 
   executeSubscriptionActions(List actions) {
@@ -120,7 +116,6 @@ run() {
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
-    subMapped.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
@@ -182,7 +177,6 @@ run() {
     colAll2.onChangeSync.listen(preventUpdate(subAll2));
     colA.onChangeSync.listen(preventUpdate(subA));
     colAa.onChangeSync.listen(preventUpdate(subAa));
-    colMapped.onChangeSync.listen(preventUpdate(subMapped));
     List actions = [
       () { colAll.add(data1);
            colAll.removeBy('_id', '0');
@@ -249,23 +243,42 @@ run() {
 
   });
 
-  test('test collection mapped', () {
+  test('test collection fields', () {
     Subscription newSub;
+    Subscription subMapped = new Subscription('mapped_pos', connection, 'author5', new IdGenerator('e'), {});
+    DataSet colMapped = subMapped.collection;
+
     List actions = [
-      () => colAll.add({'a': 1, 'b': 2}),
-      () => expect(colMapped, equals([{'b': 2, '_id': 'a-1', 'aa': 'it works gr8'}])),
-      () => colAll.add({'a': {}, 'b': []}),
+      () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
+      () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
+      () => expect(colMapped, equals([{'a': 1, '_id': 'a-1'}])),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
+      () {subMapped.close(); newSub.close();}
     ];
 
     return executeSubscriptionActions(actions);
 
   });
 
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.message}');
+  test('test collection excluded fields', () {
+    Subscription newSub;
+    Subscription subMapped = new Subscription('mapped_neg', connection, 'author5', new IdGenerator('e'), {});
+    DataSet colMapped = subMapped.collection;
+
+    List actions = [
+      () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
+      () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
+      () => expect(colMapped, equals([{'b': 3, 'c': 2, '_id': 'a-1'}])),
+      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+      () => expect(colMapped, unorderedEquals(newSub.collection)),
+      () {subMapped.close(); newSub.close();}
+    ];
+
+    return executeSubscriptionActions(actions);
+
   });
+
 
   test('test data list manipulation', () {
     Subscription newSub;

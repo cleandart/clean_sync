@@ -61,8 +61,9 @@ class MongoDatabase {
   Future _conn;
   List<Future> init = [];
   DbCollection _lock;
+  Cache cache;
 
-  MongoDatabase(String url) {
+  MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
     _conn = _db.open(); // open connection to database
     init.add(_conn);
@@ -113,7 +114,7 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    return new MongoProvider(collection, collectionHistory, _lock);
+    return new MongoProvider(collection, collectionHistory, _lock, cache);
   }
 
   Future dropCollection(String collectionName) =>
@@ -125,6 +126,15 @@ class MongoDatabase {
   Future removeLocks() => _lock.drop();
 }
 
+List addFieldIfNotEmpty(List fields, String field){
+  if (fields.isNotEmpty) {
+    var res = new List.from(fields)..add(field);
+    return res;
+  } else {
+    return fields;
+  }
+}
+
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
   List<Map> _selectorList = [];
@@ -133,6 +143,7 @@ class MongoProvider implements DataProvider {
   List _fields = [];
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
+  Cache cache;
 
   //for testing purposes
   Future<int> get maxVersion => _maxVersion;
@@ -145,7 +156,7 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(this.collection, this._collectionHistory, this._lock);
+  MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
 
   void _copySelection(MongoProvider mp) {
     this._sortParams = new Map.from(mp._sortParams);
@@ -162,9 +173,6 @@ class MongoProvider implements DataProvider {
 
   MongoProvider fields(List<String> fields) {
     this._fields.addAll(fields);
-    if (!_fields.contains(VERSION_FIELD_NAME)) {
-      _fields.add(VERSION_FIELD_NAME);
-    }
     return this;
   }
 
@@ -174,49 +182,58 @@ class MongoProvider implements DataProvider {
   }
 
   MongoProvider find([Map params = const {}]) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
-    mp._copySelection(this);
-    mp._selectorList.add(params);
-    return mp;
+    this._selectorList.add(params);
+    return this;
   }
 
   MongoProvider sort(Map params) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
-    mp._copySelection(this);
-    mp._sortParams.addAll(params);
-    return mp;
+    this._sortParams.addAll(params);
+    return this;
   }
 
   MongoProvider limit(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
-    mp._copySelection(this);
-    mp._limit = value;
-    return mp;
+    this._limit = value;
+    return this;
   }
 
   MongoProvider skip(num value) {
-    var mp = new MongoProvider(collection, _collectionHistory, _lock);
-    mp._copySelection(this);
-    mp._skip = value;
-    return mp;
+    this._skip = value;
+    return this;
+  }
+
+  String get repr{
+    return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
+  }
+
+
+  Future<Map> data({stripVersion: true}) {
+    return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
+  }
+
+  createSelector(Map selector, List fields, List excludeFields) {
+    var sel = new SelectorBuilder().raw(selector);
+    if (fields.isNotEmpty) {
+      sel.fields(fields);
+    }
+    if (excludeFields.isNotEmpty) {
+      sel.excludeFields(excludeFields);
+    }
+    return sel;
   }
 
   /**
    * Returns data and version of this data.
    */
-  Future<Map> data({projection: null, stripVersion: true}) {
-    SelectorBuilder selector = where.raw(_rawSelector);
-    if(_fields.isNotEmpty) selector = selector.fields(_fields);
-    if(_excludeFields.isNotEmpty) selector = selector.excludeFields(_excludeFields);
-    selector = selector.limit(_limit).skip(_skip);
+  Future<Map> _data({stripVersion: true}) {
+    var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
+    SelectorBuilder selector = createSelector(_rawSelector, __fields, _excludeFields)
+                               .limit(_limit).skip(_skip);
     return collection.find(selector).toList().then((data) {
       num watchID = startWatch('MP data ${collection.collectionName}');
+      // TODO _data should also return version!
       //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
-      if (projection != null){
-        data.forEach((e) => projection(e));
-      }
       assert(version != null);
       return {'data': data, 'version': version};
     }).then((result) {
@@ -460,13 +477,33 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future<Map> diffFromVersion(num version, {projection: null}) {
+  num diffCount = 0;
+
+  Future<Map> diffFromVersion(num version) {
+    return cache.putIfAbsent('version ${collection.collectionName}', () => _maxVersion)
+      .then((maxVer) {
+        if (maxVer == version) {
+          return {'diff': []};
+        }
+
+        addVer(Future<Map> diffRes) {
+          return diffRes.then((res) {
+            res['version'] = maxVer;
+            return res;
+          });
+        }
+
+        return cache.putIfAbsent('diff $version  $repr', () => addVer(_diffFromVersion(version)));
+      });
+  }
+
+  Future<Map> _diffFromVersion(num version) {
     try{
-      return _diffFromVersion(version, projection: projection).then((d) {
+      return __diffFromVersion(version).then((d) {
         return {'diff': d};
       });
     } on DiffNotPossibleException catch(e) {
-      return data(projection: projection).then((d) {
+      return data().then((d) {
         d['diff'] = null;
         return d;
       });
@@ -490,7 +527,7 @@ class MongoProvider implements DataProvider {
     return new List.from(res.reversed);
   }
 
-  Future<List> _diffFromVersion(num version, {projection:null}) {
+  Future<List> __diffFromVersion(num version) {
     // if (some case not covered so far) {
     // throw new DiffNotPossibleException('diff not possible');
     // selects records that fulfilled _selector before change
@@ -522,16 +559,31 @@ class MongoProvider implements DataProvider {
 
     Set before, after;
     List beforeOrAfter, diff;
-
-        return _collectionHistory.find(beforeOrAfterSelector).toList()
+    // if someone wants to select field X this means, we need to select before.X
+    // and after.X, also we need everythoing from the top level (version, _id,
+    // author, action
+    List beforeOrAfterFields = [], beforeOrAfterExcludedFields = [];
+    for (String field in addFieldIfNotEmpty(this._fields, '_id')){
+      beforeOrAfterFields.add('before.$field');
+      beforeOrAfterFields.add('after.$field');
+    }
+    for (String field in this._excludeFields){
+      beforeOrAfterExcludedFields.add('before.$field');
+      beforeOrAfterExcludedFields.add('after.$field');
+    }
+    if (beforeOrAfterFields.isNotEmpty) {
+      beforeOrAfterFields.addAll(['version', '_id', 'author', 'action']);
+    }
+        return _collectionHistory.find(createSelector(beforeOrAfterSelector,
+                           beforeOrAfterFields, beforeOrAfterExcludedFields)).toList()
         .then((result) {
           beforeOrAfter = result;
           if (beforeOrAfter.isEmpty){
             throw [];
           } else
           return Future.wait([
-            _collectionHistory.find(beforeSelector).toList(),
-            _collectionHistory.find(afterSelector).toList()]);})
+            _collectionHistory.find(createSelector(beforeSelector, ['_id'], [])).toList(),
+            _collectionHistory.find(createSelector(afterSelector, ['_id'], [])).toList()]);})
         .then((results) {
             before = new Set.from(results[0].map((d) => d['_id']));
             after = new Set.from(results[1].map((d) => d['_id']));
@@ -578,14 +630,6 @@ class MongoProvider implements DataProvider {
             if (_limit > NOLIMIT || _skip > NOSKIP) {
               throw new Exception('not correctly implemented');
               return _limitedDiffFromVersion(diff);
-            }
-
-            if (projection!=null) {
-              for (Map elem in diff) {
-                if(elem.containsKey('data')){
-                  projection(elem['data']);
-                }
-              }
             }
 
             return pretify(diff);

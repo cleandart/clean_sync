@@ -12,11 +12,12 @@ import 'package:logging/logging.dart';
 const ELEMENTS = 1000;
 const CLIENTS = 50;
 
-final TIME = new Duration(seconds: 20);
+final TIME = new Duration(seconds: 10);
 
 MongoDatabase mongodb;
 setup() {
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark');
+  Cache cache = new Cache(new Duration(milliseconds: 200), 10000);
+  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', cache: cache);
 
   return mongodb.dropCollection('benchmark')
   .then((_) => mongodb.removeLocks())
@@ -45,12 +46,11 @@ main() {
   }).then((version) {
     print('Publishing collection with version $version....');
     var versionProvider = mongodb.collection('benchmark');
-    publish('benchmark', (_) => mongodb.collection('benchmark'),
-        versionProvider: versionProvider);
+    publish('benchmark', (_) => mongodb.collection('benchmark'));
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
-       "version" : version}, null, null);
+       "version" : version-20}, null, null);
 
     Stopwatch stopwatch = new Stopwatch();
     num countRequest = 0;
