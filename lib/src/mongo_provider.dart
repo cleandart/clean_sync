@@ -480,8 +480,7 @@ class MongoProvider implements DataProvider {
   num diffCount = 0;
 
   Future<Map> diffFromVersion(num version) {
-    String verKey = 'version $repr';
-    return cache.putIfAbsent(verKey, () => _maxVersion)
+    return cache.putIfAbsent('version ${collection.collectionName}', () => _maxVersion)
       .then((maxVer) {
         if (maxVer == version) {
           return {'diff': []};
@@ -494,7 +493,7 @@ class MongoProvider implements DataProvider {
           });
         }
 
-        return cache.putIfAbsent('$version  $repr', () => addVer(_diffFromVersion(version)));
+        return cache.putIfAbsent('diff $version  $repr', () => addVer(_diffFromVersion(version)));
       });
   }
 

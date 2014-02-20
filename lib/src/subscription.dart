@@ -160,28 +160,43 @@ class Subscription {
   // constructor arguments:
   String collectionName;
   DataSet collection;
-  DataSet oldCollection;
   Connection _connection;
-  bool requestLock = false;
-  bool updateLock = false;
+  // author field is not used anymore; we are keeping it in the DB mainly for debugging
+  // and logging purposes
   String _author;
-  String toString() => 'Subscription(${_author}, ver: ${_version})';
   IdGenerator _idGenerator;
   Function _handleData = handleData;
   Function _handleDiff = handleDiff;
-  /// Used for testing and debugging. If true, data (instead of diff) is
-  /// requested periodically.
+  // Used for testing and debugging. If true, data (instead of diff) is
+  // requested periodically.
   bool _forceDataRequesting = false;
   Map args = {};
-  /// Maps _id of a document to Future, that completes when server response
-  /// to document's update is completed
+  // Maps _id of a document to Future, that completes when server response
+  // to document's update is completed
   Map<String, Future> _sentItems = {};
+  // reflects changes to this.collection, that were not already sent to the server
   ChangeSet _modifiedItems = new ChangeSet();
-
-
+  // flag used to prevent subscription to have multiple get_diff requests 'pending'.
+  // This is mainly solved by clean_ajax itself; however, following is still possible:
+  // 1. send_diff
+  // 2. response obtained, response listener notified, end
+  // 3. send_diff
+  // 4. response listener process diff requested in step 1.
+  // clearly, send_diff in step 3 can and should be avoided.
+  bool requestLock = false;
+  // this is another approach to obtain functionality formerly provided by clean_data
+  // authors; when applying changes obtained from server, use this flag to
+  // prevent detection and re-sending of these changes to the server
+  bool updateLock = false;
+  // all changes with version < _version MUST be already applied by this subscription.
+  // Some of the later changes may also be applied; this happens, when collection
+  // applies user change, but is not synced to the very last version at that moment.
   num _version = 0;
+
+  // version exposed only for testing and debugging
   get version => _version;
 
+  String toString() => 'Subscription(${_author}, ver: ${_version})';
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
   StreamController _errorStreamController;

@@ -10,66 +10,62 @@ class Entry {
   }
 }
 
-typedef Future ValueGenerator();
-
 class Cache {
-  Map m;
   Duration _timeOut;
-  num capacity;
-  LinkedHashMap<dynamic, Entry> entries = {};
+  num _capacity;
+  LinkedHashMap<dynamic, Entry> _entries = {};
 
-  Cache(this._timeOut, this.capacity);
+  Cache(this._timeOut, this._capacity);
 
   _removeFirst(){
-    entries.remove(entries.keys.first);
+    _entries.remove(_entries.keys.first);
   }
 
   clear(){
     var toRemove = [];
-    for(var k in entries.keys){
-      if ((new DateTime.now()).isAfter(entries[k].expirationDate)) {
+    for(var k in _entries.keys){
+      if ((new DateTime.now()).isAfter(_entries[k].expirationDate)) {
         toRemove.add(k);
+      } else {
+        break;
       }
     }
-    while(entries.length > capacity) {
+    toRemove.forEach((e){_entries.remove(e);});
+    while(_entries.length > _capacity) {
       _removeFirst();
     }
-    toRemove.forEach((e){entries.remove(e);});
   }
 
   put(key, val){
     var timeAdded = new DateTime.now();
     var expirationDate = timeAdded.add(_timeOut);
-    entries[key] = new Entry(val, timeAdded, expirationDate);
+    _entries[key] = new Entry(val, timeAdded, expirationDate);
+    clear();
   }
 
 
-  Future putIfAbsent(key, ValueGenerator val){
+  Future putIfAbsent(key, val()){
     clear();
-    if (entries.containsKey(key)) {
-//      print('hit');
-      return new Future.delayed(new Duration(), () => entries[key].value);
+    if (_entries.containsKey(key)) {
+      return new Future.delayed(new Duration(), () => _entries[key].value);
     } else {
-//      print('miss');
-      return val().then((value){
-        put(key, value);
-        return value;
+        return new Future.sync(() => val())
+          .then((value){
+          put(key, value);
+          return value;
       });
-    }
-    if (entries.length > capacity) {
-      _removeFirst();
     }
   }
 
   Entry getEntry(key){
     clear();
-    return entries[key];
+    return _entries[key];
   }
 
   get(key){
     Entry res = getEntry(key);
     if (res == null) {
-      return res;
+      return null;
     } else {
       return res.value;
     }
@@ -80,7 +76,7 @@ class Cache {
 class DummyCache implements Cache {
   const DummyCache();
   put(key, val) => null;
-  putIfAbsent(key, ValueGenerator val) => val();
+  putIfAbsent(key, val()) => new Future.value(val());
   getEntry(key) => null;
   get(key) => null;
   clear(){}
