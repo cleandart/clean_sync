@@ -6,17 +6,18 @@ library mongo_provider_test;
 
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
+import 'package:clean_sync/src/clone.dart';
 import "dart:async";
 
 
 c(Map m){
-  return new Map.from(m);
+  return clone(m);
 }
 
 void handleDiff(List<Map> diff, List collection) {
   diff.forEach((Map change) {
     if (change["action"] == "add") {
-      collection.add(new Map.from(change["data"]));
+      collection.add(clone(change["data"]));
     }
     else if (change["action"] == "change") {
       Map record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse: ()=> null);
@@ -81,7 +82,7 @@ void main() {
 
     test('add data. (T02)', () {
       // when
-      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
         .then((_) => months.data())
         .then((data){
 
@@ -105,7 +106,7 @@ void main() {
 
     test('add more data at once data. (T02.1)', () {
       // when
-      return ready.then((_) => months.addAll([new Map.from(january), new Map.from(february)], 'John Doe'))
+      return ready.then((_) => months.addAll([clone(january), clone(february)], 'John Doe'))
         .then((_) => months.data())
         .then((data){
 
@@ -184,10 +185,10 @@ void main() {
     skip_test('add data with same _id. (T03)', () {
 // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-      .then((_) => months.add(new Map.from(january2), 'John Doe'));
+      .then((_) => months.add(clone(january2), 'John Doe'));
 
       // then
       expect(shouldThrow, throws);
@@ -197,10 +198,10 @@ void main() {
     test('addAll data with same _id. (T03.1)', () {
 // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      Future shouldThrow = ready.then((_) => months.addAll([new Map.from(january)], 'John Doe'))
+      Future shouldThrow = ready.then((_) => months.addAll([clone(january)], 'John Doe'))
 
       // when
-      .then((_) => months.addAll([new Map.from(january2)], 'John Doe'));
+      .then((_) => months.addAll([clone(january2)], 'John Doe'));
 
       // then
       expect(shouldThrow, throws);
@@ -210,10 +211,10 @@ void main() {
     test('change data. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', new Map.from(january2), 'Michael Smith'))
+        .then((_) => months.change('january', clone(january2), 'Michael Smith'))
         .then((_) => months.data())
         .then((data){
 
@@ -237,10 +238,10 @@ void main() {
 
     test('change data with bad _id. (T06)', () {
       // given
-      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', new Map.from(february), 'Michael Smith'));
+        .then((_) => months.change('january', clone(february), 'Michael Smith'));
 
       // then
         expect(shouldThrow, throws);
@@ -248,7 +249,7 @@ void main() {
 
     test('remove data. (T07)', () {
       // given
-      Future toRemove = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      Future toRemove = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
         .then((_) => months.remove('january', 'Michael Smith'));
@@ -318,15 +319,12 @@ void main() {
       Future multipleAccess =
           ready.then((_) => months.data()).then((data) => dataStart = data['data'] )
 
-       .then((_) => months.add(new Map.from(january), 'John Doe'))
-       .then((_) => months.add(new Map.from(february), 'John Doe'))
-       .then((_) => months.add(new Map.from(march), 'John Doe'))
-       .then((_) => months.add(new Map.from(april), 'John Doe'))
+       .then((_) => months.addAll(clone([january, february, march, april]), 'John Doe'))
        .then((_) => months.change('january', january2, 'John Doe'))
        .then((_) => months.remove('february', 'John'))
-       .then((_) => months.add(new Map.from(february), 'John Doe'))
+       .then((_) => months.add(clone(february), 'John Doe'))
        .then((_) => months.remove('april', 'John'))
-       .then((_) => months.add(new Map.from(may), 'John Doe'))
+       .then((_) => months.add(clone(may), 'John Doe'))
        .then((_) => months.change('march', march2, 'John Doe'))
        .then((_) => months.change('january', january, 'John Doe'))
        .then((_) => months.data()).then((data) => dataEnd = data['data'] );
@@ -343,10 +341,10 @@ void main() {
     test('deprecatedChange data. (T10)', () {
       // given
       Map january2 = {'name': 'January2', 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.deprecatedChange('january', new Map.from(january2), 'Michael Smith'))
+        .then((_) => months.deprecatedChange('january', clone(january2), 'Michael Smith'))
         .then((_) => months.data())
         .then((data){
 
@@ -368,7 +366,7 @@ void main() {
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
-          var res = new Map.from(january)..addAll(january2);
+          var res = clone(january)..addAll(january2);
           expect(strippedData, equals(res));
           expect(diff['author'], equals('Michael Smith'));
         });
@@ -376,7 +374,7 @@ void main() {
 
     test('deprecatedChange not existing data. (T11)', () {
       // when
-      Future shouldThrow =  ready.then((_) => months.deprecatedChange('january', new Map.from(january), 'Michael Smith'));
+      Future shouldThrow =  ready.then((_) => months.deprecatedChange('january', clone(january), 'Michael Smith'));
 
       //then
         expect(shouldThrow, throws);
@@ -384,10 +382,10 @@ void main() {
 
     test('deprecatedChange data with bad _id. (T12)', () {
       // given
-      Future shouldThrow = ready.then((_) => months.add(new Map.from(january), 'John Doe'))
+      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.deprecatedChange('january', new Map.from(february), 'Michael Smith'));
+        .then((_) => months.deprecatedChange('january', clone(february), 'Michael Smith'));
 
       // then
         expect(shouldThrow, throws);
@@ -396,26 +394,16 @@ void main() {
     test('update data. (T13)', () {
       //when
       return ready
-          .then((_) => months.add(new Map.from(january), 'John Doe'))
-          .then((_) => months.add(new Map.from(february), 'John Doe'))
-          .then((_) => months.add(new Map.from(march), 'John Doe'))
-          .then((_) => months.add(new Map.from(april), 'John Doe'))
-          .then((_) => months.add(new Map.from(june), 'John Doe'))
-          .then((_) => months.add(new Map.from(july), 'John Doe'))
-          .then((_) => months.add(new Map.from(august), 'John Doe'))
-          .then((_) => months.add(new Map.from(september), 'John Doe'))
-          .then((_) => months.add(new Map.from(october), 'John Doe'))
-          .then((_) => months.add(new Map.from(november), 'John Doe'))
-          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
           .then((_) => months.update({'days': 28}, {'days': 29, 'number': 2, 'name': 'February'}, 'John Doe'))
           .then((_) => months.data())
           .then((dataInfo) {
-            expect(dataInfo['version'], equals(12));
+            expect(dataInfo['version'], equals(13));
             var data = dataInfo['data'];
             expect(data[1], equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
             return dataInfo;
           })
-          .then((_) => months.diffFromVersion(11))
+          .then((_) => months.diffFromVersion(12))
           .then((dataDiff) {
             List diffList = dataDiff['diff'];
             expect(diffList.length, equals(1));
@@ -431,76 +419,56 @@ void main() {
     test('update data with set. (T14)', () {
       //when
       return ready
-          .then((_) => months.add(new Map.from(january), 'John Doe'))
-          .then((_) => months.add(new Map.from(february), 'John Doe'))
-          .then((_) => months.add(new Map.from(march), 'John Doe'))
-          .then((_) => months.add(new Map.from(april), 'John Doe'))
-          .then((_) => months.add(new Map.from(june), 'John Doe'))
-          .then((_) => months.add(new Map.from(july), 'John Doe'))
-          .then((_) => months.add(new Map.from(august), 'John Doe'))
-          .then((_) => months.add(new Map.from(september), 'John Doe'))
-          .then((_) => months.add(new Map.from(october), 'John Doe'))
-          .then((_) => months.add(new Map.from(november), 'John Doe'))
-          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
           .then((_) => months.update({'days': 31}, {SET: {'number': 47}}, 'John Doe', multiUpdate: true))
           .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
-            expect(dataInfo['version'], equals(17));
+            expect(dataInfo['version'], equals(19));
             var data = dataInfo['data'];
-            num version = 12;
+            num version = 13;
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], equals(47));
                if( month['days'] == 31) expect(month['__clean_version'], equals(version++));
             });
             return dataInfo;
           })
-          .then((_) => months.diffFromVersion(11))
+          .then((_) => months.diffFromVersion(12))
           .then((dataDiff) {
-            num version = 12;
+            num version = 13;
             dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
             List diffList = dataDiff['diff'];
-            expect(diffList.length, equals(6));
+            expect(diffList.length, equals(7));
           });
     });
 
     test('update data with unset. (T15)', () {
       //when
       return ready
-          .then((_) => months.add(new Map.from(january), 'John Doe'))
-          .then((_) => months.add(new Map.from(february), 'John Doe'))
-          .then((_) => months.add(new Map.from(march), 'John Doe'))
-          .then((_) => months.add(new Map.from(april), 'John Doe'))
-          .then((_) => months.add(new Map.from(june), 'John Doe'))
-          .then((_) => months.add(new Map.from(july), 'John Doe'))
-          .then((_) => months.add(new Map.from(august), 'John Doe'))
-          .then((_) => months.add(new Map.from(september), 'John Doe'))
-          .then((_) => months.add(new Map.from(october), 'John Doe'))
-          .then((_) => months.add(new Map.from(november), 'John Doe'))
-          .then((_) => months.add(new Map.from(december), 'John Doe'))
+          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
           .then((_) => months.update({'days': 31}, {UNSET: {'number': 47}}, 'John Doe', multiUpdate: true))
           .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
-            expect(dataInfo['version'], equals(17));
+            expect(dataInfo['version'], equals(19));
             var data = dataInfo['data'];
-            num version = 12;
+            num version = 13;
             data.forEach((month) {
                if( month['days'] == 31) expect(month['number'], isNull);
                if( month['days'] == 31) expect(month['__clean_version'], equals(version++));
             });
             return dataInfo;
           })
-          .then((_) => months.diffFromVersion(11))
+          .then((_) => months.diffFromVersion(12))
           .then((dataDiff) {
-            num version = 12;
+            num version = 13;
             dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
             List diffList = dataDiff['diff'];
-            expect(diffList.length, equals(6));
+            expect(diffList.length, equals(7));
           });
     });
 
     test('stateless', (){
       return ready
-          .then((_) => months.addAll(new List.from(monthsCol.map((e)=> new Map.from(e))), 'John Doe'))
+          .then((_) => months.addAll(new List.from(monthsCol.map((e)=> clone(e))), 'John Doe'))
           .then((_){
             months.find({'days': 31}).limit(1).skip(1).fields(['name']);
             return months.find().data().then((data){
