@@ -135,6 +135,17 @@ List addFieldIfNotEmpty(List fields, String field){
   }
 }
 
+MongoProvider mpClone(MongoProvider source){
+  MongoProvider m = new MongoProvider(source.collection, source._collectionHistory,
+      source._lock, source.cache);
+  m._selectorList = new List.from(source._selectorList);
+  m._sortParams = new Map.from(source._sortParams);
+  m._limit = source._limit;
+  m._fields = new List.from(source._fields);
+  m._excludeFields = new List.from(source._excludeFields);
+  return m;
+}
+
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
   List<Map> _selectorList = [];
@@ -158,47 +169,45 @@ class MongoProvider implements DataProvider {
 
   MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
 
-  void _copySelection(MongoProvider mp) {
-    this._sortParams = new Map.from(mp._sortParams);
-    this._selectorList = new List.from(mp._selectorList);
-    this._limit = mp._limit;
-    this._skip = mp._skip;
-    this._fields = mp._fields;
-    this._excludeFields = mp._excludeFields;
-  }
 
   Future deleteHistory(num version) {
     return _collectionHistory.remove({'version': {LT: version}});
   }
 
   MongoProvider fields(List<String> fields) {
-    this._fields.addAll(fields);
-    return this;
+    var res = mpClone(this);
+    res._fields.addAll(fields);
+    return res;
   }
 
   MongoProvider excludeFields(List<String> excludeFields) {
-    this._excludeFields.addAll(excludeFields);
-    return this;
+    var res = mpClone(this);
+    res._excludeFields.addAll(excludeFields);
+    return res;
   }
 
   MongoProvider find([Map params = const {}]) {
-    this._selectorList.add(params);
-    return this;
+    var res = mpClone(this);
+    res._selectorList.add(params);
+    return res;
   }
 
   MongoProvider sort(Map params) {
-    this._sortParams.addAll(params);
-    return this;
+    var res = mpClone(this);
+    res._sortParams.addAll(params);
+    return res;
   }
 
   MongoProvider limit(num value) {
+    var res = mpClone(this);
     this._limit = value;
-    return this;
+    return res;
   }
 
   MongoProvider skip(num value) {
-    this._skip = value;
-    return this;
+    var res = mpClone(this);
+    res._skip = value;
+    return res;
   }
 
   String get repr{

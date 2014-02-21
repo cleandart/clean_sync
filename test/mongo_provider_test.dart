@@ -19,9 +19,11 @@ void handleDiff(List<Map> diff, List collection) {
       collection.add(new Map.from(change["data"]));
     }
     else if (change["action"] == "change") {
-      Map record = collection.firstWhere((d) => d["_id"] == change["_id"]);
-      collection.remove(record);
-      collection.add(change["data"]);
+      Map record = collection.firstWhere((d) => d["_id"] == change["_id"], orElse: ()=> null);
+      if (record != null) {
+        collection.remove(record);
+        collection.add(change["data"]);
+      }
     }
     else if (change["action"] == "remove") {
       collection.removeWhere((d) => d["_id"] == change["_id"]);
@@ -36,6 +38,7 @@ void main() {
     MongoDatabase mongodb;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
+    List monthsCol;
 
      setUp(() {
       january = {'name': 'January', 'days': 31, 'number': 1, '_id': 'january'};
@@ -43,13 +46,16 @@ void main() {
       march =  {'name': 'March', 'days': 31, 'number': 3, '_id': 'march'};
       april = {'name': 'April', 'days': 30, 'number': 4, '_id': 'april'};
       may = {'name': 'May', 'days': 31, 'number': 5, '_id': 'may'};
-      june = {'name': 'June', 'days': 30, 'number': 6, '_id': 'may'};
+      june = {'name': 'June', 'days': 30, 'number': 6, '_id': 'june'};
       july = {'name': 'July', 'days': 31, 'number': 7, '_id': 'july'};
       august = {'name': 'August', 'days': 31, 'number': 8, '_id': 'august'};
       september = {'name': 'September', 'days': 30, 'number': 9, '_id': 'september'};
       october = {'name': 'October', 'days': 31, 'number': 10, '_id': 'october'};
       november = {'name': 'November', 'days': 30, 'number': 11, '_id': 'november'};
       december = {'name': 'December', 'days': 31, 'number': 12, '_id': 'december'};
+
+      monthsCol = [january, february, march, april, may, june,
+                    july, august, september, october, november, december];
 
       mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
       ready = Future.wait(mongodb.init).then((_) => mongodb.dropCollection('months'))
@@ -489,6 +495,17 @@ void main() {
             dataDiff['diff'].forEach((elem) => expect(elem['version'], equals(version++)));
             List diffList = dataDiff['diff'];
             expect(diffList.length, equals(6));
+          });
+    });
+
+    test('stateless', (){
+      return ready
+          .then((_) => months.addAll(new List.from(monthsCol.map((e)=> new Map.from(e))), 'John Doe'))
+          .then((_){
+            months.find({'days': 31}).limit(1).skip(1).fields(['name']);
+            return months.find().data().then((data){
+              expect(data['data'], unorderedEquals(monthsCol));
+            });
           });
     });
   });

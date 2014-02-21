@@ -137,7 +137,7 @@ main() {
     ids = new Set();
     var lastVersion = 0;
 
-    return Future.forEach(new List.filled(100, 0) , (_) {
+    return Future.forEach(new List.filled(1000, 0) , (_) {
       return currCollection.data().then(
         (data) {
           dataStart = data['data'];
