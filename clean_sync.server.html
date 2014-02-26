@@ -1,0 +1,576 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server">
+        <div class="page">
+        <div class="header">
+          <a href="index.html"><div class="logo"></div></a>
+          <a href="index.html">Dart Documentation</a>
+         &rsaquo; <a href="clean_sync.server.html">clean_sync.server</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+<h2><strong>clean_sync.server</strong> library</h2>
+<div class="doc"><p>A library for data subscription and synchronization in single page
+applications.</p></div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="AND">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>AND</strong> <a class="anchor-link"
+            href="#AND"
+            title="Permalink to AND">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String AND = "\$and"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="ASC">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a>         <strong>ASC</strong> <a class="anchor-link"
+            href="#ASC"
+            title="Permalink to ASC">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const num ASC = 1
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="DESC">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a>         <strong>DESC</strong> <a class="anchor-link"
+            href="#DESC"
+            title="Permalink to DESC">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const num DESC = -1
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="dummyCache">
+<button class="show-code">Code</button>
+const         <strong>dummyCache</strong> <a class="anchor-link"
+            href="#dummyCache"
+            title="Permalink to dummyCache">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const dummyCache = const DummyCache()
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="GT">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>GT</strong> <a class="anchor-link"
+            href="#GT"
+            title="Permalink to GT">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String GT = "\$gt"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="historyCollectionName">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Function.html" ref="external">Function</a>         <strong>historyCollectionName</strong> <a class="anchor-link"
+            href="#historyCollectionName"
+            title="Permalink to historyCollectionName">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final Function historyCollectionName =
+ (collectionName) =&gt; "__clean_${collectionName}_history"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="LOCK_COLLECTION_NAME">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>LOCK_COLLECTION_NAME</strong> <a class="anchor-link"
+            href="#LOCK_COLLECTION_NAME"
+            title="Permalink to LOCK_COLLECTION_NAME">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String LOCK_COLLECTION_NAME = '__clean_lock'
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="logger">
+<button class="show-code">Code</button>
+final <a href="logging/Logger.html">Logger</a>         <strong>logger</strong> <a class="anchor-link"
+            href="#logger"
+            title="Permalink to logger">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final Logger logger = new Logger('clean_sync')
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="LT">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>LT</strong> <a class="anchor-link"
+            href="#LT"
+            title="Permalink to LT">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String LT = "\$lt"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="MAX">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>MAX</strong> <a class="anchor-link"
+            href="#MAX"
+            title="Permalink to MAX">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final int MAX = pow(2,16) - 1
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="NOLIMIT">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a>         <strong>NOLIMIT</strong> <a class="anchor-link"
+            href="#NOLIMIT"
+            title="Permalink to NOLIMIT">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const num NOLIMIT = 0
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="NOSKIP">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a>         <strong>NOSKIP</strong> <a class="anchor-link"
+            href="#NOSKIP"
+            title="Permalink to NOSKIP">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const num NOSKIP = 0
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="OR">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>OR</strong> <a class="anchor-link"
+            href="#OR"
+            title="Permalink to OR">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String OR = "\$or"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="ORDERBY">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>ORDERBY</strong> <a class="anchor-link"
+            href="#ORDERBY"
+            title="Permalink to ORDERBY">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String ORDERBY = "\$orderby"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="prefix_random_part">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>prefix_random_part</strong> <a class="anchor-link"
+            href="#prefix_random_part"
+            title="Permalink to prefix_random_part">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final int prefix_random_part = new Random().nextInt(MAX)
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="profilingLogger">
+<button class="show-code">Code</button>
+<a href="logging/Logger.html">Logger</a>         <strong>profilingLogger</strong> <a class="anchor-link"
+            href="#profilingLogger"
+            title="Permalink to profilingLogger">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Logger profilingLogger = new Logger('profiling')
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="PUBLISHER">
+<button class="show-code">Code</button>
+final         <strong>PUBLISHER</strong> <a class="anchor-link"
+            href="#PUBLISHER"
+            title="Permalink to PUBLISHER">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final PUBLISHER = new Publisher()
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="PUSH">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>PUSH</strong> <a class="anchor-link"
+            href="#PUSH"
+            title="Permalink to PUSH">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String PUSH = "\$push"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="QUERY">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>QUERY</strong> <a class="anchor-link"
+            href="#QUERY"
+            title="Permalink to QUERY">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String QUERY = "\$query"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="SET">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>SET</strong> <a class="anchor-link"
+            href="#SET"
+            title="Permalink to SET">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String SET = "\$set"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="UNSET">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>UNSET</strong> <a class="anchor-link"
+            href="#UNSET"
+            title="Permalink to UNSET">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String UNSET = "\$unset"
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="VERSION_FIELD_NAME">
+<button class="show-code">Code</button>
+const <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>VERSION_FIELD_NAME</strong> <a class="anchor-link"
+            href="#VERSION_FIELD_NAME"
+            title="Permalink to VERSION_FIELD_NAME">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+const String VERSION_FIELD_NAME = '__clean_version'
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="watches">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>         <strong>watches</strong> <a class="anchor-link"
+            href="#watches"
+            title="Permalink to watches">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Map watches = {}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="watchID">
+<button class="show-code">Code</button>
+var         <strong>watchID</strong> <a class="anchor-link"
+            href="#watchID"
+            title="Permalink to watchID">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+var watchID = 0
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Functions</h3>
+<div class="method"><h4 id="mpClone">
+<button class="show-code">Code</button>
+<a href="clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>mpClone</strong>(<a href="clean_sync.server/MongoProvider.html">MongoProvider</a> source) <a class="anchor-link" href="#mpClone"
+              title="Permalink to mpClone">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider mpClone(MongoProvider source){
+ MongoProvider m = new MongoProvider(source.collection, source._collectionHistory,
+     source._lock, source.cache);
+ m._selectorList = new List.from(source._selectorList);
+ m._sortParams = new Map.from(source._sortParams);
+ m._limit = source._limit;
+ m._fields = new List.from(source._fields);
+ m._excludeFields = new List.from(source._excludeFields);
+ return m;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addFieldIfNotEmpty">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> <strong>addFieldIfNotEmpty</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> fields, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> field) <a class="anchor-link" href="#addFieldIfNotEmpty"
+              title="Permalink to addFieldIfNotEmpty">#</a></h4>
+<div class="doc">
+<pre class="source">
+List addFieldIfNotEmpty(List fields, String field){
+ if (fields.isNotEmpty) {
+   var res = new List.from(fields)..add(field);
+   return res;
+ } else {
+   return fields;
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="slice">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> <strong>slice</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> map, <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> keys) <a class="anchor-link" href="#slice"
+              title="Permalink to slice">#</a></h4>
+<div class="doc">
+<p>TODO: this function should be tidied up to some utilities class
+Creates a new Map out of the given 
+<span class="param">map</span> preserving only keys
+specified in [keys]
+[map] is the Map to be sliced
+
+<span class="param">keys</span> is a list of keys to be preserved</p>
+<pre class="source">
+Map slice(Map map, List keys) {
+ Map result = {};
+
+ keys.forEach((key) {
+   if (map.containsKey(key)) {
+     result[key] = map[key];
+   }
+ });
+
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="getIdPrefix">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>getIdPrefix</strong>() <a class="anchor-link" href="#getIdPrefix"
+              title="Permalink to getIdPrefix">#</a></h4>
+<div class="doc">
+<pre class="source">
+String getIdPrefix() {
+ return PUBLISHER.getIdPrefix();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="handleSyncRequest">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>handleSyncRequest</strong>(request) <a class="anchor-link" href="#handleSyncRequest"
+              title="Permalink to handleSyncRequest">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future handleSyncRequest(request) {
+ return PUBLISHER.handleSyncRequest(request);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="isPublished">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>isPublished</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collection) <a class="anchor-link" href="#isPublished"
+              title="Permalink to isPublished">#</a></h4>
+<div class="doc">
+<pre class="source">
+bool isPublished(String collection) {
+ return PUBLISHER.isPublished(collection);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="publish">
+<button class="show-code">Code</button>
+void <strong>publish</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> c, <a href="clean_sync.server/DataGenerator.html">DataGenerator</a> dg, {beforeRequest: null}) <a class="anchor-link" href="#publish"
+              title="Permalink to publish">#</a></h4>
+<div class="doc">
+<pre class="source">
+void publish(String c, DataGenerator dg, {beforeRequest: null}) {
+ PUBLISHER.publish(c, dg, beforeRequest: beforeRequest);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="logElapsedTime">
+<button class="show-code">Code</button>
+dynamic <strong>logElapsedTime</strong>(watchID) <a class="anchor-link" href="#logElapsedTime"
+              title="Permalink to logElapsedTime">#</a></h4>
+<div class="doc">
+<pre class="source">
+logElapsedTime(watchID) {
+ var watch = watches[watchID][0];
+ var identifier = watches[watchID][1];
+ profilingLogger.info('$watchID Processing request ($identifier) currently elapsed '
+             '${watch.elapsed}.');
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="stopWatch">
+<button class="show-code">Code</button>
+dynamic <strong>stopWatch</strong>(watchID) <a class="anchor-link" href="#stopWatch"
+              title="Permalink to stopWatch">#</a></h4>
+<div class="doc">
+<pre class="source">
+stopWatch(watchID) {
+ var watch = watches[watchID][0];
+ var identifier = watches[watchID][1];
+ profilingLogger.info('$watchID Processing request ($identifier) took ${watch.elapsed}.');
+ watch.stop();
+ watches.remove(watchID);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="startWatch">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> <strong>startWatch</strong>(identifier) <a class="anchor-link" href="#startWatch"
+              title="Permalink to startWatch">#</a></h4>
+<div class="doc">
+<pre class="source">
+num startWatch(identifier) {
+ watchID++;
+ watches[watchID] = [new Stopwatch()..start(), identifier];
+ profilingLogger.info('$watchID Started processing request ($identifier).');
+ return watchID;
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Abstract Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/DataProvider.html"><strong>DataProvider</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/Cache.html"><strong>Cache</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/DummyCache.html"><strong>DummyCache</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/Entry.html"><strong>Entry</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/MongoDatabase.html"><strong>MongoDatabase</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/MongoProvider.html"><strong>MongoProvider</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/Publisher.html"><strong>Publisher</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/Resource.html"><strong>Resource</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/Version.html"><strong>Version</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Typedefs</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/DataGenerator.html"><strong>DataGenerator</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Exceptions</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/DiffNotPossibleException.html"><strong>DiffNotPossibleException</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_sync.server/MongoException.html"><strong>MongoException</strong></a>
+          </h4>
+          </div>
+          
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="client-live-nav.js"></script>
+        </body></html>
+        

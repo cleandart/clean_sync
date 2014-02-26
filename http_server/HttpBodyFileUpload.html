@@ -1,0 +1,108 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>HttpBodyFileUpload abstract class / http_server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="http_server" data-type="HttpBodyFileUpload">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../http_server.html">http_server</a> &rsaquo; <a href="../http_server/HttpBodyFileUpload.html">HttpBodyFileUpload</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>HttpBodyFileUpload</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A <a class="crossref" href="../http_server/HttpBodyFileUpload.html">HttpBodyFileUpload</a> object wraps a file upload, presenting a way for
+extracting filename, contentType and the data of the uploaded file.</p>
+<pre class="source">
+abstract class HttpBodyFileUpload {
+ /**
+  * The filename of the uploaded file.
+  */
+ String get filename;
+
+ /**
+  * The [ContentType] of the uploaded file. For 'text/\*' and
+  * 'application/json' the [data] field will a String.
+  */
+ ContentType get contentType;
+
+ /**
+  * The content of the file. Either a [String] or a [List&lt;int&gt;].
+  */
+ dynamic get content;
+}
+</pre>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="content">
+<button class="show-code">Code</button>
+final         <strong>content</strong> <a class="anchor-link"
+            href="#content"
+            title="Permalink to HttpBodyFileUpload.content">#</a>
+        </h4>
+        <div class="doc">
+<p>The content of the file. Either a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> or a [List<int>].</p>
+<pre class="source">
+dynamic get content;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="contentType">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_io/ContentType.html" ref="external">ContentType</a>         <strong>contentType</strong> <a class="anchor-link"
+            href="#contentType"
+            title="Permalink to HttpBodyFileUpload.contentType">#</a>
+        </h4>
+        <div class="doc">
+<p>The <a class="crossref" href="http://api.dartlang.org/dart_io/ContentType.html">ContentType</a> of the uploaded file. For 'text/\*' and
+'application/json' the <code>data</code> field will a String.</p>
+<pre class="source">
+ContentType get contentType;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="filename">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>filename</strong> <a class="anchor-link"
+            href="#filename"
+            title="Permalink to HttpBodyFileUpload.filename">#</a>
+        </h4>
+        <div class="doc">
+<p>The filename of the uploaded file.</p>
+<pre class="source">
+String get filename;
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

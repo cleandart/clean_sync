@@ -1,0 +1,478 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>MimeMultipartTransformer class / mime Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="mime" data-type="MimeMultipartTransformer">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../mime.html">mime</a> &rsaquo; <a href="../mime/MimeMultipartTransformer.html">MimeMultipartTransformer</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>MimeMultipartTransformer</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Parser for MIME multipart types of data as described in RFC 2046
+section 5.1.1. The data is transformed into <a class="crossref" href="../mime/MimeMultipart.html">MimeMultipart</a> objects, each
+of them streaming the multipart data.</p>
+<pre class="source">
+class MimeMultipartTransformer
+   implements StreamTransformer&lt;List&lt;int&gt;, MimeMultipart&gt; {
+ static const int _START = 0;
+ static const int _FIRST_BOUNDARY_ENDING = 111;
+ static const int _FIRST_BOUNDARY_END = 112;
+ static const int _BOUNDARY_ENDING = 1;
+ static const int _BOUNDARY_END = 2;
+ static const int _HEADER_START = 3;
+ static const int _HEADER_FIELD = 4;
+ static const int _HEADER_VALUE_START = 5;
+ static const int _HEADER_VALUE = 6;
+ static const int _HEADER_VALUE_FOLDING_OR_ENDING = 7;
+ static const int _HEADER_VALUE_FOLD_OR_END = 8;
+ static const int _HEADER_ENDING = 9;
+ static const int _CONTENT = 10;
+ static const int _LAST_BOUNDARY_DASH2 = 11;
+ static const int _LAST_BOUNDARY_ENDING = 12;
+ static const int _LAST_BOUNDARY_END = 13;
+ static const int _DONE = 14;
+ static const int _FAILURE = 15;
+
+ StreamController _controller;
+ StreamSubscription _subscription;
+
+ StreamController _multipartController;
+ Map&lt;String, String&gt; _headers;
+
+ List&lt;int&gt; _boundary;
+ int _state = _START;
+ int _boundaryIndex = 2;
+
+ // Current index in the data buffer. If index is negative then it
+ // is the index into the artificial prefix of the boundary string.
+ int _index;
+ List&lt;int&gt; _buffer;
+
+ List&lt;int&gt; _headerField = [];
+ List&lt;int&gt; _headerValue = [];
+
+ /**
+  * Construct a new MIME multipart parser with the boundary
+  * [boundary]. The boundary should be as specified in the content
+  * type parameter, that is without the -- prefix.
+  */
+ MimeMultipartTransformer(String boundary) {
+   List&lt;int&gt; charCodes = boundary.codeUnits;
+   _boundary = new Uint8List(4 + charCodes.length);
+   // Set-up the matching boundary preceding it with CRLF and two
+   // dashes.
+   _boundary[0] = _CharCode.CR;
+   _boundary[1] = _CharCode.LF;
+   _boundary[2] = _CharCode.DASH;
+   _boundary[3] = _CharCode.DASH;
+   _boundary.setRange(4, 4 + charCodes.length, charCodes);
+ }
+
+ void _resumeStream() {
+   _subscription.resume();
+ }
+
+ void _pauseStream() {
+   _subscription.pause();
+ }
+
+ Stream&lt;MimeMultipart&gt; bind(Stream&lt;List&lt;int&gt;&gt; stream) {
+   _controller = new StreamController(
+       sync: true,
+       onPause: _pauseStream,
+       onResume:_resumeStream,
+       onCancel: () {
+         _subscription.cancel();
+       },
+       onListen: () {
+         _subscription = stream.listen(
+             (data) {
+               assert(_buffer == null);
+               _pauseStream();
+               _buffer = data;
+               _index = 0;
+               _parse();
+             },
+             onDone: () {
+               if (_state != _DONE) {
+                 _controller.addError(
+                     new MimeMultipartException("Bad multipart ending"));
+               }
+               _controller.close();
+             },
+             onError: _controller.addError);
+       });
+   return _controller.stream;
+ }
+
+ void _parse() {
+   // Number of boundary bytes to artificially place before the supplied data.
+   int boundaryPrefix = 0;
+   // Position where content starts. Will be null if no known content
+   // start exists. Will be negative of the content starts in the
+   // boundary prefix. Will be zero or position if the content starts
+   // in the current buffer.
+   int contentStartIndex;
+
+   // Function to report content data for the current part. The data
+   // reported is from the current content start index up til the
+   // current index. As the data can be artificially prefixed with a
+   // prefix of the boundary both the content start index and index
+   // can be negative.
+   void reportData() {
+     if (contentStartIndex &lt; 0) {
+       var contentLength = boundaryPrefix + _index - _boundaryIndex;
+       if (contentLength &lt;= boundaryPrefix) {
+         _multipartController.add(
+             _boundary.sublist(0, contentLength));
+       } else {
+         _multipartController.add(
+             _boundary.sublist(0, boundaryPrefix));
+         _multipartController.add(
+             _buffer.sublist(0, contentLength - boundaryPrefix));
+       }
+     } else {
+       var contentEndIndex = _index - _boundaryIndex;
+       _multipartController.add(
+           _buffer.sublist(contentStartIndex, contentEndIndex));
+     }
+   }
+
+   if (_state == _CONTENT &amp;&amp; _boundaryIndex == 0) {
+     contentStartIndex = 0;
+   } else {
+     contentStartIndex = null;
+   }
+   // The data to parse might be "artificially" prefixed with a
+   // partial match of the boundary.
+   boundaryPrefix = _boundaryIndex;
+
+   while ((_index &lt; _buffer.length) &amp;&amp; _state != _FAILURE &amp;&amp; _state != _DONE) {
+     if (_multipartController != null &amp;&amp; _multipartController.isPaused) {
+       return;
+     }
+     int byte;
+     if (_index &lt; 0) {
+       byte = _boundary[boundaryPrefix + _index];
+     } else {
+       byte = _buffer[_index];
+     }
+     switch (_state) {
+       case _START:
+         if (byte == _boundary[_boundaryIndex]) {
+           _boundaryIndex++;
+           if (_boundaryIndex == _boundary.length) {
+             _state = _FIRST_BOUNDARY_ENDING;
+             _boundaryIndex = 0;
+           }
+         } else {
+           // Restart matching of the boundary.
+           _index = _index - _boundaryIndex;
+           _boundaryIndex = 0;
+         }
+         break;
+
+       case _FIRST_BOUNDARY_ENDING:
+         if (byte == _CharCode.CR) {
+           _state = _FIRST_BOUNDARY_END;
+         } else {
+           _expectWS(byte);
+         }
+         break;
+
+       case _FIRST_BOUNDARY_END:
+         _expect(byte, _CharCode.LF);
+         _state = _HEADER_START;
+         break;
+
+       case _BOUNDARY_ENDING:
+         if (byte == _CharCode.CR) {
+           _state = _BOUNDARY_END;
+         } else if (byte == _CharCode.DASH) {
+           _state = _LAST_BOUNDARY_DASH2;
+         } else {
+           _expectWS(byte);
+         }
+         break;
+
+       case _BOUNDARY_END:
+         _expect(byte, _CharCode.LF);
+         _multipartController.close();
+         _multipartController = null;
+         _state = _HEADER_START;
+         break;
+
+       case _HEADER_START:
+         _headers = new Map&lt;String, String&gt;();
+         if (byte == _CharCode.CR) {
+           _state = _HEADER_ENDING;
+         } else {
+           // Start of new header field.
+           _headerField.add(_toLowerCase(byte));
+           _state = _HEADER_FIELD;
+         }
+         break;
+
+       case _HEADER_FIELD:
+         if (byte == _CharCode.COLON) {
+           _state = _HEADER_VALUE_START;
+         } else {
+           if (!_isTokenChar(byte)) {
+             throw new MimeMultipartException("Invalid header field name");
+           }
+           _headerField.add(_toLowerCase(byte));
+         }
+         break;
+
+       case _HEADER_VALUE_START:
+         if (byte == _CharCode.CR) {
+           _state = _HEADER_VALUE_FOLDING_OR_ENDING;
+         } else if (byte != _CharCode.SP &amp;&amp; byte != _CharCode.HT) {
+           // Start of new header value.
+           _headerValue.add(byte);
+           _state = _HEADER_VALUE;
+         }
+         break;
+
+       case _HEADER_VALUE:
+         if (byte == _CharCode.CR) {
+           _state = _HEADER_VALUE_FOLDING_OR_ENDING;
+         } else {
+           _headerValue.add(byte);
+         }
+         break;
+
+       case _HEADER_VALUE_FOLDING_OR_ENDING:
+         _expect(byte, _CharCode.LF);
+         _state = _HEADER_VALUE_FOLD_OR_END;
+         break;
+
+       case _HEADER_VALUE_FOLD_OR_END:
+         if (byte == _CharCode.SP || byte == _CharCode.HT) {
+           _state = _HEADER_VALUE_START;
+         } else {
+           String headerField = UTF8.decode(_headerField);
+           String headerValue = UTF8.decode(_headerValue);
+           _headers[headerField.toLowerCase()] = headerValue;
+           _headerField = [];
+           _headerValue = [];
+           if (byte == _CharCode.CR) {
+             _state = _HEADER_ENDING;
+           } else {
+             // Start of new header field.
+             _headerField.add(_toLowerCase(byte));
+             _state = _HEADER_FIELD;
+           }
+         }
+         break;
+
+       case _HEADER_ENDING:
+         _expect(byte, _CharCode.LF);
+         _multipartController = new StreamController(
+             sync: true,
+             onPause: () {
+               _pauseStream();
+             },
+             onResume: () {
+               _resumeStream();
+               _parse();
+             });
+         _controller.add(
+             new _MimeMultipart(_headers, _multipartController.stream));
+         _headers = null;
+         _state = _CONTENT;
+         contentStartIndex = _index + 1;
+         break;
+
+       case _CONTENT:
+         if (byte == _boundary[_boundaryIndex]) {
+           _boundaryIndex++;
+           if (_boundaryIndex == _boundary.length) {
+             if (contentStartIndex != null) {
+               _index++;
+               reportData();
+               _index--;
+             }
+             _multipartController.close();
+             _boundaryIndex = 0;
+             _state = _BOUNDARY_ENDING;
+           }
+         } else {
+           // Restart matching of the boundary.
+           _index = _index - _boundaryIndex;
+           if (contentStartIndex == null) contentStartIndex = _index;
+           _boundaryIndex = 0;
+         }
+         break;
+
+       case _LAST_BOUNDARY_DASH2:
+         _expect(byte, _CharCode.DASH);
+         _state = _LAST_BOUNDARY_ENDING;
+         break;
+
+       case _LAST_BOUNDARY_ENDING:
+         if (byte == _CharCode.CR) {
+           _state = _LAST_BOUNDARY_END;
+         } else {
+           _expectWS(byte);
+         }
+         break;
+
+       case _LAST_BOUNDARY_END:
+         _expect(byte, _CharCode.LF);
+         _multipartController.close();
+         _multipartController = null;
+         _state = _DONE;
+         break;
+
+       default:
+         // Should be unreachable.
+         assert(false);
+         break;
+     }
+
+     // Move to the next byte.
+     _index++;
+   }
+
+   // Report any known content.
+   if (_state == _CONTENT &amp;&amp; contentStartIndex != null) {
+     reportData();
+   }
+
+   // Resume if at end.
+   if (_index == _buffer.length) {
+     _buffer = null;
+     _index = null;
+     _resumeStream();
+   }
+ }
+
+ bool _isTokenChar(int byte) {
+   return byte &gt; 31 &amp;&amp; byte &lt; 128 &amp;&amp; _Const.SEPARATORS.indexOf(byte) == -1;
+ }
+
+ int _toLowerCase(int byte) {
+   final int aCode = "A".codeUnitAt(0);
+   final int zCode = "Z".codeUnitAt(0);
+   final int delta = "a".codeUnitAt(0) - aCode;
+   return (aCode &lt;= byte &amp;&amp; byte &lt;= zCode) ? byte + delta : byte;
+ }
+
+ void _expect(int val1, int val2) {
+   if (val1 != val2) {
+     throw new MimeMultipartException("Failed to parse multipart mime 1");
+   }
+ }
+
+ void _expectWS(int byte) {
+   if (byte != _CharCode.SP &amp;&amp; byte != _CharCode.HT) {
+     throw new MimeMultipartException("Failed to parse multipart mime 2");
+   }
+ }
+}
+</pre>
+</div>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="http://api.dartlang.org/dart_async/StreamTransformer.html" ref="external">StreamTransformer&lt;List&lt;int&gt;, MimeMultipart&gt;</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>MimeMultipartTransformer</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> boundary) <a class="anchor-link" href="#"
+              title="Permalink to MimeMultipartTransformer.MimeMultipartTransformer">#</a></h4>
+<div class="doc">
+<p>Construct a new MIME multipart parser with the boundary
+
+<span class="param">boundary</span>. The boundary should be as specified in the content
+type parameter, that is without the -- prefix.</p>
+<pre class="source">
+MimeMultipartTransformer(String boundary) {
+ List&lt;int&gt; charCodes = boundary.codeUnits;
+ _boundary = new Uint8List(4 + charCodes.length);
+ // Set-up the matching boundary preceding it with CRLF and two
+ // dashes.
+ _boundary[0] = _CharCode.CR;
+ _boundary[1] = _CharCode.LF;
+ _boundary[2] = _CharCode.DASH;
+ _boundary[3] = _CharCode.DASH;
+ _boundary.setRange(4, 4 + charCodes.length, charCodes);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="bind">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../mime/MimeMultipart.html">MimeMultipart</a>&gt; <strong>bind</strong>(<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt;&gt; stream) <a class="anchor-link" href="#bind"
+              title="Permalink to MimeMultipartTransformer.bind">#</a></h4>
+<div class="doc">
+<pre class="source">
+Stream&lt;MimeMultipart&gt; bind(Stream&lt;List&lt;int&gt;&gt; stream) {
+ _controller = new StreamController(
+     sync: true,
+     onPause: _pauseStream,
+     onResume:_resumeStream,
+     onCancel: () {
+       _subscription.cancel();
+     },
+     onListen: () {
+       _subscription = stream.listen(
+           (data) {
+             assert(_buffer == null);
+             _pauseStream();
+             _buffer = data;
+             _index = 0;
+             _parse();
+           },
+           onDone: () {
+             if (_state != _DONE) {
+               _controller.addError(
+                   new MimeMultipartException("Bad multipart ending"));
+             }
+             _controller.close();
+           },
+           onError: _controller.addError);
+     });
+ return _controller.stream;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

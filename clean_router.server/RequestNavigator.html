@@ -1,0 +1,201 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>RequestNavigator class / clean_router.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_router.server" data-type="RequestNavigator">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_router.server.html">clean_router.server</a> &rsaquo; <a href="../clean_router.server/RequestNavigator.html">RequestNavigator</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>RequestNavigator</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p><a class="crossref" href="../clean_router.server/RequestNavigator.html">RequestNavigator</a> wires together <a class="crossref" href="../clean_router.common/Route.html">Route</a> matching, <code>Filter</code>ing of <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>s
+and <code>Handler</code> calling. It manages url addresses and bind them handlers.</p>
+<pre class="source">
+class RequestNavigator {
+ final Stream&lt;HttpRequest&gt; _incoming;
+ final Router _router;
+
+ /**
+  * Maps route names to [Stream]
+  */
+ final Map&lt;String, StreamController&lt;RequestHandlerParameters&gt;&gt; _streams = {};
+
+ /**
+  * If no route is matched.
+  */
+ StreamController&lt;RequestHandlerParameters&gt; _defaultStreamController = null;
+
+ /**
+  * Creates new RequestNavigator listening on [_incoming] and routing via [_router].
+  */
+ RequestNavigator(this._incoming, this._router){
+   this._incoming.listen(processHttpRequest);
+ }
+
+ StreamController _createStreamControllerWithHandler(dynamic handler){
+   var streamController = new StreamController&lt;RequestHandlerParameters&gt;();
+   streamController.stream.listen((p) =&gt; handler(p.req, p.url_params));
+   return streamController;
+ }
+
+ /**
+  * Registers [Handler] for a [Route] and adds listener to the stream which
+  * is also returned.
+  */
+ void registerHandler(String routeName, dynamic handler){
+   if(_streams.containsKey(routeName)){
+     throw new ArgumentError("Cannot register handler as route name '$routeName' already in use in RequestNavigator.");
+   }
+
+   _streams[routeName] = _createStreamControllerWithHandler(handler);
+ }
+
+ /**
+  * When [Router] matches nothing then [handler] will be called (through the returned [Stream]).
+  */
+ void registerDefaultHandler(dynamic handler){
+   if(_defaultStreamController != null){
+     throw new ArgumentError("Default route already set.");
+     _defaultStreamController.close();
+   }
+   _defaultStreamController = _createStreamControllerWithHandler(handler);
+ }
+
+ /**
+  * [HttpRequest.uri.path] is matched agains [Router],
+  * whole [HttpRequest] is filtered through [Filter] and if passes all then
+  * [HttpRequest] is inserted to the correspondig [Stream].
+  */
+ void processHttpRequest(HttpRequest req){
+   var matchInfo = _router.match(req.uri.path);
+   if(matchInfo != null){
+     if(_streams.containsKey(matchInfo[0])){
+       _streams[matchInfo[0]].add(new RequestHandlerParameters(req, matchInfo[1]));
+     }
+     else{
+       throw new ArgumentError("Stream not found for '${matchInfo[0]}'");
+     }
+   }
+   else{
+     _defaultStreamController.add(new RequestHandlerParameters(req, {}));
+   }
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>RequestNavigator</strong>(<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; _incoming, <a href="../clean_router.common/Router.html">Router</a> _router) <a class="anchor-link" href="#"
+              title="Permalink to RequestNavigator.RequestNavigator">#</a></h4>
+<div class="doc">
+<p>Creates new RequestNavigator listening on 
+<span class="param">_incoming</span> and routing via 
+<span class="param">_router</span>.</p>
+<pre class="source">
+RequestNavigator(this._incoming, this._router){
+ this._incoming.listen(processHttpRequest);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="processHttpRequest">
+<button class="show-code">Code</button>
+void <strong>processHttpRequest</strong>(<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> req) <a class="anchor-link" href="#processHttpRequest"
+              title="Permalink to RequestNavigator.processHttpRequest">#</a></h4>
+<div class="doc">
+<p><code>HttpRequest.uri.path</code> is matched agains <a class="crossref" href="../clean_router.common/Router.html">Router</a>,
+whole <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> is filtered through <code>Filter</code> and if passes all then
+<a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> is inserted to the correspondig <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a>.</p>
+<pre class="source">
+void processHttpRequest(HttpRequest req){
+ var matchInfo = _router.match(req.uri.path);
+ if(matchInfo != null){
+   if(_streams.containsKey(matchInfo[0])){
+     _streams[matchInfo[0]].add(new RequestHandlerParameters(req, matchInfo[1]));
+   }
+   else{
+     throw new ArgumentError("Stream not found for '${matchInfo[0]}'");
+   }
+ }
+ else{
+   _defaultStreamController.add(new RequestHandlerParameters(req, {}));
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="registerDefaultHandler">
+<button class="show-code">Code</button>
+void <strong>registerDefaultHandler</strong>(handler) <a class="anchor-link" href="#registerDefaultHandler"
+              title="Permalink to RequestNavigator.registerDefaultHandler">#</a></h4>
+<div class="doc">
+<p>When <a class="crossref" href="../clean_router.common/Router.html">Router</a> matches nothing then 
+<span class="param">handler</span> will be called (through the returned <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a>).</p>
+<pre class="source">
+void registerDefaultHandler(dynamic handler){
+ if(_defaultStreamController != null){
+   throw new ArgumentError("Default route already set.");
+   _defaultStreamController.close();
+ }
+ _defaultStreamController = _createStreamControllerWithHandler(handler);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="registerHandler">
+<button class="show-code">Code</button>
+void <strong>registerHandler</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, handler) <a class="anchor-link" href="#registerHandler"
+              title="Permalink to RequestNavigator.registerHandler">#</a></h4>
+<div class="doc">
+<p>Registers <code>Handler</code> for a <a class="crossref" href="../clean_router.common/Route.html">Route</a> and adds listener to the stream which
+is also returned.</p>
+<pre class="source">
+void registerHandler(String routeName, dynamic handler){
+ if(_streams.containsKey(routeName)){
+   throw new ArgumentError("Cannot register handler as route name '$routeName' already in use in RequestNavigator.");
+ }
+
+ _streams[routeName] = _createStreamControllerWithHandler(handler);
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

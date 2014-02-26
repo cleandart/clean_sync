@@ -1,0 +1,106 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>IdGenerator class / clean_sync.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.client" data-type="IdGenerator">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.client.html">clean_sync.client</a> &rsaquo; <a href="../clean_sync.client/IdGenerator.html">IdGenerator</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>IdGenerator</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class IdGenerator {
+ int _counter=0;
+ String prefix = null;
+ /**
+  * Creates IdGenerator with [prefix]
+  */
+ IdGenerator([this.prefix]);
+ String next() {
+   _counter++;
+   return prefix + '-' + _counter.toRadixString(36);
+
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>IdGenerator</strong>([<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> prefix]) <a class="anchor-link" href="#"
+              title="Permalink to IdGenerator.IdGenerator">#</a></h4>
+<div class="doc">
+<p>Creates IdGenerator with 
+<span class="param">prefix</span></p>
+<pre class="source">
+IdGenerator([this.prefix]);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="prefix">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>prefix</strong> <a class="anchor-link"
+            href="#prefix"
+            title="Permalink to IdGenerator.prefix">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+String prefix = null
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="next">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>next</strong>() <a class="anchor-link" href="#next"
+              title="Permalink to IdGenerator.next">#</a></h4>
+<div class="doc">
+<pre class="source">
+String next() {
+ _counter++;
+ return prefix + '-' + _counter.toRadixString(36);
+
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

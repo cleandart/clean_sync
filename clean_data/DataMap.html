@@ -1,0 +1,596 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>DataMap class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="DataMap">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/DataMap.html">DataMap</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>DataMap</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A representation for a single unit of structured data.</p>
+<pre class="source">
+class DataMap extends DataMapView implements Map {
+ //Track subscriptions and remove
+
+ /**
+  * Creates an empty data object.
+  */
+ DataMap();
+
+ /**
+  * Creates a new data object from key-value pairs [data].
+  */
+ factory DataMap.from(dynamic data) {
+   var dataObj = new DataMap();
+   dataObj._initAddAll(data);
+   return dataObj;
+ }
+
+ /**
+  * Assigns the [value] to the [key] field.
+  */
+ void add(String key, value, {author: null}) {
+   _addAll({key: value}, author: author);
+ }
+
+ /**
+  * Adds all key-value pairs of [other] to this data.
+  */
+ void addAll(Map other, {author: null}) {
+   _addAll(other, author:author);
+ }
+
+ void _initAddAll(Map other){
+   other.forEach((key, value) {
+     if (value is List || value is Set || value is Map) {
+       value = cleanify(value);
+     }
+     if(value is ChangeNotificationsMixin) _addOnDataChangeListener(key, value);
+     _fields[key] = value;
+   });
+ }
+
+ void _addAll(Map other, {author: null}) {
+   other.forEach((key, value) {
+     if (value is List || value is Set || value is Map) {
+       value = cleanify(value);
+     }
+     if (_fields.containsKey(key)) {
+       if(_fields[key] is DataReference)
+         _fields[key].changeValue(value, author: author);
+       else {
+         _markChanged(key, new Change(_fields[key], value));
+         _removeOnDataChangeListener(key);
+         if(value is ChangeNotificationsMixin) _addOnDataChangeListener(key, value);
+         _fields[key] = value;
+       }
+     } else {
+       _markAdded(key, value);
+       if(value is ChangeNotificationsMixin) _addOnDataChangeListener(key, value);
+       _fields[key] = value;
+     }
+   });
+   _notify(author: author);
+ }
+
+ /**
+  * Assigns the [value] to the [key] field.
+  */
+ void operator[]=(String key, value) {
+   _addAll({key: value});
+ }
+
+ /**
+  * Removes [key] from the data object.
+  */
+ void remove(String key, {author: null}) {
+   _removeAll([key], author: author);
+ }
+
+ /**
+  * Remove all [keys] from the data object.
+  */
+ void removeAll(List&lt;String&gt; keys, {author: null}) {
+   _removeAll(keys, author:author);
+ }
+
+
+ void _removeAll(List&lt;String&gt; keys, {author: null}) {
+   for (var key in keys) {
+     if(_fields.containsKey(key)){
+       _markRemoved(key, this[key]);
+       _fields.remove(key);
+     }
+     _removeOnDataChangeListener(key);
+   }
+   _notify(author: author);
+ }
+
+ void clear({author: null}) {
+   _removeAll(keys.toList(), author: author);
+ }
+
+ void forEach(void f(key, value)) {
+   _fields.forEach((K, V) =&gt; f(K, V is DataReference ? V.value : V));
+ }
+
+ DataReference ref(String key) {
+   if(!_fields.containsKey(key)) return null;
+   if(_fields[key] is! DataReference) {
+     _removeOnDataChangeListener(key);
+     _fields[key] = new DataReference(_fields[key]);
+     _addOnDataChangeListener(key, _fields[key]);
+   }
+   return _fields[key];
+ }
+
+ putIfAbsent(key, ifAbsent()) {
+   if (!containsKey(key)) {
+     _addAll({key: ifAbsent()});
+   }
+ }
+
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/DataMapView.html">DataMapView</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>DataMap</strong></span></p>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>DataMap</strong>() <a class="anchor-link" href="#"
+              title="Permalink to DataMap.DataMap">#</a></h4>
+<div class="doc">
+<p>Creates an empty data object.</p>
+<pre class="source">
+DataMap();
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="from">
+<button class="show-code">Code</button>
+factory <strong>DataMap.from</strong>(data) <a class="anchor-link" href="#from"
+              title="Permalink to DataMap.DataMap.from">#</a></h4>
+<div class="doc">
+<p>Creates a new data object from key-value pairs 
+<span class="param">data</span>.</p>
+<pre class="source">
+factory DataMap.from(dynamic data) {
+ var dataObj = new DataMap();
+ dataObj._initAddAll(data);
+ return dataObj;
+}
+</pre>
+</div>
+</div>
+</div>
+<div class="inherited">
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="isEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isEmpty</strong> <a class="anchor-link"
+            href="#isEmpty"
+            title="Permalink to DataMap.isEmpty">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Returns true if there is no {key, value} pair in the data object.</p>
+<pre class="source">
+bool get isEmpty {
+ return _fields.isEmpty;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="isNotEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isNotEmpty</strong> <a class="anchor-link"
+            href="#isNotEmpty"
+            title="Permalink to DataMap.isNotEmpty">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Returns true if there is at least one {key, value} pair in the data object.</p>
+<pre class="source">
+bool get isNotEmpty {
+ return _fields.isNotEmpty;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="keys">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>         <strong>keys</strong> <a class="anchor-link"
+            href="#keys"
+            title="Permalink to DataMap.keys">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>The keys of data object.</p>
+<pre class="source">
+Iterable get keys {
+ return _fields.keys;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="length">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>length</strong> <a class="anchor-link"
+            href="#length"
+            title="Permalink to DataMap.length">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>The number of {key, value} pairs in the <a class="crossref" href="../clean_data/DataMap.html">DataMap</a>.</p>
+<pre class="source">
+int get length {
+ return _fields.length;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to DataMap.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to DataMap.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to DataMap.onChange">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to DataMap.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="values">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>         <strong>values</strong> <a class="anchor-link"
+            href="#values"
+            title="Permalink to DataMap.values">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>The values of <a class="crossref" href="../clean_data/DataMap.html">DataMap</a>.</p>
+<pre class="source">
+Iterable get values {
+ return _fields.values.map((elem) =&gt; elem is DataReference ? elem.value : elem);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Operators</h3>
+<div class="method inherited"><h4 id="[]">
+<button class="show-code">Code</button>
+dynamic <strong>operator []</strong>(key) <a class="anchor-link" href="#[]"
+              title="Permalink to DataMap.operator []">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Returns the value for the given key or null if key is not in the data object.
+Because null values are supported, one should use containsKey to
+distinguish between an absent key and a null value.</p>
+<pre class="source">
+dynamic operator[](key) =&gt; _fields[key] is DataReference ? _fields[key].value : _fields[key];
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="[]=">
+<button class="show-code">Code</button>
+void <strong>operator []=</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> key, value) <a class="anchor-link" href="#[]="
+              title="Permalink to DataMap.operator []=">#</a></h4>
+<div class="doc">
+<p>Assigns the 
+<span class="param">value</span> to the 
+<span class="param">key</span> field.</p>
+<pre class="source">
+void operator[]=(String key, value) {
+ _addAll({key: value});
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="add">
+<button class="show-code">Code</button>
+void <strong>add</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> key, value, {author: null}) <a class="anchor-link" href="#add"
+              title="Permalink to DataMap.add">#</a></h4>
+<div class="doc">
+<p>Assigns the 
+<span class="param">value</span> to the 
+<span class="param">key</span> field.</p>
+<pre class="source">
+void add(String key, value, {author: null}) {
+ _addAll({key: value}, author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addAll">
+<button class="show-code">Code</button>
+void <strong>addAll</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> other, {author: null}) <a class="anchor-link" href="#addAll"
+              title="Permalink to DataMap.addAll">#</a></h4>
+<div class="doc">
+<p>Adds all key-value pairs of 
+<span class="param">other</span> to this data.</p>
+<pre class="source">
+void addAll(Map other, {author: null}) {
+ _addAll(other, author:author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="clear">
+<button class="show-code">Code</button>
+void <strong>clear</strong>({author: null}) <a class="anchor-link" href="#clear"
+              title="Permalink to DataMap.clear">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes all pairs from the map.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> </div></div>
+<pre class="source">
+void clear({author: null}) {
+ _removeAll(keys.toList(), author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="containsKey">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>containsKey</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> key) <a class="anchor-link" href="#containsKey"
+              title="Permalink to DataMap.containsKey">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Returns whether this data object contains the given 
+<span class="param">key</span>.</p>
+<pre class="source">
+bool containsKey(String key) {
+ return _fields.containsKey(key);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="containsValue">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>containsValue</strong>(<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> value) <a class="anchor-link" href="#containsValue"
+              title="Permalink to DataMap.containsValue">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<pre class="source">
+bool containsValue(Object value) {
+ if(_fields.containsValue(value)) return true;
+ bool contains = false;
+ _fields.forEach((K, elem) { if(elem is DataReference &amp;&amp; elem.value == value) contains = true;});
+ return contains;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="dispose">
+<button class="show-code">Code</button>
+void <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to DataMap.dispose">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Should release all allocated (referenced) resources as subscribtions.</p>
+<pre class="source">
+void dispose() {
+ _dispose();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="forEach">
+<button class="show-code">Code</button>
+void <strong>forEach</strong>(void f(key, value)) <a class="anchor-link" href="#forEach"
+              title="Permalink to DataMap.forEach">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Applies 
+<span class="param">f</span> to each {key, value} pair of the map.</p>
+<p>It is an error to add or remove keys from the map during iteration.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> </div></div>
+<pre class="source">
+void forEach(void f(key, value)) {
+ _fields.forEach((K, V) =&gt; f(K, V is DataReference ? V.value : V));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="putIfAbsent">
+<button class="show-code">Code</button>
+dynamic <strong>putIfAbsent</strong>(key, ifAbsent()) <a class="anchor-link" href="#putIfAbsent"
+              title="Permalink to DataMap.putIfAbsent">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>If 
+<span class="param">key</span> is not associated to a value, calls 
+<span class="param">ifAbsent</span> and
+updates the map by mapping 
+<span class="param">key</span> to the value returned by
+
+<span class="param">ifAbsent</span>. Returns the value in the map.</p>
+<pre><code>Map&lt;String, int&gt; scores = {'Bob': 36};
+for (var key in ['Bob', 'Rohan', 'Sophena']) {
+  scores.putIfAbsent(key, () =&gt; key.length);
+}
+scores['Bob'];      // 36
+scores['Rohan'];    //  5
+scores['Sophena'];  //  7
+</code></pre>
+<p>The code that 
+<span class="param">ifAbsent</span> executes must not add or remove keys.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> </div></div>
+<pre class="source">
+putIfAbsent(key, ifAbsent()) {
+ if (!containsKey(key)) {
+   _addAll({key: ifAbsent()});
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="ref">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataReference.html">DataReference</a> <strong>ref</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> key) <a class="anchor-link" href="#ref"
+              title="Permalink to DataMap.ref">#</a></h4>
+<div class="doc">
+<pre class="source">
+DataReference ref(String key) {
+ if(!_fields.containsKey(key)) return null;
+ if(_fields[key] is! DataReference) {
+   _removeOnDataChangeListener(key);
+   _fields[key] = new DataReference(_fields[key]);
+   _addOnDataChangeListener(key, _fields[key]);
+ }
+ return _fields[key];
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="remove">
+<button class="show-code">Code</button>
+void <strong>remove</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> key, {author: null}) <a class="anchor-link" href="#remove"
+              title="Permalink to DataMap.remove">#</a></h4>
+<div class="doc">
+<p>Removes 
+<span class="param">key</span> from the data object.</p>
+<pre class="source">
+void remove(String key, {author: null}) {
+ _removeAll([key], author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeAll">
+<button class="show-code">Code</button>
+void <strong>removeAll</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>&gt; keys, {author: null}) <a class="anchor-link" href="#removeAll"
+              title="Permalink to DataMap.removeAll">#</a></h4>
+<div class="doc">
+<p>Remove all 
+<span class="param">keys</span> from the data object.</p>
+<pre class="source">
+void removeAll(List&lt;String&gt; keys, {author: null}) {
+ _removeAll(keys, author:author);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toJson">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> <strong>toJson</strong>() <a class="anchor-link" href="#toJson"
+              title="Permalink to DataMap.toJson">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Converts to Map.</p>
+<pre class="source">
+Map toJson() =&gt; new Map.fromIterables(this.keys, this.values);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to DataMap.toString">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataMapView.html">DataMapView</a> </div><div class="doc">
+<p>Returns Json representation of the object.</p>
+<pre class="source">
+String toString() =&gt; toJson().toString();
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

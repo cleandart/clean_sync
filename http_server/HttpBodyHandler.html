@@ -1,0 +1,239 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>HttpBodyHandler class / http_server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="http_server" data-type="HttpBodyHandler">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../http_server.html">http_server</a> &rsaquo; <a href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>HttpBodyHandler</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p><a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> is a helper class for processing and collecting
+HTTP message data in an easy-to-use <a class="crossref" href="../http_server/HttpBody.html">HttpBody</a> object. The content
+body is parsed, depending on the <code>Content-Type</code> header field. When
+the full body is read and parsed the body content is made
+available. The class can be used to process both server requests
+and client responses.</p>
+<p>The following content types are recognized:</p>
+<pre><code>text/ *
+application/json
+application/x-www-form-urlencoded
+multipart/form-data
+</code></pre>
+<p> For content type <code>text/\*</code> the body is decoded into a string. The
+ 'charset' parameter of the content type specifies the encoding
+ used for decoding. If no 'charset' is present the default encoding
+ of ISO-8859-1 is used.</p>
+<p> For content type <code>application/json</code> the body is decoded into a
+ string which is then parsed as JSON. The resulting body is a
+ <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a>.  The 'charset' parameter of the content type specifies the
+ encoding used for decoding. If no 'charset' is present the default
+ encoding of UTF-8 is used.</p>
+<p> For content type <code>application/x-www-form-urlencoded</code> the body is a
+ query string which is then split according to the rules for
+ splitting a query string. The resulting body is a <code>Map&lt;String,
+ String&gt;</code>.  If the same name is present several times in the query
+ string, then the last value seen for this name will be in the
+ resulting map. The encoding US-ASCII is always used for decoding
+ the body.</p>
+<p> For content type <code>multipart/form-data</code> the body is parsed into
+ it's different fields. The resulting body is a <code>Map&lt;String,
+ dynamic&gt;</code>, where the value is a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> for normal fields and a
+ <a class="crossref" href="../http_server/HttpBodyFileUpload.html">HttpBodyFileUpload</a> instance for file upload fields. If the same
+ name is present several times, then the last value seen for this
+ name will be in the resulting map.</p>
+<p> When using content type <code>multipart/form-data</code> the encoding of
+ fields with <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> values is determined by the browser sending
+ the HTTP request with the form data. The encoding is specified
+ either by the attribute <code>accept-charset</code> on the HTML form, or by
+ the content type of the web page containing the form. If the HTML
+ form has an <code>accept-charset</code> attribute the browser will use the
+ encoding specified there. If the HTML form has no <code>accept-charset</code>
+ attribute the browser determines the encoding from the content
+ type of the web page containing the form. Using a content type of
+ <code>text/html; charset=utf-8</code> for the page and setting
+ <code>accept-charset</code> on the HTML form to <code>utf-8</code> is recommended as the
+ default for <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> is UTF-8. It is important to get
+ these encoding values right, as the actual <code>multipart/form-data</code>
+ HTTP request sent by the browser does <em>not</em> contain any
+ information on the encoding. If something else than UTF-8 is used
+ <code>defaultEncoding</code> needs to be set in the <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a>
+ constructor and calls to <a class="crossref" href="../http_server/HttpBodyHandler.html#processRequest">processRequest</a> and <a class="crossref" href="../http_server/HttpBodyHandler.html#processResponse">processResponse</a>.</p>
+<p> For all other content types the body will be treated as
+ uninterpreted binary data. The resulting body will be of type
+ <code>List&lt;int&gt;</code>.</p>
+<p>To use with the <a class="crossref" href="http://api.dartlang.org/dart_io/HttpServer.html">HttpServer</a> for request messages, <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> can be
+used as either a <a class="crossref" href="http://api.dartlang.org/dart_async/StreamTransformer.html">StreamTransformer</a> or as a per-request handler (see
+<a class="crossref" href="../http_server/HttpBodyHandler.html#processRequest">processRequest</a>).</p>
+<pre><code>HttpServer server = ...
+server.transform(new HttpBodyHandler())
+    .listen((HttpRequestBody body) {
+      ...
+    });
+</code></pre>
+<p>To use with the <a class="crossref" href="http://api.dartlang.org/dart_io/HttpClient.html">HttpClient</a> for response messages, <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> can be
+used as a per-request handler (see <a class="crossref" href="../http_server/HttpBodyHandler.html#processResponse">processResponse</a>).</p>
+<pre><code>HttpClient client = ...
+client.get(...)
+    .then((HttpClientRequest response) =&gt; response.close())
+    .then(HttpBodyHandler.processResponse)
+    .then((HttpClientResponseBody body) {
+      ...
+    });
+</code></pre>
+<pre class="source">
+class HttpBodyHandler
+   implements StreamTransformer&lt;HttpRequest, HttpRequestBody&gt; {
+ var _transformer;
+
+ /**
+  * Create a new [HttpBodyHandler] to be used with a [Stream]&lt;[HttpRequest]&gt;,
+  * e.g. a [HttpServer].
+  *
+  * If the page is served using different encoding than UTF-8, set
+  * [defaultEncoding] accordingly. This is required for parsing
+  * `multipart/form-data` content correctly. See the class comment
+  * for more information on `multipart/form-data`.
+  */
+ HttpBodyHandler({Encoding defaultEncoding: UTF8})
+     : _transformer = new _HttpBodyHandlerTransformer(defaultEncoding);
+
+ /**
+  * Process and parse an incoming [HttpRequest]. The returned [HttpRequestBody]
+  * contains a [response] field for accessing the [HttpResponse].
+  *
+  * See [HttpBodyHandler] constructor for more info on [defaultEncoding].
+  */
+ static Future&lt;HttpRequestBody&gt; processRequest(
+     HttpRequest request,
+     {Encoding defaultEncoding: UTF8}) {
+   return _HttpBodyHandler.processRequest(request, defaultEncoding);
+ }
+
+ /**
+  * Process and parse an incoming [HttpClientResponse].
+  *
+  * See [HttpBodyHandler] constructor for more info on [defaultEncoding].
+  */
+ static Future&lt;HttpClientResponseBody&gt; processResponse(
+     HttpClientResponse response,
+     {Encoding defaultEncoding: UTF8}) {
+   return _HttpBodyHandler.processResponse(response, defaultEncoding);
+ }
+
+ Stream&lt;HttpRequestBody&gt; bind(Stream&lt;HttpRequest&gt; stream) {
+   return _transformer.bind(stream);
+ }
+}
+</pre>
+</div>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="http://api.dartlang.org/dart_async/StreamTransformer.html" ref="external">StreamTransformer&lt;HttpRequest, HttpRequestBody&gt;</a></span></p>
+<div>
+<h3>Static Methods</h3>
+<div class="method"><h4 id="processRequest">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="../http_server/HttpRequestBody.html">HttpRequestBody</a>&gt; <strong>processRequest</strong>(<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> request, {<a href="http://api.dartlang.org/dart_convert/Encoding.html" ref="external">Encoding</a> defaultEncoding: UTF8}) <a class="anchor-link" href="#processRequest"
+              title="Permalink to HttpBodyHandler.processRequest">#</a></h4>
+<div class="doc">
+<p>Process and parse an incoming <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>. The returned <a class="crossref" href="../http_server/HttpRequestBody.html">HttpRequestBody</a>
+contains a <code>response</code> field for accessing the <a class="crossref" href="http://api.dartlang.org/dart_io/HttpResponse.html">HttpResponse</a>.</p>
+<p>See <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> constructor for more info on 
+<span class="param">defaultEncoding</span>.</p>
+<pre class="source">
+static Future&lt;HttpRequestBody&gt; processRequest(
+   HttpRequest request,
+   {Encoding defaultEncoding: UTF8}) {
+ return _HttpBodyHandler.processRequest(request, defaultEncoding);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="processResponse">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="../http_server/HttpClientResponseBody.html">HttpClientResponseBody</a>&gt; <strong>processResponse</strong>(<a href="http://api.dartlang.org/dart_io/HttpClientResponse.html" ref="external">HttpClientResponse</a> response, {<a href="http://api.dartlang.org/dart_convert/Encoding.html" ref="external">Encoding</a> defaultEncoding: UTF8}) <a class="anchor-link" href="#processResponse"
+              title="Permalink to HttpBodyHandler.processResponse">#</a></h4>
+<div class="doc">
+<p>Process and parse an incoming <a class="crossref" href="http://api.dartlang.org/dart_io/HttpClientResponse.html">HttpClientResponse</a>.</p>
+<p>See <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> constructor for more info on 
+<span class="param">defaultEncoding</span>.</p>
+<pre class="source">
+static Future&lt;HttpClientResponseBody&gt; processResponse(
+   HttpClientResponse response,
+   {Encoding defaultEncoding: UTF8}) {
+ return _HttpBodyHandler.processResponse(response, defaultEncoding);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>HttpBodyHandler</strong>({<a href="http://api.dartlang.org/dart_convert/Encoding.html" ref="external">Encoding</a> defaultEncoding: UTF8}) <a class="anchor-link" href="#"
+              title="Permalink to HttpBodyHandler.HttpBodyHandler">#</a></h4>
+<div class="doc">
+<p>Create a new <a class="crossref" href="../http_server/HttpBodyHandler.html">HttpBodyHandler</a> to be used with a <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a>&lt;<a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>>,
+e.g. a <a class="crossref" href="http://api.dartlang.org/dart_io/HttpServer.html">HttpServer</a>.</p>
+<p>If the page is served using different encoding than UTF-8, set
+
+<span class="param">defaultEncoding</span> accordingly. This is required for parsing
+<code>multipart/form-data</code> content correctly. See the class comment
+for more information on <code>multipart/form-data</code>.</p>
+<pre class="source">
+HttpBodyHandler({Encoding defaultEncoding: UTF8})
+   : _transformer = new _HttpBodyHandlerTransformer(defaultEncoding);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="bind">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../http_server/HttpRequestBody.html">HttpRequestBody</a>&gt; <strong>bind</strong>(<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; stream) <a class="anchor-link" href="#bind"
+              title="Permalink to HttpBodyHandler.bind">#</a></h4>
+<div class="doc">
+<pre class="source">
+Stream&lt;HttpRequestBody&gt; bind(Stream&lt;HttpRequest&gt; stream) {
+ return _transformer.bind(stream);
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

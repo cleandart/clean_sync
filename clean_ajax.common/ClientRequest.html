@@ -1,0 +1,137 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>ClientRequest class / clean_ajax.common Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.common" data-type="ClientRequest">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.common.html">clean_ajax.common</a> &rsaquo; <a href="../clean_ajax.common/ClientRequest.html">ClientRequest</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>ClientRequest</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class ClientRequest {
+ final dynamic args;
+ final String type;
+
+ /**
+  * Creates a [ClientRequest] with specified [type] and [args]
+  * [type] is the name of the requested server function
+  * [args] is a map of arguments for the specified server function
+  */
+ ClientRequest(this.type, this.args);
+
+ /**
+  * Create a [ClientRequest] from JSON map {'name' : something, 'args': somethingElse}
+  */
+ factory ClientRequest.fromJson(Map data) =&gt; new ClientRequest(data['type'], data['args']);
+
+ /**
+  * Converts this [ClientRequest] to JSON serializable map.
+  */
+ Map toJson() =&gt; {'type': type, 'args': args};
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>ClientRequest</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> type, args) <a class="anchor-link" href="#"
+              title="Permalink to ClientRequest.ClientRequest">#</a></h4>
+<div class="doc">
+<p>Creates a <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> with specified 
+<span class="param">type</span> and [args]
+[type] is the name of the requested server function
+
+<span class="param">args</span> is a map of arguments for the specified server function</p>
+<pre class="source">
+ClientRequest(this.type, this.args);
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="fromJson">
+<button class="show-code">Code</button>
+factory <strong>ClientRequest.fromJson</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> data) <a class="anchor-link" href="#fromJson"
+              title="Permalink to ClientRequest.ClientRequest.fromJson">#</a></h4>
+<div class="doc">
+<p>Create a <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> from JSON map {'name' : something, 'args': somethingElse}</p>
+<pre class="source">
+factory ClientRequest.fromJson(Map data) =&gt; new ClientRequest(data['type'], data['args']);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="args">
+<button class="show-code">Code</button>
+final         <strong>args</strong> <a class="anchor-link"
+            href="#args"
+            title="Permalink to ClientRequest.args">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final dynamic args
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="type">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>type</strong> <a class="anchor-link"
+            href="#type"
+            title="Permalink to ClientRequest.type">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final String type
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="toJson">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> <strong>toJson</strong>() <a class="anchor-link" href="#toJson"
+              title="Permalink to ClientRequest.toJson">#</a></h4>
+<div class="doc">
+<p>Converts this <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> to JSON serializable map.</p>
+<pre class="source">
+Map toJson() =&gt; {'type': type, 'args': args};
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

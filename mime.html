@@ -1,0 +1,118 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>mime Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="favicon.ico">
+        
+        </head>
+        <body data-library="mime">
+        <div class="page">
+        <div class="header">
+          <a href="index.html"><div class="logo"></div></a>
+          <a href="index.html">Dart Documentation</a>
+         &rsaquo; <a href="mime.html">mime</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+<h2><strong>mime</strong> library</h2>
+<div class="doc"><p>Help for working with file format identifiers
+such as <code>text/html</code> and <code>image/png</code>.</p>
+<p>More details, including a list of types, are in the Wikipedia article
+<a href="http://en.wikipedia.org/wiki/Internet_media_type">Internet media type</a>.
+For information on installing and importing this library, see the
+<a href="http://pub.dartlang.org/packages/mime">mime package on pub.dartlang.org</a>.</p></div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="defaultMagicNumbersMaxLength">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>defaultMagicNumbersMaxLength</strong> <a class="anchor-link"
+            href="#defaultMagicNumbersMaxLength"
+            title="Permalink to defaultMagicNumbersMaxLength">#</a>
+        </h4>
+        <div class="doc">
+<p>The maximum number of bytes needed, to match all default magic-numbers.</p>
+<pre class="source">
+int get defaultMagicNumbersMaxLength =&gt; _defaultMagicNumbersMaxLength;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Functions</h3>
+<div class="method"><h4 id="lookupMimeType">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>lookupMimeType</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> path, {<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; headerBytes}) <a class="anchor-link" href="#lookupMimeType"
+              title="Permalink to lookupMimeType">#</a></h4>
+<div class="doc">
+<p>Extract the extension from 
+<span class="param">path</span> and use that for MIME-type lookup, using
+the default extension map.</p>
+<p>If no matching MIME-type was found, <code>null</code> is returned.</p>
+<p>If 
+<span class="param">headerBytes</span> is present, a match for known magic-numbers will be
+performed first. This allows the correct mime-type to be found, even though
+a file have been saved using the wrong file-name extension. If less than
+<a class="crossref" href="mime.html#defaultMagicNumbersMaxLength">defaultMagicNumbersMaxLength</a> bytes was provided, some magic-numbers won't
+be matched against.</p>
+<pre class="source">
+String lookupMimeType(String path,
+                     {List&lt;int&gt; headerBytes})
+   =&gt; _globalResolver.lookup(path, headerBytes: headerBytes);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Abstract Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="mime/MimeMultipart.html"><strong>MimeMultipart</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="mime/MimeMultipartTransformer.html"><strong>MimeMultipartTransformer</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="mime/MimeTypeResolver.html"><strong>MimeTypeResolver</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Exceptions</h3>
+          <div class="type">
+          <h4>
+            <a href="mime/MimeMultipartException.html"><strong>MimeMultipartException</strong></a>
+          </h4>
+          </div>
+          
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="client-live-nav.js"></script>
+        </body></html>
+        

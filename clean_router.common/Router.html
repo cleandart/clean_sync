@@ -1,0 +1,208 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Router class / clean_router.common Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_router.common" data-type="Router">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_router.common.html">clean_router.common</a> &rsaquo; <a href="../clean_router.common/Router.html">Router</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Router</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p><a class="crossref" href="../clean_router.common/Router.html">Router</a> consists of multiple named <a class="crossref" href="../clean_router.common/Route.html">Route</a>s and provides methods for
+translating <a class="crossref" href="../clean_router.common/Route.html">Route</a>s to url/path and vice versa.</p>
+<pre class="source">
+class Router {
+
+ final Map&lt;String, Route&gt; _routes;
+ String _host;
+
+ Router(this._host, this._routes);
+
+ /**
+  * Registeres a [route] identified by [routeName] in [Router].
+  * It is not allowed to override already registered routes.
+  */
+ void addRoute(String routeName, Route route) {
+   if(_routes.containsKey(routeName)) {
+     throw new ArgumentError("Route name '$routeName' already in use in Route.");
+   }
+   if(routeName == PARAM_ROUTE_NAME) {
+     throw new ArgumentError("Route name cannot be '$PARAM_ROUTE_NAME' in PageNavigator.");
+   }
+   _routes[routeName] = route;
+ }
+
+ /**
+  * Returns path part of the url corresponding to the given [routeName] and
+  * [parameters]. Accepts [Map] and [Data] as [parameters].
+  */
+ String routePath(String routeName, dynamic parameters) {
+   var route = this._routes[routeName];
+   if (route == null) {
+     throw new ArgumentError('Router does not contain a route "$routeName".');
+   }
+   return this._routes[routeName].path(parameters);
+ }
+
+ /**
+  * Returns the whole url corresponding to the given [routeName] and
+  * [parameters]. Accepts both [Map] and [Data] as [parameters].
+  */
+ String routeUrl(String routeName, dynamic parameters) {
+   String path = this.routePath(routeName, parameters);
+   return this._routes[routeName].isAbsolute ? path : this._host + path;
+ }
+
+ /**
+  * Returns the List [[routeName, matchedParameters]] matching the [url].
+  */
+ List match(String url) {
+   for (var key in this._routes.keys) {
+     var match = this._routes[key].match(url);
+     if (match != null) {
+       match[PARAM_ROUTE_NAME] = key;
+       return [key, match];
+     }
+   }
+   return null;
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Router</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _host, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>, <a href="../clean_router.common/Route.html">Route</a>&gt; _routes) <a class="anchor-link" href="#"
+              title="Permalink to Router.Router">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+Router(this._host, this._routes);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="addRoute">
+<button class="show-code">Code</button>
+void <strong>addRoute</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, <a href="../clean_router.common/Route.html">Route</a> route) <a class="anchor-link" href="#addRoute"
+              title="Permalink to Router.addRoute">#</a></h4>
+<div class="doc">
+<p>Registeres a 
+<span class="param">route</span> identified by 
+<span class="param">routeName</span> in <a class="crossref" href="../clean_router.common/Router.html">Router</a>.
+It is not allowed to override already registered routes.</p>
+<pre class="source">
+void addRoute(String routeName, Route route) {
+ if(_routes.containsKey(routeName)) {
+   throw new ArgumentError("Route name '$routeName' already in use in Route.");
+ }
+ if(routeName == PARAM_ROUTE_NAME) {
+   throw new ArgumentError("Route name cannot be '$PARAM_ROUTE_NAME' in PageNavigator.");
+ }
+ _routes[routeName] = route;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="match">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> <strong>match</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> url) <a class="anchor-link" href="#match"
+              title="Permalink to Router.match">#</a></h4>
+<div class="doc">
+<p>Returns the List [[routeName, matchedParameters]] matching the 
+<span class="param">url</span>.</p>
+<pre class="source">
+List match(String url) {
+ for (var key in this._routes.keys) {
+   var match = this._routes[key].match(url);
+   if (match != null) {
+     match[PARAM_ROUTE_NAME] = key;
+     return [key, match];
+   }
+ }
+ return null;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="routePath">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>routePath</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, parameters) <a class="anchor-link" href="#routePath"
+              title="Permalink to Router.routePath">#</a></h4>
+<div class="doc">
+<p>Returns path part of the url corresponding to the given 
+<span class="param">routeName</span> and
+
+<span class="param">parameters</span>. Accepts <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> and <code>Data</code> as 
+<span class="param">parameters</span>.</p>
+<pre class="source">
+String routePath(String routeName, dynamic parameters) {
+ var route = this._routes[routeName];
+ if (route == null) {
+   throw new ArgumentError('Router does not contain a route "$routeName".');
+ }
+ return this._routes[routeName].path(parameters);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="routeUrl">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>routeUrl</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, parameters) <a class="anchor-link" href="#routeUrl"
+              title="Permalink to Router.routeUrl">#</a></h4>
+<div class="doc">
+<p>Returns the whole url corresponding to the given 
+<span class="param">routeName</span> and
+
+<span class="param">parameters</span>. Accepts both <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> and <code>Data</code> as 
+<span class="param">parameters</span>.</p>
+<pre class="source">
+String routeUrl(String routeName, dynamic parameters) {
+ String path = this.routePath(routeName, parameters);
+ return this._routes[routeName].isAbsolute ? path : this._host + path;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

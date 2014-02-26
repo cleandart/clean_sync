@@ -1,0 +1,1801 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>DataList class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="DataList">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/DataList.html">DataList</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>DataList</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class DataList extends DataListView with ListMixin implements List {
+
+ setLength(newLen, {author: null}) {
+   _length = newLen;
+   _notify(author: author);
+ }
+
+ set length(newLen) {
+   _length = newLen;
+   _notify();
+ }
+
+ set _length(int newLen) {
+   if(newLen &lt; 0) throw new RangeError('Negative position');
+   while(newLen &gt; _length) _add(null);
+   while(newLen &lt; _length) _remove(_list.length - 1);
+ }
+
+ operator []=(key, dynamic value) =&gt; set(key, cleanify(value));
+
+ DataList(){}
+
+ factory DataList.from(Iterable elements) {
+   DataList dataList =  new DataList();
+   elements.forEach((elem) =&gt; dataList._silentAdd(cleanify(elem)));
+   return dataList;
+ }
+
+ void add(element, {author: null}) {
+   _add(cleanify(element));
+   _notify(author: author);
+ }
+
+ set(int key, dynamic value, {author: null}) {
+   _set(key, cleanify(value));
+   _notify(author: author);
+ }
+
+ void addAll(Iterable iterable, {author: null}) {
+   for (dynamic element in iterable) {
+     _add(cleanify(element));
+   }
+   _notify(author: author);
+ }
+
+ bool remove(Object element, {author: null}) {
+   int index = indexOf(element);
+   if(index == -1) return false;
+   var ret = _remove(index);
+   _notify(author: author);
+   return ret;
+ }
+
+ void removeWhere(bool test(element), {author: null}) {
+   _filter(this, test, false);
+   _notify(author: author);
+ }
+
+ void retainWhere(bool test(element), {author: null}) {
+   _filter(this, test, true);
+   _notify(author: author);
+ }
+
+ // TODO: filter should run in linear time
+ static void _filter(DataList source,
+                     bool test(var element),
+                     bool retainMatching) {
+   int length = source.length;
+   for (int i = length - 1; i &gt;= 0; i--) {
+     if (test(source[i]) != retainMatching) {
+        source._remove(i);
+     }
+   }
+ }
+
+ void clear({author: null}) { this._length = 0; _notify(author: author); }
+
+ // List interface.
+
+ removeLast({author: null}) {
+   if (length == 0) {
+     throw new StateError("No elements");
+   }
+   var result = this[length - 1];
+   _length--;
+   _notify(author: author);
+   return result;
+ }
+
+ void sort([int compare(a, b)]) {
+   _sort(compare);
+   _notify();
+ }
+
+ void shuffle([Random random]) {
+   _beforeChangingAll();
+   _list.shuffle(random);
+   _afterChangingAll();
+   _notify();
+ }
+
+ DataList sublist(int start, [int end]) {
+   if (end == null) end = this.length;
+   this._rangeCheck(start, end);
+   int length = end - start;
+   List result = new DataList()..length = length;
+   for (int i = 0; i &lt; length; i++) {
+     result[i] = this[start + i];
+   }
+   return result;
+ }
+
+ void removeRange(int start, int end, {author: null}) {
+   this._rangeCheck(start, end);
+   int length = end - start;
+   for(int i = end-1; i &gt;= start; i--) _remove(i);
+   _notify(author: author);
+ }
+
+ void fillRange(int start, int end, [fill, author]) {
+   this._rangeCheck(start, end);
+   for (int i = start; i &lt; end; i++) {
+     _set(i, cleanify(fill));
+   }
+   _notify(author: author);
+ }
+
+ void setRange(int start, int end, Iterable iterable, [int skipCount = 0, author]) {
+   this._rangeCheck(start, end);
+   for(var elem in iterable) {
+     if(start &lt; end) this[start] = cleanify(elem);
+     start++;
+   }
+   _notify(author: author);
+ }
+
+
+
+ void replaceRange(int start, int end, Iterable newContents, {author: null}) {
+   this._rangeCheck(start, end);
+   newContents = newContents.toList().map((E) =&gt; cleanify(E));
+   int removeLength = end - start;
+   int insertLength = newContents.length;
+   if (removeLength &gt;= insertLength) {
+     int delta = removeLength - insertLength;
+     int insertEnd = start + insertLength;
+     int newLength = this.length - delta;
+     this._setRange(start, insertEnd, newContents);
+     if (delta != 0) {
+       this._setRange(insertEnd, newLength, _list, end);
+       this._length = newLength;
+     }
+   } else {
+     int delta = insertLength - removeLength;
+     int newLength = this.length + delta;
+     int insertEnd = start + insertLength;  // aka. end + delta.
+     this._length = newLength;
+     this._setRange(insertEnd, newLength, _list, end);
+     this._setRange(start, insertEnd, newContents);
+   }
+   _notify(author: author);
+ }
+
+
+ void insert(int index, element, {author: null}) {
+   if (index &lt; 0 || index &gt; length) {
+     throw new RangeError.range(index, 0, length);
+   }
+   if (index == this.length) {
+     _add(cleanify(element));
+     return;
+   }
+   // We are modifying the length just below the is-check. Without the check
+   // Array.copy could throw an exception, leaving the list in a bad state
+   // (with a length that has been increased, but without a new element).
+   if (index is! int) throw new ArgumentError(index);
+   this._length++;
+   _setRange(index + 1, this.length, _list, index);
+   _set(index, cleanify(element));
+   _notify(author: author);
+ }
+
+ removeAt(int index, {author: null}) {
+   var result = this[index];
+   _remove(index);
+   _notify(author: author);
+   return result;
+ }
+
+ void insertAll(int index, Iterable iterable, {author: null}) {
+   if (index &lt; 0 || index &gt; length) {
+     throw new RangeError.range(index, 0, length);
+   }
+   iterable = iterable.toList();
+   int insertionLength = iterable.length;
+   // There might be errors after the length change, in which case the list
+   // will end up being modified but the operation not complete. Unless we
+   // always go through a "toList" we can't really avoid that.
+   this._length += insertionLength;
+   _setRange(index + insertionLength, this.length, _list, index);
+   for (dynamic element in iterable) {
+     _set(index++, cleanify(element));
+   }
+   _notify(author: author);
+ }
+
+ void setAll(int index, Iterable iterable, {author: null}) {
+   for (dynamic element in iterable) {
+     this[index++]= cleanify(element);
+   }
+   _notify(author: author);
+ }
+
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/DataListView.html">DataListView</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>DataList</strong></span></p>
+<h3>Mixins</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a></span></p>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>DataList</strong>() <a class="anchor-link" href="#"
+              title="Permalink to DataList.DataList">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a list of the given length.</p>
+<p>The created list is fixed-length if <a class="crossref" href="../clean_data/DataList.html#length=">length</a> is provided.</p>
+<pre><code>List fixedLengthList = new List(3);
+fixedLengthList.length;     // 3
+fixedLengthList.length = 1; // Error
+</code></pre>
+<p>The list has length 0 and is growable if <a class="crossref" href="../clean_data/DataList.html#length=">length</a> is omitted.</p>
+<pre><code>List growableList = new List();
+growableList.length; // 0;
+growableList.length = 3;
+</code></pre>
+<p>The <a class="crossref" href="../clean_data/DataList.html#length=">length</a> must not be negative or null, if it is provided.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+DataList(){}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="from">
+<button class="show-code">Code</button>
+factory <strong>DataList.from</strong>(<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> elements) <a class="anchor-link" href="#from"
+              title="Permalink to DataList.DataList.from">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a list and initializes it using the contents of <code>other</code>.</p>
+<p>The <a class="crossref" href="http://api.dartlang.org/dart_core/Iterator.html">Iterator</a> of <code>other</code> provides the order of the objects.</p>
+<p>This constructor returns a growable list if <code>growable</code> is true;
+otherwise, it returns a fixed-length list.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+factory DataList.from(Iterable elements) {
+ DataList dataList =  new DataList();
+ elements.forEach((elem) =&gt; dataList._silentAdd(cleanify(elem)));
+ return dataList;
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="first">
+<button class="show-code">Code</button>
+final <a href="../clean_data/DataList.html">E</a>         <strong>first</strong> <a class="anchor-link"
+            href="#first"
+            title="Permalink to DataList.first">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the first element.</p>
+<p>If <code>this</code> is empty throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>. Otherwise this method is
+equivalent to <code>this.elementAt(0)</code></p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E get first {
+ if (length == 0) throw new StateError("No elements");
+ return this[0];
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="isEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isEmpty</strong> <a class="anchor-link"
+            href="#isEmpty"
+            title="Permalink to DataList.isEmpty">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if there is no element in this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+bool get isEmpty =&gt; length == 0;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="isNotEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isNotEmpty</strong> <a class="anchor-link"
+            href="#isNotEmpty"
+            title="Permalink to DataList.isNotEmpty">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if there is at least one element in this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+bool get isNotEmpty =&gt; !isEmpty;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="iterator">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Iterator.html" ref="external">Iterator</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt;         <strong>iterator</strong> <a class="anchor-link"
+            href="#iterator"
+            title="Permalink to DataList.iterator">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterator that iterates over this Iterable object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterator&lt;E&gt; get iterator =&gt; new ListIterator&lt;E&gt;(this);
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="last">
+<button class="show-code">Code</button>
+final <a href="../clean_data/DataList.html">E</a>         <strong>last</strong> <a class="anchor-link"
+            href="#last"
+            title="Permalink to DataList.last">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the last element.</p>
+<p>If <code>this</code> is empty throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E get last {
+ if (length == 0) throw new StateError("No elements");
+ return this[length - 1];
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="length">
+<button class="show-code">Code</button>
+dynamic <strong>get length</strong> <a class="anchor-link" href="#length"
+              title="Permalink to DataList.get length">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataListView.html">DataListView</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the number of elements in <code>this</code>.</p>
+<p>Counting all elements may be involve running through all elements and can
+therefore be slow.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+get length =&gt; _length;
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="length=">
+<button class="show-code">Code</button>
+dynamic <strong>set length</strong>(newLen) <a class="anchor-link" href="#length="
+              title="Permalink to DataList.set length">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Changes the length of this list.</p>
+<p>If <code>newLength</code> is greater than
+the current length, entries are initialized to <code>null</code>.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if the list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+set length(newLen) {
+ _length = newLen;
+ _notify();
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to DataList.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to DataList.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to DataList.onChange">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to DataList.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="reversed">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt;         <strong>reversed</strong> <a class="anchor-link"
+            href="#reversed"
+            title="Permalink to DataList.reversed">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> of the objects in this list in reverse order.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; get reversed =&gt; new ReversedListIterable(this);
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="single">
+<button class="show-code">Code</button>
+final <a href="../clean_data/DataList.html">E</a>         <strong>single</strong> <a class="anchor-link"
+            href="#single"
+            title="Permalink to DataList.single">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the single element in <code>this</code>.</p>
+<p>If <code>this</code> is empty or has more than one element throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E get single {
+ if (length == 0) throw new StateError("No elements");
+ if (length &gt; 1) throw new StateError("Too many elements");
+ return this[0];
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Operators</h3>
+<div class="method inherited"><h4 id="[]">
+<button class="show-code">Code</button>
+dynamic <strong>operator []</strong>(key) <a class="anchor-link" href="#[]"
+              title="Permalink to DataList.operator []">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataListView.html">DataListView</a> </div><div class="doc">
+<pre class="source">
+dynamic operator [](key) =&gt; _list[key] is DataReference ? _list[key].value : _list[key];
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="[]=">
+<button class="show-code">Code</button>
+dynamic <strong>operator []=</strong>(key, value) <a class="anchor-link" href="#[]="
+              title="Permalink to DataList.operator []=">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Sets the value at the given <code>index</code> in the list to 
+<span class="param">value</span>
+or throws a <a class="crossref" href="http://api.dartlang.org/dart_core/RangeError.html">RangeError</a> if <code>index</code> is out of bounds.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+operator []=(key, dynamic value) =&gt; set(key, cleanify(value));
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="add">
+<button class="show-code">Code</button>
+void <strong>add</strong>(element, {author: null}) <a class="anchor-link" href="#add"
+              title="Permalink to DataList.add">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Adds <code>value</code> to the end of this list,
+extending the length by one.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if the list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void add(element, {author: null}) {
+ _add(cleanify(element));
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addAll">
+<button class="show-code">Code</button>
+void <strong>addAll</strong>(<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> iterable, {author: null}) <a class="anchor-link" href="#addAll"
+              title="Permalink to DataList.addAll">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Appends all objects of 
+<span class="param">iterable</span> to the end of this list.</p>
+<p>Extends the length of the list by the number of objects in 
+<span class="param">iterable</span>.
+Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void addAll(Iterable iterable, {author: null}) {
+ for (dynamic element in iterable) {
+   _add(cleanify(element));
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="any">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>any</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#any"
+              title="Permalink to DataList.any">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if one element of this collection satisfies the
+predicate 
+<span class="param">test</span>. Returns false otherwise.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+bool any(bool test(E element)) {
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   if (test(this[i])) return true;
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ return false;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="asMap">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>, <a href="../clean_data/DataList.html">E</a>&gt; <strong>asMap</strong>() <a class="anchor-link" href="#asMap"
+              title="Permalink to DataList.asMap">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an unmodifiable <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> view of <code>this</code>.</p>
+<p>The map uses the indices of this list as keys and the corresponding objects
+as values. The <code>Map.keys</code> <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> iterates the indices of this list
+in numerical order.</p>
+<pre><code>List&lt;String&gt; words = ['fee', 'fi', 'fo', 'fum'];
+Map&lt;int, String&gt; map = words.asMap();
+map[0] + map[1];   // 'feefi';
+map.keys.toList(); // [0, 1, 2, 3]
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; </div></div>
+<pre class="source">
+Map&lt;int, E&gt; asMap() {
+ return new ListMapView(this);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="clear">
+<button class="show-code">Code</button>
+void <strong>clear</strong>({author: null}) <a class="anchor-link" href="#clear"
+              title="Permalink to DataList.clear">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes all objects from this list;
+the length of the list becomes zero.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a>, and retains all objects, if this
+is a fixed-length list.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void clear({author: null}) { this._length = 0; _notify(author: author); }
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="contains">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>contains</strong>(<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> element) <a class="anchor-link" href="#contains"
+              title="Permalink to DataList.contains">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if the collection contains an element equal to 
+<span class="param">element</span>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+bool contains(Object element) {
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   if (this[i] == element) return true;
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ return false;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="dispose">
+<button class="show-code">Code</button>
+void <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to DataList.dispose">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataListView.html">DataListView</a> </div><div class="doc">
+<pre class="source">
+void dispose() {
+ _dispose();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="elementAt">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataList.html">E</a> <strong>elementAt</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index) <a class="anchor-link" href="#elementAt"
+              title="Permalink to DataList.elementAt">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the 
+<span class="param">index</span>th element.</p>
+<p>If <code>this</code> has fewer than 
+<span class="param">index</span> elements throws a <a class="crossref" href="http://api.dartlang.org/dart_core/RangeError.html">RangeError</a>.</p>
+<p>Note: if <code>this</code> does not have a deterministic iteration order then the
+function may simply return any element without any iteration if there are
+at least 
+<span class="param">index</span> elements in <code>this</code>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E elementAt(int index) =&gt; this[index];
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="every">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>every</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#every"
+              title="Permalink to DataList.every">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if every elements of this collection satisify the
+predicate 
+<span class="param">test</span>. Returns <code>false</code> otherwise.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+bool every(bool test(E element)) {
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   if (!test(this[i])) return false;
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ return true;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="expand">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> <strong>expand</strong>(<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> f(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#expand"
+              title="Permalink to DataList.expand">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Expands each element of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> into zero or more elements.</p>
+<p>The resulting Iterable runs through the elements returned
+by 
+<span class="param">f</span> for each element of this, in order.</p>
+<p>The returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is lazy, and calls 
+<span class="param">f</span> for each element
+of this every time it's iterated.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable expand(Iterable f(E element)) =&gt;
+   new ExpandIterable&lt;E, dynamic&gt;(this, f);
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="fillRange">
+<button class="show-code">Code</button>
+void <strong>fillRange</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end, [fill, author]) <a class="anchor-link" href="#fillRange"
+              title="Permalink to DataList.fillRange">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Sets the objects in the range 
+<span class="param">start</span> inclusive to 
+<span class="param">end</span> exclusive
+to the given <code>fillValue</code>.</p>
+<p>An error occurs if 
+<span class="param">start</span>..
+<span class="param">end</span> is not a valid range for <code>this</code>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void fillRange(int start, int end, [fill, author]) {
+ this._rangeCheck(start, end);
+ for (int i = start; i &lt; end; i++) {
+   _set(i, cleanify(fill));
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="firstWhere">
+<button class="show-code">Code</button>
+dynamic <strong>firstWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element), {<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> orElse()}) <a class="anchor-link" href="#firstWhere"
+              title="Permalink to DataList.firstWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the first element that satisfies the given predicate 
+<span class="param">test</span>.</p>
+<p>If none matches, the result of invoking the 
+<span class="param">orElse</span> function is
+returned. By default, when 
+<span class="param">orElse</span> is <code>null</code>, a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is
+thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+dynamic firstWhere(bool test(E element), { Object orElse() }) {
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   E element = this[i];
+   if (test(element)) return element;
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ if (orElse != null) return orElse();
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="fold">
+<button class="show-code">Code</button>
+dynamic <strong>fold</strong>(initialValue, combine(previousValue, <a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#fold"
+              title="Permalink to DataList.fold">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Reduces a collection to a single value by iteratively combining each
+element of the collection with an existing value using the provided
+function.</p>
+<p>Use 
+<span class="param">initialValue</span> as the initial value, and the function 
+<span class="param">combine</span> to
+create a new value from the previous one and an element.</p>
+<p>Example of calculating the sum of an iterable:</p>
+<pre><code>iterable.fold(0, (prev, element) =&gt; prev + element);
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+fold(var initialValue, combine(var previousValue, E element)) {
+ var value = initialValue;
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   value = combine(value, this[i]);
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ return value;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="forEach">
+<button class="show-code">Code</button>
+void <strong>forEach</strong>(void action(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#forEach"
+              title="Permalink to DataList.forEach">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Applies the function <code>f</code> to each element of this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+void forEach(void action(E element)) {
+ int length = this.length;
+ for (int i = 0; i &lt; length; i++) {
+   action(this[i]);
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="getRange">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>getRange</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end) <a class="anchor-link" href="#getRange"
+              title="Permalink to DataList.getRange">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> that iterates over the objects in the range
+
+<span class="param">start</span> inclusive to 
+<span class="param">end</span> exclusive.</p>
+<p>An error occurs if 
+<span class="param">end</span> is before 
+<span class="param">start</span>.</p>
+<p>An error occurs if the 
+<span class="param">start</span> and 
+<span class="param">end</span> are not valid ranges at the time
+of the call to this method. The returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> behaves like
+<code>skip(start).take(end - start)</code>. That is, it does not throw exceptions
+if <code>this</code> changes size.</p>
+<pre><code>List&lt;String&gt; colors = ['red', 'green', 'blue', 'orange', 'pink'];
+Iterable&lt;String&gt; range = colors.getRange(1, 4);
+range.join(', ');  // 'green, blue, orange'
+colors.length = 3;
+range.join(', ');  // 'green, blue'
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; getRange(int start, int end) {
+ _rangeCheck(start, end);
+ return new SubListIterable(this, start, end);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="indexOf">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> <strong>indexOf</strong>(<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> element, [<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> startIndex = 0]) <a class="anchor-link" href="#indexOf"
+              title="Permalink to DataList.indexOf">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the first index of 
+<span class="param">element</span> in this list.</p>
+<p>Searches the list from index <code>start</code> to the end of the list.
+The first time an object <code>o</code> is encountered so that <code>o == element</code>,
+the index of <code>o</code> is returned.</p>
+<pre><code>List&lt;String&gt; notes = ['do', 're', 'mi', 're'];
+notes.indexOf('re');    // 1
+notes.indexOf('re', 2); // 3
+</code></pre>
+<p>Returns -1 if 
+<span class="param">element</span> is not found.</p>
+<pre><code>notes.indexOf('fa');    // -1
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; </div></div>
+<pre class="source">
+int indexOf(Object element, [int startIndex = 0]) {
+ if (startIndex &gt;= this.length) {
+   return -1;
+ }
+ if (startIndex &lt; 0) {
+   startIndex = 0;
+ }
+ for (int i = startIndex; i &lt; this.length; i++) {
+   if (this[i] == element) {
+     return i;
+   }
+ }
+ return -1;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="insert">
+<button class="show-code">Code</button>
+void <strong>insert</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index, element, {author: null}) <a class="anchor-link" href="#insert"
+              title="Permalink to DataList.insert">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Inserts the object at position 
+<span class="param">index</span> in this list.</p>
+<p>This increases the length of the list by one and shifts all objects
+at or after the index towards the end of the list.</p>
+<p>An error occurs if the 
+<span class="param">index</span> is less than 0 or greater than length.
+An <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> occurs if the list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void insert(int index, element, {author: null}) {
+ if (index &lt; 0 || index &gt; length) {
+   throw new RangeError.range(index, 0, length);
+ }
+ if (index == this.length) {
+   _add(cleanify(element));
+   return;
+ }
+ // We are modifying the length just below the is-check. Without the check
+ // Array.copy could throw an exception, leaving the list in a bad state
+ // (with a length that has been increased, but without a new element).
+ if (index is! int) throw new ArgumentError(index);
+ this._length++;
+ _setRange(index + 1, this.length, _list, index);
+ _set(index, cleanify(element));
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="insertAll">
+<button class="show-code">Code</button>
+void <strong>insertAll</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index, <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> iterable, {author: null}) <a class="anchor-link" href="#insertAll"
+              title="Permalink to DataList.insertAll">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Inserts all objects of 
+<span class="param">iterable</span> at position 
+<span class="param">index</span> in this list.</p>
+<p>This increases the length of the list by the length of 
+<span class="param">iterable</span> and
+shifts all later objects towards the end of the list.</p>
+<p>An error occurs if the 
+<span class="param">index</span> is less than 0 or greater than length.
+An <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> occurs if the list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void insertAll(int index, Iterable iterable, {author: null}) {
+ if (index &lt; 0 || index &gt; length) {
+   throw new RangeError.range(index, 0, length);
+ }
+ iterable = iterable.toList();
+ int insertionLength = iterable.length;
+ // There might be errors after the length change, in which case the list
+ // will end up being modified but the operation not complete. Unless we
+ // always go through a "toList" we can't really avoid that.
+ this._length += insertionLength;
+ _setRange(index + insertionLength, this.length, _list, index);
+ for (dynamic element in iterable) {
+   _set(index++, cleanify(element));
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="join">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>join</strong>([<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> separator = ""]) <a class="anchor-link" href="#join"
+              title="Permalink to DataList.join">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Converts each element to a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> and concatenates the strings.</p>
+<p>Converts each element to a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> by calling <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html#toString">Object.toString</a> on it.
+Then concatenates the strings, optionally separated by the 
+<span class="param">separator</span>
+string.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+String join([String separator = ""]) {
+ int length = this.length;
+ if (!separator.isEmpty) {
+   if (length == 0) return "";
+   String first = "${this[0]}";
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+   StringBuffer buffer = new StringBuffer(first);
+   for (int i = 1; i &lt; length; i++) {
+     buffer.write(separator);
+     buffer.write(this[i]);
+     if (length != this.length) {
+       throw new ConcurrentModificationError(this);
+     }
+   }
+   return buffer.toString();
+ } else {
+   StringBuffer buffer = new StringBuffer();
+   for (int i = 0; i &lt; length; i++) {
+     buffer.write(this[i]);
+     if (length != this.length) {
+       throw new ConcurrentModificationError(this);
+     }
+   }
+   return buffer.toString();
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="lastIndexOf">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> <strong>lastIndexOf</strong>(<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> element, [<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> startIndex]) <a class="anchor-link" href="#lastIndexOf"
+              title="Permalink to DataList.lastIndexOf">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<p>Returns the last index in the list <code>a</code> of the given 
+<span class="param">element</span>, starting
+the search at index 
+<span class="param">startIndex</span> to 0.
+Returns -1 if 
+<span class="param">element</span> is not found.</p>
+<pre class="source">
+int lastIndexOf(Object element, [int startIndex]) {
+ if (startIndex == null) {
+   startIndex = this.length - 1;
+ } else {
+   if (startIndex &lt; 0) {
+     return -1;
+   }
+   if (startIndex &gt;= this.length) {
+     startIndex = this.length - 1;
+   }
+ }
+ for (int i = startIndex; i &gt;= 0; i--) {
+   if (this[i] == element) {
+     return i;
+   }
+ }
+ return -1;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="lastWhere">
+<button class="show-code">Code</button>
+dynamic <strong>lastWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element), {<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> orElse()}) <a class="anchor-link" href="#lastWhere"
+              title="Permalink to DataList.lastWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the last element that satisfies the given predicate 
+<span class="param">test</span>.</p>
+<p>If none matches, the result of invoking the 
+<span class="param">orElse</span> function is
+returned. By default, when 
+<span class="param">orElse</span> is <code>null</code>, a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is
+thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+dynamic lastWhere(bool test(E element), { Object orElse() }) {
+ int length = this.length;
+ for (int i = length - 1; i &gt;= 0; i--) {
+   E element = this[i];
+   if (test(element)) return element;
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ if (orElse != null) return orElse();
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="map">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> <strong>map</strong>(f(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#map"
+              title="Permalink to DataList.map">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a lazy <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> where each element <code>e</code> of <code>this</code> is replaced
+by the result of <code>f(e)</code>.</p>
+<p>This method returns a view of the mapped elements. As long as the
+returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is not iterated over, the supplied function 
+<span class="param">f</span> will
+not be invoked. The transformed elements will not be cached. Iterating
+multiple times over the the returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> will invoke the supplied
+function 
+<span class="param">f</span> multiple times on the same element.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable map(f(E element)) =&gt; new MappedListIterable(this, f);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="reduce">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataList.html">E</a> <strong>reduce</strong>(<a href="../clean_data/DataList.html">E</a> combine(<a href="../clean_data/DataList.html">E</a> previousValue, <a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#reduce"
+              title="Permalink to DataList.reduce">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Reduces a collection to a single value by iteratively combining elements
+of the collection using the provided function.</p>
+<p>Example of calculating the sum of an iterable:</p>
+<pre><code>iterable.reduce((value, element) =&gt; value + element);
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E reduce(E combine(E previousValue, E element)) {
+ if (length == 0) throw new StateError("No elements");
+ E value = this[0];
+ for (int i = 1; i &lt; length; i++) {
+   value = combine(value, this[i]);
+ }
+ return value;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="ref">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataReference.html">DataReference</a> <strong>ref</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> pos) <a class="anchor-link" href="#ref"
+              title="Permalink to DataList.ref">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataListView.html">DataListView</a> </div><div class="doc">
+<pre class="source">
+DataReference ref(int pos) {
+ if(_list[pos] is! DataReference) {
+   _removeOnDataChangeListener(pos);
+   _list[pos] = new DataReference(_list[pos]);
+   _addOnDataChangeListener(pos, _list[pos]);
+ }
+ return _list[pos];
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="remove">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>remove</strong>(<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> element, {author: null}) <a class="anchor-link" href="#remove"
+              title="Permalink to DataList.remove">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes the first occurence of <code>value</code> from this list.</p>
+<p>Returns true if <code>value</code> was in the list, false otherwise.</p>
+<pre><code>List&lt;String&gt; parts = ['head', 'shoulders', 'knees', 'toes'];
+parts.remove('head'); // true
+parts.join(', ');     // 'shoulders, knees, toes'
+</code></pre>
+<p>The method has no effect if <code>value</code> was not in the list.</p>
+<pre><code>// Note: 'head' has already been removed.
+parts.remove('head'); // false
+parts.join(', ');     // 'shoulders, knees, toes'
+</code></pre>
+<p>An <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> occurs if the list is fixed-length.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+bool remove(Object element, {author: null}) {
+ int index = indexOf(element);
+ if(index == -1) return false;
+ var ret = _remove(index);
+ _notify(author: author);
+ return ret;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeAt">
+<button class="show-code">Code</button>
+dynamic <strong>removeAt</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index, {author: null}) <a class="anchor-link" href="#removeAt"
+              title="Permalink to DataList.removeAt">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes the object at position 
+<span class="param">index</span> from this list.</p>
+<p>This method reduces the length of <code>this</code> by one and moves all later objects
+down by one position.</p>
+<p>Returns the removed object.</p>
+<p>The 
+<span class="param">index</span> must be in the range <code>0 ≤ index &lt; length</code>.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this is a fixed-length list. In that case
+the list is not modified.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+removeAt(int index, {author: null}) {
+ var result = this[index];
+ _remove(index);
+ _notify(author: author);
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeLast">
+<button class="show-code">Code</button>
+dynamic <strong>removeLast</strong>({author: null}) <a class="anchor-link" href="#removeLast"
+              title="Permalink to DataList.removeLast">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Pops and returns the last object in this list.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this is a fixed-length list.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+removeLast({author: null}) {
+ if (length == 0) {
+   throw new StateError("No elements");
+ }
+ var result = this[length - 1];
+ _length--;
+ _notify(author: author);
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeRange">
+<button class="show-code">Code</button>
+void <strong>removeRange</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end, {author: null}) <a class="anchor-link" href="#removeRange"
+              title="Permalink to DataList.removeRange">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes the objects in the range 
+<span class="param">start</span> inclusive to 
+<span class="param">end</span> exclusive.</p>
+<p>The 
+<span class="param">start</span> and 
+<span class="param">end</span> indices must be in the range
+<code>0 ≤ index ≤ length</code>, and <code>start ≤ end</code>.</p>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this is a fixed-length list. In that case
+the list is not modified.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void removeRange(int start, int end, {author: null}) {
+ this._rangeCheck(start, end);
+ int length = end - start;
+ for(int i = end-1; i &gt;= start; i--) _remove(i);
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeWhere">
+<button class="show-code">Code</button>
+void <strong>removeWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(element), {author: null}) <a class="anchor-link" href="#removeWhere"
+              title="Permalink to DataList.removeWhere">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes all objects from this list that satisfy 
+<span class="param">test</span>.</p>
+<p>An object <code>o</code> satisfies 
+<span class="param">test</span> if <code>test(o)</code> is true.</p>
+<pre><code>List&lt;String&gt; numbers = ['one', 'two', 'three', 'four'];
+numbers.removeWhere((item) =&gt; item.length == 3);
+numbers.join(', '); // 'three, four'
+</code></pre>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this is a fixed-length list.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void removeWhere(bool test(element), {author: null}) {
+ _filter(this, test, false);
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="replaceRange">
+<button class="show-code">Code</button>
+void <strong>replaceRange</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end, <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> newContents, {author: null}) <a class="anchor-link" href="#replaceRange"
+              title="Permalink to DataList.replaceRange">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes the objects in the range 
+<span class="param">start</span> inclusive to 
+<span class="param">end</span> exclusive
+and inserts the contents of <code>replacement</code> in its place.</p>
+<pre><code>List&lt;int&gt; list = [1, 2, 3, 4, 5];
+list.replaceRange(1, 4, [6, 7]);
+list.join(', '); // '1, 6, 7, 5'
+</code></pre>
+<p>An error occurs if 
+<span class="param">start</span>..
+<span class="param">end</span> is not a valid range for <code>this</code>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void replaceRange(int start, int end, Iterable newContents, {author: null}) {
+ this._rangeCheck(start, end);
+ newContents = newContents.toList().map((E) =&gt; cleanify(E));
+ int removeLength = end - start;
+ int insertLength = newContents.length;
+ if (removeLength &gt;= insertLength) {
+   int delta = removeLength - insertLength;
+   int insertEnd = start + insertLength;
+   int newLength = this.length - delta;
+   this._setRange(start, insertEnd, newContents);
+   if (delta != 0) {
+     this._setRange(insertEnd, newLength, _list, end);
+     this._length = newLength;
+   }
+ } else {
+   int delta = insertLength - removeLength;
+   int newLength = this.length + delta;
+   int insertEnd = start + insertLength;  // aka. end + delta.
+   this._length = newLength;
+   this._setRange(insertEnd, newLength, _list, end);
+   this._setRange(start, insertEnd, newContents);
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="retainWhere">
+<button class="show-code">Code</button>
+void <strong>retainWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(element), {author: null}) <a class="anchor-link" href="#retainWhere"
+              title="Permalink to DataList.retainWhere">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Removes all objects from this list that fail to satisfy 
+<span class="param">test</span>.</p>
+<p>An object <code>o</code> satisfies 
+<span class="param">test</span> if <code>test(o)</code> is true.</p>
+<pre><code>List&lt;String&gt; numbers = ['one', 'two', 'three', 'four'];
+numbers.retainWhere((item) =&gt; item.length == 3);
+numbers.join(', '); // 'one, two'
+</code></pre>
+<p>Throws an <a class="crossref" href="http://api.dartlang.org/dart_core/UnsupportedError.html">UnsupportedError</a> if this is a fixed-length list.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void retainWhere(bool test(element), {author: null}) {
+ _filter(this, test, true);
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="set">
+<button class="show-code">Code</button>
+dynamic <strong>set</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> key, value, {author: null}) <a class="anchor-link" href="#set"
+              title="Permalink to DataList.set">#</a></h4>
+<div class="doc">
+<pre class="source">
+set(int key, dynamic value, {author: null}) {
+ _set(key, cleanify(value));
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setAll">
+<button class="show-code">Code</button>
+void <strong>setAll</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index, <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> iterable, {author: null}) <a class="anchor-link" href="#setAll"
+              title="Permalink to DataList.setAll">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Overwrites objects of <code>this</code> with the objects of 
+<span class="param">iterable</span>, starting
+at position 
+<span class="param">index</span> in this list.</p>
+<pre><code>List&lt;String&gt; list = ['a', 'b', 'c'];
+list.setAll(1, ['bee', 'sea']);
+list.join(', '); // 'a, bee, sea'
+</code></pre>
+<p>This operation does not increase the length of <code>this</code>.</p>
+<p>The 
+<span class="param">index</span> must be non-negative and no greater than <a class="crossref" href="../clean_data/DataList.html#length=">length</a>.</p>
+<p>The 
+<span class="param">iterable</span> must not have more elements than what can fit from 
+<span class="param">index</span>
+to <a class="crossref" href="../clean_data/DataList.html#length=">length</a>.</p>
+<p>If <code>iterable</code> is based on this list, its values may change /during/ the
+<code>setAll</code> operation.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void setAll(int index, Iterable iterable, {author: null}) {
+ for (dynamic element in iterable) {
+   this[index++]= cleanify(element);
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setLength">
+<button class="show-code">Code</button>
+dynamic <strong>setLength</strong>(newLen, {author: null}) <a class="anchor-link" href="#setLength"
+              title="Permalink to DataList.setLength">#</a></h4>
+<div class="doc">
+<pre class="source">
+setLength(newLen, {author: null}) {
+ _length = newLen;
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setRange">
+<button class="show-code">Code</button>
+void <strong>setRange</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end, <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> iterable, [<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> skipCount = 0, author]) <a class="anchor-link" href="#setRange"
+              title="Permalink to DataList.setRange">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Copies the objects of 
+<span class="param">iterable</span>, skipping 
+<span class="param">skipCount</span> objects first,
+into the range 
+<span class="param">start</span>, inclusive, to 
+<span class="param">end</span>, exclusive, of the list.</p>
+<pre><code>List&lt;int&gt; list1 = [1, 2, 3, 4];
+List&lt;int&gt; list2 = [5, 6, 7, 8, 9];
+// Copies the 4th and 5th items in list2 as the 2nd and 3rd items
+// of list1.
+list1.setRange(1, 3, list2, 3);
+list1.join(', '); // '1, 8, 9, 4'
+</code></pre>
+<p>The 
+<span class="param">start</span> and 
+<span class="param">end</span> indices must satisfy <code>0 ≤ start ≤ end ≤ length</code>.
+If 
+<span class="param">start</span> equals 
+<span class="param">end</span>, this method has no effect.</p>
+<p>The 
+<span class="param">iterable</span> must have enough objects to fill the range from <code>start</code>
+to <code>end</code> after skipping 
+<span class="param">skipCount</span> objects.</p>
+<p>If <code>iterable</code> is this list, the operation will copy the elements originally
+in the range from <code>skipCount</code> to <code>skipCount + (end - start)</code> to the
+range <code>start</code> to <code>end</code>, even if the two ranges overlap.</p>
+<p>If <code>iterable</code> depends on this list in some other way, no guarantees are
+made.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void setRange(int start, int end, Iterable iterable, [int skipCount = 0, author]) {
+ this._rangeCheck(start, end);
+ for(var elem in iterable) {
+   if(start &lt; end) this[start] = cleanify(elem);
+   start++;
+ }
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="shuffle">
+<button class="show-code">Code</button>
+void <strong>shuffle</strong>([<a href="http://api.dartlang.org/dart_math/Random.html" ref="external">Random</a> random]) <a class="anchor-link" href="#shuffle"
+              title="Permalink to DataList.shuffle">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Shuffles the elements of this list randomly.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void shuffle([Random random]) {
+ _beforeChangingAll();
+ _list.shuffle(random);
+ _afterChangingAll();
+ _notify();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="singleWhere">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataList.html">E</a> <strong>singleWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#singleWhere"
+              title="Permalink to DataList.singleWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the single element that satisfies 
+<span class="param">test</span>. If no or more than one
+element match then a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+E singleWhere(bool test(E element)) {
+ int length = this.length;
+ E match = null;
+ bool matchFound = false;
+ for (int i = 0; i &lt; length; i++) {
+   E element = this[i];
+   if (test(element)) {
+     if (matchFound) {
+       throw new StateError("More than one matching element");
+     }
+     matchFound = true;
+     match = element;
+   }
+   if (length != this.length) {
+     throw new ConcurrentModificationError(this);
+   }
+ }
+ if (matchFound) return match;
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="skip">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>skip</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> count) <a class="anchor-link" href="#skip"
+              title="Permalink to DataList.skip">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that skips the first <code>n</code> elements.</p>
+<p>If <code>this</code> has fewer than <code>n</code> elements, then the resulting Iterable is
+empty.</p>
+<p>It is an error if <code>n</code> is negative.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable&lt;E&gt; skip(int count) =&gt; new SubListIterable(this, count, null);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="skipWhile">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>skipWhile</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#skipWhile"
+              title="Permalink to DataList.skipWhile">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that skips elements while 
+<span class="param">test</span> is satisfied.</p>
+<p>The filtering happens lazily. Every new Iterator of the returned
+Iterable iterates over all elements of <code>this</code>.</p>
+<p>As long as the iterator's elements satisfy 
+<span class="param">test</span> they are
+discarded. Once an element does not satisfy the 
+<span class="param">test</span> the iterator stops
+testing and uses every later element unconditionally. That is, the elements
+of the returned Iterable are the elements of <code>this</code> starting from the
+first element that does not satisfy 
+<span class="param">test</span>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable&lt;E&gt; skipWhile(bool test(E element)) {
+ return new SkipWhileIterable&lt;E&gt;(this, test);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="sort">
+<button class="show-code">Code</button>
+void <strong>sort</strong>([<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> compare(a, b)]) <a class="anchor-link" href="#sort"
+              title="Permalink to DataList.sort">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Sorts this list according to the order specified by the 
+<span class="param">compare</span> function.</p>
+<p>The 
+<span class="param">compare</span> function must act as a <a class="crossref" href="http://api.dartlang.org/dart_core/Comparator.html">Comparator</a>.</p>
+<pre><code>List&lt;String&gt; numbers = ['one', 'two', 'three', 'four'];
+// Sort from shortest to longest.
+numbers.sort((x, y) =&gt; x.length.compareTo(y.length));
+numbers.join(', '); // 'one, two, four, three'
+</code></pre>
+<p>The default List implementations use <a class="crossref" href="http://api.dartlang.org/dart_core/Comparable.html#compare">Comparable.compare</a> if
+
+<span class="param">compare</span> is omitted.</p>
+<pre><code>List&lt;int&gt; nums = [13, 2, -11];
+nums.sort();
+     nums.join(', '); // '-11, 2, 13'
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+void sort([int compare(a, b)]) {
+ _sort(compare);
+ _notify();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="sublist">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataList.html">DataList</a> <strong>sublist</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> start, [<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> end]) <a class="anchor-link" href="#sublist"
+              title="Permalink to DataList.sublist">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a new list containing the objects from 
+<span class="param">start</span> inclusive to 
+<span class="param">end</span>
+exclusive.</p>
+<pre><code>List&lt;String&gt; colors = ['red', 'green', 'blue', 'orange', 'pink'];
+colors.sublist(1, 3); // ['green', 'blue']
+</code></pre>
+<p>If 
+<span class="param">end</span> is omitted, the <a class="crossref" href="../clean_data/DataList.html#length=">length</a> of <code>this</code> is used.</p>
+<pre><code>colors.sublist(1);  // ['green', 'blue', 'orange', 'pink']
+</code></pre>
+<p>An error occurs if 
+<span class="param">start</span> is outside the range <code>0</code> .. <code>length</code> or if
+
+<span class="param">end</span> is outside the range <code>start</code> .. <code>length</code>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> </div></div>
+<pre class="source">
+DataList sublist(int start, [int end]) {
+ if (end == null) end = this.length;
+ this._rangeCheck(start, end);
+ int length = end - start;
+ List result = new DataList()..length = length;
+ for (int i = 0; i &lt; length; i++) {
+   result[i] = this[start + i];
+ }
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="take">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>take</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> count) <a class="anchor-link" href="#take"
+              title="Permalink to DataList.take">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> with at most <code>n</code> elements.</p>
+<p>The returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> may contain fewer than <code>n</code> elements, if <code>this</code>
+contains fewer than <code>n</code> elements.</p>
+<p>It is an error if <code>n</code> is negative.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable&lt;E&gt; take(int count) =&gt; new SubListIterable(this, 0, count);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="takeWhile">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>takeWhile</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#takeWhile"
+              title="Permalink to DataList.takeWhile">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that stops once 
+<span class="param">test</span> is not satisfied anymore.</p>
+<p>The filtering happens lazily. Every new Iterator of the returned
+Iterable starts iterating over the elements of <code>this</code>.</p>
+<p>When the iterator encounters an element <code>e</code> that does not satisfy 
+<span class="param">test</span>,
+it discards <code>e</code> and moves into the finished state. That is, it does not
+get or provide any more elements.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable&lt;E&gt; takeWhile(bool test(E element)) {
+ return new TakeWhileIterable&lt;E&gt;(this, test);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toList">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>toList</strong>({<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> growable: true}) <a class="anchor-link" href="#toList"
+              title="Permalink to DataList.toList">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Creates a <a class="crossref" href="http://api.dartlang.org/dart_core/List.html">List</a> containing the elements of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a>.</p>
+<p>The elements are in iteration order. The list is fixed-length
+if 
+<span class="param">growable</span> is false.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+List&lt;E&gt; toList({ bool growable: true }) {
+ List&lt;E&gt; result;
+ if (growable) {
+   result = new List&lt;E&gt;()..length = length;
+ } else {
+   result = new List&lt;E&gt;(length);
+ }
+ for (int i = 0; i &lt; length; i++) {
+   result[i] = this[i];
+ }
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toSet">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Set.html" ref="external">Set</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>toSet</strong>() <a class="anchor-link" href="#toSet"
+              title="Permalink to DataList.toSet">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Creates a <a class="crossref" href="http://api.dartlang.org/dart_core/Set.html">Set</a> containing the elements of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Set&lt;E&gt; toSet() {
+ Set&lt;E&gt; result = new Set&lt;E&gt;();
+ for (int i = 0; i &lt; length; i++) {
+   result.add(this[i]);
+ }
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to DataList.toString">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() {
+ if (_toStringVisiting.contains(this)) {
+   return '[...]';
+ }
+
+ var result = new StringBuffer();
+ try {
+   _toStringVisiting.add(this);
+   result.write('[');
+   result.writeAll(this, ', ');
+   result.write(']');
+  } finally {
+    _toStringVisiting.remove(this);
+  }
+
+ return result.toString();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="where">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataList.html">E</a>&gt; <strong>where</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/DataList.html">E</a> element)) <a class="anchor-link" href="#where"
+              title="Permalink to DataList.where">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/ListMixin.html" ref="external">ListMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a lazy <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> with all elements that satisfy the
+predicate 
+<span class="param">test</span>.</p>
+<p>This method returns a view of the mapped elements. As long as the
+returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is not iterated over, the supplied function 
+<span class="param">test</span> will
+not be invoked. Iterating will not cache results, and thus iterating
+multiple times over the returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> will invoke the supplied
+function 
+<span class="param">test</span> multiple times on the same element.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterable&lt;E&gt; where(bool test(E element)) =&gt; new WhereIterable&lt;E&gt;(this, test);
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

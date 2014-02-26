@@ -1,0 +1,153 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>VirtualHost abstract class / http_server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="http_server" data-type="VirtualHost">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../http_server.html">http_server</a> &rsaquo; <a href="../http_server/VirtualHost.html">VirtualHost</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>VirtualHost</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>The <a class="crossref" href="../http_server/VirtualHost.html">VirtualHost</a> class is a utility class for handling multiple hosts on
+multiple sources, by using a named-based approach.</p>
+<pre class="source">
+abstract class VirtualHost {
+ /**
+  * Get the [Stream] of [HttpRequest]s, not matching any hosts. If unused, the
+  * default implementation will result in a [HttpHeaders.FORBIDDEN] response.
+  */
+ Stream&lt;HttpRequest&gt; get unhandled;
+
+ /**
+  * Construct a new [VirtualHost].
+  *
+  * The optional [source] is a shortcut for calling [addSource].
+  *
+  * Example of usage:
+  *
+  *   HttpServer.bind(..., 80).then((server) {
+  *     var virtualHost = new VirtualHost(server);
+  *     virtualServer.addHost('static.myserver.com')
+  *         .listen(...);
+  *     virtualServer.addHost('cache.myserver.com')
+  *         .listen(...);
+  *   })
+  */
+ factory VirtualHost([Stream&lt;HttpRequest&gt; source]) =&gt; new _VirtualHost(source);
+
+ /**
+  * Provide another source of [HttpRequest]s in the form of a [Stream].
+  */
+ void addSource(Stream&lt;HttpRequest&gt; source);
+
+
+ /**
+  * Add a host to the [VirtualHost] instance. The host can be either a specific
+  * domain (`my.domain.name`) or a wildcard-based domain name
+  * (`*.domain.name`). The former will only match the specific domain name
+  * while the latter will match any series of sub-domains.
+  *
+  * If both `my.domain.name` and `*.domain.name` is specified, the most
+  * qualified will take precedence, `my.domain.name` in this case.
+  */
+ Stream&lt;HttpRequest&gt; addHost(String host);
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+factory <strong>VirtualHost</strong>([<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; source]) <a class="anchor-link" href="#"
+              title="Permalink to VirtualHost.VirtualHost">#</a></h4>
+<div class="doc">
+<p>Construct a new <a class="crossref" href="../http_server/VirtualHost.html">VirtualHost</a>.</p>
+<p>The optional 
+<span class="param">source</span> is a shortcut for calling <a class="crossref" href="../http_server/VirtualHost.html#addSource">addSource</a>.</p>
+<p>Example of usage:</p>
+<p>  HttpServer.bind(..., 80).then((server) {</p>
+<pre><code>var virtualHost = new VirtualHost(server);
+virtualServer.addHost('static.myserver.com')
+    .listen(...);
+virtualServer.addHost('cache.myserver.com')
+    .listen(...);
+</code></pre>
+<p>  })</p>
+<pre class="source">
+factory VirtualHost([Stream&lt;HttpRequest&gt; source]) =&gt; new _VirtualHost(source);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="unhandled">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt;         <strong>unhandled</strong> <a class="anchor-link"
+            href="#unhandled"
+            title="Permalink to VirtualHost.unhandled">#</a>
+        </h4>
+        <div class="doc">
+<p>Get the <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a> of <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>s, not matching any hosts. If unused, the
+default implementation will result in a <code>HttpHeaders.FORBIDDEN</code> response.</p>
+<pre class="source">
+Stream&lt;HttpRequest&gt; get unhandled;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="addHost">
+abstract <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; <strong>addHost</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> host) <a class="anchor-link" href="#addHost"
+              title="Permalink to VirtualHost.addHost">#</a></h4>
+<div class="doc">
+<p>Add a host to the <a class="crossref" href="../http_server/VirtualHost.html">VirtualHost</a> instance. The host can be either a specific
+domain (<code>my.domain.name</code>) or a wildcard-based domain name
+(<code>*.domain.name</code>). The former will only match the specific domain name
+while the latter will match any series of sub-domains.</p>
+<p>If both <code>my.domain.name</code> and <code>*.domain.name</code> is specified, the most
+qualified will take precedence, <code>my.domain.name</code> in this case.</p>
+</div>
+</div>
+<div class="method"><h4 id="addSource">
+abstract void <strong>addSource</strong>(<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; source) <a class="anchor-link" href="#addSource"
+              title="Permalink to VirtualHost.addSource">#</a></h4>
+<div class="doc">
+<p>Provide another source of <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>s in the form of a <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a>.</p>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

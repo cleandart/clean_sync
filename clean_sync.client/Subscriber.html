@@ -1,0 +1,223 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Subscriber class / clean_sync.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.client" data-type="Subscriber">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.client.html">clean_sync.client</a> &rsaquo; <a href="../clean_sync.client/Subscriber.html">Subscriber</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Subscriber</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A control object responsible for managing subscription to server published
+collections.</p>
+<h2>Example</h2>
+<p>Create simple Subscriber and subscribe to collection of users.</p>
+<pre><code> var subscriber = new Subscriber(connection);
+ subscriber.init().then((value) {
+   var usersSubscription = subscriber.subscribe("users", {"olderThan": 18});
+   useUsers(usersSubscription.collection);
+ });
+</code></pre>
+<pre class="source">
+class Subscriber {
+ Connection _connection;
+ String _idPrefix = null;
+ final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
+ final _createSubscription;
+
+ /**
+  * Dependency injection constructor used mainly in tests.
+  */
+ Subscriber.config(this._connection, this._dataIdGenerator,
+          this._subscriptionIdGenerator, this._createSubscription);
+
+
+ /**
+  * Creates new instance communicating with server using the [connection].
+  */
+ Subscriber(connection) : this.config(connection, new IdGenerator(),
+     new IdGenerator(), _defaultSubscriptionFactory);
+
+ Future _loadIdPrefix() =&gt;_connection.send(
+       () =&gt; new ClientRequest("sync", {"action" : "get_id_prefix"})
+   ).then((response) =&gt; response['id_prefix']);
+
+ /**
+  * Initialize the subscriber. Using [Subscriber] without proper initialization
+  * results in [StateError].
+  *
+  * The method's purpose is to set an unique [idPrefix] that can be used in
+  * '_id' generation in the client code. If the [init] is called without the
+  * [idPrefix], it is requested from the server.
+  *
+  * This method returns the [Future] that completes when the [idPrefix] is
+  * obtained and set.
+  */
+ Future init([idPrefix = null]) {
+   idPrefix = (idPrefix == null) ?
+       _loadIdPrefix() :
+       new Future.value(idPrefix);
+
+   return idPrefix.then((prefix) {
+     _idPrefix = prefix;
+     _subscriptionIdGenerator.prefix = prefix;
+     _dataIdGenerator.prefix = prefix;
+   });
+ }
+
+ /**
+  * Subscribe to [collectionName] published on server. Subscriber must be
+  * properly initialized with [init] method before calling [subscribe].
+  *
+  * Create new [Subscription] to published collection using its
+  * [collectionName] and optionally [args]. Data in subscribed collection is
+  * keeped in sync between the server and the client with no interaction
+  * needed from the user.
+  *
+  * It is also possible to create multiple independend subscriptions with same
+  * [collectionName] and/or [args]. This can be useful when subscribing to
+  * really big collection and want to request only a portion of data specified
+  * by [args].
+  */
+ Subscription subscribe(String collectionName, [Map args]) {
+   if(_idPrefix == null) {
+     throw new StateError("Subscriber can not be used before the Future"
+         " returned by 'init' method has completed.");
+   }
+   String author = _subscriptionIdGenerator.next();
+   var subscription = _createSubscription(collectionName, _connection, author,
+     _dataIdGenerator, args);
+   return subscription;
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Subscriber</strong>(connection) <a class="anchor-link" href="#"
+              title="Permalink to Subscriber.Subscriber">#</a></h4>
+<div class="doc">
+<p>Creates new instance communicating with server using the 
+<span class="param">connection</span>.</p>
+<pre class="source">
+Subscriber(connection) : this.config(connection, new IdGenerator(),
+   new IdGenerator(), _defaultSubscriptionFactory);
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="config">
+<button class="show-code">Code</button>
+new <strong>Subscriber.config</strong>(<a href="../clean_ajax.client/Connection.html">Connection</a> _connection, <a href="../clean_sync.client/IdGenerator.html">IdGenerator</a> _dataIdGenerator, <a href="../clean_sync.client/IdGenerator.html">IdGenerator</a> _subscriptionIdGenerator, _createSubscription) <a class="anchor-link" href="#config"
+              title="Permalink to Subscriber.Subscriber.config">#</a></h4>
+<div class="doc">
+<p>Dependency injection constructor used mainly in tests.</p>
+<pre class="source">
+Subscriber.config(this._connection, this._dataIdGenerator,
+        this._subscriptionIdGenerator, this._createSubscription);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="init">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>init</strong>([idPrefix = null]) <a class="anchor-link" href="#init"
+              title="Permalink to Subscriber.init">#</a></h4>
+<div class="doc">
+<p>Initialize the subscriber. Using <a class="crossref" href="../clean_sync.client/Subscriber.html">Subscriber</a> without proper initialization
+results in <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>.</p>
+<p>The method's purpose is to set an unique 
+<span class="param">idPrefix</span> that can be used in
+'_id' generation in the client code. If the <a class="crossref" href="../clean_sync.client/Subscriber.html#init">init</a> is called without the
+
+<span class="param">idPrefix</span>, it is requested from the server.</p>
+<p>This method returns the <a class="crossref" href="http://api.dartlang.org/dart_async/Future.html">Future</a> that completes when the 
+<span class="param">idPrefix</span> is
+obtained and set.</p>
+<pre class="source">
+Future init([idPrefix = null]) {
+ idPrefix = (idPrefix == null) ?
+     _loadIdPrefix() :
+     new Future.value(idPrefix);
+
+ return idPrefix.then((prefix) {
+   _idPrefix = prefix;
+   _subscriptionIdGenerator.prefix = prefix;
+   _dataIdGenerator.prefix = prefix;
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="subscribe">
+<button class="show-code">Code</button>
+<a href="../clean_sync.client/Subscription.html">Subscription</a> <strong>subscribe</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName, [<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> args]) <a class="anchor-link" href="#subscribe"
+              title="Permalink to Subscriber.subscribe">#</a></h4>
+<div class="doc">
+<p>Subscribe to 
+<span class="param">collectionName</span> published on server. Subscriber must be
+properly initialized with <a class="crossref" href="../clean_sync.client/Subscriber.html#init">init</a> method before calling <a class="crossref" href="../clean_sync.client/Subscriber.html#subscribe">subscribe</a>.</p>
+<p>Create new <a class="crossref" href="../clean_sync.client/Subscription.html">Subscription</a> to published collection using its
+
+<span class="param">collectionName</span> and optionally 
+<span class="param">args</span>. Data in subscribed collection is
+keeped in sync between the server and the client with no interaction
+needed from the user.</p>
+<p>It is also possible to create multiple independend subscriptions with same
+
+<span class="param">collectionName</span> and/or 
+<span class="param">args</span>. This can be useful when subscribing to
+really big collection and want to request only a portion of data specified
+by 
+<span class="param">args</span>.</p>
+<pre class="source">
+Subscription subscribe(String collectionName, [Map args]) {
+ if(_idPrefix == null) {
+   throw new StateError("Subscriber can not be used before the Future"
+       " returned by 'init' method has completed.");
+ }
+ String author = _subscriptionIdGenerator.next();
+ var subscription = _createSubscription(collectionName, _connection, author,
+   _dataIdGenerator, args);
+ return subscription;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

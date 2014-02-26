@@ -1,0 +1,439 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>ChangeSet class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="ChangeSet">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/ChangeSet.html">ChangeSet</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>ChangeSet</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A representation of a change of map like object.</p>
+<pre class="source">
+class ChangeSet {
+
+ /**
+  * Contains mapping between the changed children and respective changes.
+  *
+  * The changes are represented either by [ChangeSet] object or by [Change].
+  */
+ Map changedItems = new Map();
+
+ /**
+  * Creates an empty [ChangeSet].
+  */
+
+ ChangeSet([Map changedItems = const {}]) {
+   this.changedItems = new Map.from(changedItems);
+ }
+
+ /**
+  * Creates [ChangeSet] from [other]
+  */
+ ChangeSet.from(ChangeSet changeSet) {
+   changeSet.changedItems.forEach((key, change) {
+     changedItems[key] = change.clone();
+   });
+ }
+ bool equals (dynamic other) {
+   if (other is ChangeSet){
+     if (this.changedItems.keys.length != other.changedItems.keys.length) return false;
+     for (var k in changedItems.keys){
+       var v = changedItems[k];
+       if (v is Change || v is ChangeSet) {
+         if (!v.equals(other.changedItems[k])){
+           return false;
+         }
+       } else {
+         return false;
+       }
+     }
+     return true;
+   } else {
+     return false;
+   }
+ }
+
+ /**
+  * Clone changeSet.
+  */
+ ChangeSet clone() {
+   return new ChangeSet.from(this);
+ }
+
+ /**
+  * Marks [key] as added with value [value].
+  */
+ void markAdded(dynamic key, dynamic value) {
+   markChanged(key, new Change(undefined, value));
+ }
+
+ void markRemoved(dynamic key, dynamic value) {
+   markChanged(key, new Change(value, undefined));
+ }
+
+ Set get addedItems {
+   var res = new Set();
+   changedItems.forEach((key, dynamic change){
+     if(change is Change &amp;&amp; change.oldValue == undefined){
+       res.add(key);
+     }
+   });
+   return res;
+ }
+
+ Set get removedItems {
+   var res = new Set();
+   changedItems.forEach((key, dynamic change){
+     if(change is Change &amp;&amp; change.newValue == undefined){
+       res.add(key);
+     }
+   });
+   return res;
+ }
+
+ get strictlyChanged {
+   var res = {};
+   changedItems.forEach((key, dynamic change) {
+     if(change is ChangeSet)
+       res[key] = change;
+   });
+   return res;
+ }
+
+ /**
+  * Marks all the changes in [ChangeSet] or [Change] for a
+  * given [dataObj].
+  */
+
+ void markChanged(dynamic key, change) {
+   bool contains = changedItems.containsKey(key);
+   bool oldIsChangeSet = contains &amp;&amp; changedItems[key] is ChangeSet;
+   bool newIsChangeSet = change is ChangeSet;
+   bool oldIsChange = !oldIsChangeSet;
+   bool newIsChange = !newIsChangeSet;
+
+   if (!contains || oldIsChangeSet &amp;&amp; newIsChange) {
+     changedItems[key] = change.clone();
+     return;
+   }
+   if (oldIsChange &amp;&amp; newIsChange || oldIsChangeSet &amp;&amp; newIsChangeSet){
+     changedItems[key].mergeIn(change);
+     return;
+   }
+   if (oldIsChange &amp;&amp; newIsChangeSet) {
+     // do nothing
+     return;
+   }
+   // previous ifs should contain all possible cases
+   assert(false);
+ }
+
+ /**
+  * Merges two [ChangeSet]s together.
+  */
+ void mergeIn(ChangeSet changeSet) {
+   changeSet.changedItems.forEach((key, changeSet) {
+     markChanged(key, changeSet);
+   });
+ }
+
+ /**
+  * Returns true if there are no changes in the [ChangeSet].
+  */
+ bool get isEmpty =&gt;
+   this.changedItems.isEmpty;
+
+ String toString() {
+   return 'ChangeSet(${changedItems.toString()})';
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>ChangeSet</strong>([<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> changedItems = const{}]) <a class="anchor-link" href="#"
+              title="Permalink to ChangeSet.ChangeSet">#</a></h4>
+<div class="doc">
+<p>Creates an empty <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>.</p>
+<pre class="source">
+ChangeSet([Map changedItems = const {}]) {
+ this.changedItems = new Map.from(changedItems);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="from">
+<button class="show-code">Code</button>
+new <strong>ChangeSet.from</strong>(<a href="../clean_data/ChangeSet.html">ChangeSet</a> changeSet) <a class="anchor-link" href="#from"
+              title="Permalink to ChangeSet.ChangeSet.from">#</a></h4>
+<div class="doc">
+<p>Creates <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> from <code>other</code></p>
+<pre class="source">
+ChangeSet.from(ChangeSet changeSet) {
+ changeSet.changedItems.forEach((key, change) {
+   changedItems[key] = change.clone();
+ });
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="addedItems">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Set.html" ref="external">Set</a>         <strong>addedItems</strong> <a class="anchor-link"
+            href="#addedItems"
+            title="Permalink to ChangeSet.addedItems">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Set get addedItems {
+ var res = new Set();
+ changedItems.forEach((key, dynamic change){
+   if(change is Change &amp;&amp; change.oldValue == undefined){
+     res.add(key);
+   }
+ });
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="changedItems">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>         <strong>changedItems</strong> <a class="anchor-link"
+            href="#changedItems"
+            title="Permalink to ChangeSet.changedItems">#</a>
+        </h4>
+        <div class="doc">
+<p>Contains mapping between the changed children and respective changes.</p>
+<p>The changes are represented either by <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> object or by <a class="crossref" href="../clean_data/Change.html">Change</a>.</p>
+<pre class="source">
+Map changedItems = new Map()
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="isEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isEmpty</strong> <a class="anchor-link"
+            href="#isEmpty"
+            title="Permalink to ChangeSet.isEmpty">#</a>
+        </h4>
+        <div class="doc">
+<p>Returns true if there are no changes in the <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>.</p>
+<pre class="source">
+bool get isEmpty =&gt;
+ this.changedItems.isEmpty;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="removedItems">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Set.html" ref="external">Set</a>         <strong>removedItems</strong> <a class="anchor-link"
+            href="#removedItems"
+            title="Permalink to ChangeSet.removedItems">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Set get removedItems {
+ var res = new Set();
+ changedItems.forEach((key, dynamic change){
+   if(change is Change &amp;&amp; change.newValue == undefined){
+     res.add(key);
+   }
+ });
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="strictlyChanged">
+<button class="show-code">Code</button>
+final         <strong>strictlyChanged</strong> <a class="anchor-link"
+            href="#strictlyChanged"
+            title="Permalink to ChangeSet.strictlyChanged">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+get strictlyChanged {
+ var res = {};
+ changedItems.forEach((key, dynamic change) {
+   if(change is ChangeSet)
+     res[key] = change;
+ });
+ return res;
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="clone">
+<button class="show-code">Code</button>
+<a href="../clean_data/ChangeSet.html">ChangeSet</a> <strong>clone</strong>() <a class="anchor-link" href="#clone"
+              title="Permalink to ChangeSet.clone">#</a></h4>
+<div class="doc">
+<p>Clone changeSet.</p>
+<pre class="source">
+ChangeSet clone() {
+ return new ChangeSet.from(this);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="equals">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>equals</strong>(other) <a class="anchor-link" href="#equals"
+              title="Permalink to ChangeSet.equals">#</a></h4>
+<div class="doc">
+<pre class="source">
+bool equals (dynamic other) {
+ if (other is ChangeSet){
+   if (this.changedItems.keys.length != other.changedItems.keys.length) return false;
+   for (var k in changedItems.keys){
+     var v = changedItems[k];
+     if (v is Change || v is ChangeSet) {
+       if (!v.equals(other.changedItems[k])){
+         return false;
+       }
+     } else {
+       return false;
+     }
+   }
+   return true;
+ } else {
+   return false;
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="markAdded">
+<button class="show-code">Code</button>
+void <strong>markAdded</strong>(key, value) <a class="anchor-link" href="#markAdded"
+              title="Permalink to ChangeSet.markAdded">#</a></h4>
+<div class="doc">
+<p>Marks 
+<span class="param">key</span> as added with value 
+<span class="param">value</span>.</p>
+<pre class="source">
+void markAdded(dynamic key, dynamic value) {
+ markChanged(key, new Change(undefined, value));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="markChanged">
+<button class="show-code">Code</button>
+void <strong>markChanged</strong>(key, change) <a class="anchor-link" href="#markChanged"
+              title="Permalink to ChangeSet.markChanged">#</a></h4>
+<div class="doc">
+<p>Marks all the changes in <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> or <a class="crossref" href="../clean_data/Change.html">Change</a> for a
+given <code>dataObj</code>.</p>
+<pre class="source">
+void markChanged(dynamic key, change) {
+ bool contains = changedItems.containsKey(key);
+ bool oldIsChangeSet = contains &amp;&amp; changedItems[key] is ChangeSet;
+ bool newIsChangeSet = change is ChangeSet;
+ bool oldIsChange = !oldIsChangeSet;
+ bool newIsChange = !newIsChangeSet;
+
+ if (!contains || oldIsChangeSet &amp;&amp; newIsChange) {
+   changedItems[key] = change.clone();
+   return;
+ }
+ if (oldIsChange &amp;&amp; newIsChange || oldIsChangeSet &amp;&amp; newIsChangeSet){
+   changedItems[key].mergeIn(change);
+   return;
+ }
+ if (oldIsChange &amp;&amp; newIsChangeSet) {
+   // do nothing
+   return;
+ }
+ // previous ifs should contain all possible cases
+ assert(false);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="markRemoved">
+<button class="show-code">Code</button>
+void <strong>markRemoved</strong>(key, value) <a class="anchor-link" href="#markRemoved"
+              title="Permalink to ChangeSet.markRemoved">#</a></h4>
+<div class="doc">
+<pre class="source">
+void markRemoved(dynamic key, dynamic value) {
+ markChanged(key, new Change(value, undefined));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="mergeIn">
+<button class="show-code">Code</button>
+void <strong>mergeIn</strong>(<a href="../clean_data/ChangeSet.html">ChangeSet</a> changeSet) <a class="anchor-link" href="#mergeIn"
+              title="Permalink to ChangeSet.mergeIn">#</a></h4>
+<div class="doc">
+<p>Merges two <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>s together.</p>
+<pre class="source">
+void mergeIn(ChangeSet changeSet) {
+ changeSet.changedItems.forEach((key, changeSet) {
+   markChanged(key, changeSet);
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to ChangeSet.toString">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() {
+ return 'ChangeSet(${changedItems.toString()})';
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

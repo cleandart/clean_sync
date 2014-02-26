@@ -1,0 +1,71 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>clean_ajax.common Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.common">
+        <div class="page">
+        <div class="header">
+          <a href="index.html"><div class="logo"></div></a>
+          <a href="index.html">Dart Documentation</a>
+         &rsaquo; <a href="clean_ajax.common.html">clean_ajax.common</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+<h2><strong>clean_ajax.common</strong> library</h2>
+<div class="doc"><p>A library for server-client communication and interaction
+Common parts for client and server parts</p></div>
+<div>
+<h3>Functions</h3>
+<div class="method"><h4 id="packedRequestsFromJson">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="clean_ajax.common/PackedRequest.html">PackedRequest</a>&gt; <strong>packedRequestsFromJson</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; json) <a class="anchor-link" href="#packedRequestsFromJson"
+              title="Permalink to packedRequestsFromJson">#</a></h4>
+<div class="doc">
+<p> Decode <a class="crossref" href="http://api.dartlang.org/dart_core/List.html">List</a> of Json  maps back into <a class="crossref" href="http://api.dartlang.org/dart_core/List.html">List</a> of <a class="crossref" href="clean_ajax.common/PackedRequest.html">PackedRequest</a></p>
+<pre class="source">
+List&lt;PackedRequest&gt; packedRequestsFromJson(List&lt;Map&gt; json) {
+ return json.map((one) =&gt; new PackedRequest.fromJson(one)).toList();
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.common/ClientRequest.html"><strong>ClientRequest</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.common/PackedRequest.html"><strong>PackedRequest</strong></a>
+          </h4>
+          </div>
+          
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="client-live-nav.js"></script>
+        </body></html>
+        

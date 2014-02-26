@@ -1,0 +1,989 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>FilteredDataSetBase abstract class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="FilteredDataSetBase">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/FilteredDataSetBase.html">FilteredDataSetBase</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>FilteredDataSetBase</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+abstract class FilteredDataSetBase extends TransformedDataSet {
+
+ FilteredDataSetBase(List&lt;DataSetView&gt; sources) : super(sources) {
+   // Performs the initial minus operation.
+   for (var i = 0; i &lt; sources.length; i++) {
+     for (var dataObj in sources[i]) {
+       if (_shouldContain(dataObj)) {
+         _data.add(dataObj);
+       }
+     }
+   }
+ }
+
+ /**
+  * Returns true if [dataObj] should be present in the set.
+  */
+ bool _shouldContain(dataObj);
+
+ /**
+  * Decides whether a [dataObj] that has changed in the [source] set
+  * should be added/changed/removed in this filtered set.
+  */
+ void _treatItem(dataObj, ChangeSet changes) {
+   bool shouldBeContained = _shouldContain(dataObj);
+   bool isContained = _data.contains(dataObj);
+
+   if (isContained) {
+     if (changes != null) {
+       _markChanged(dataObj, changes);
+     }
+
+     if (!shouldBeContained) {
+       _markRemoved(dataObj, dataObj);
+       _data.remove(dataObj);
+     }
+
+   } else if(shouldBeContained) {
+       _markAdded(dataObj, dataObj);
+       _data.add(dataObj);
+   }
+ }
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/DataSetView.html">DataSetView</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><a href="../clean_data/TransformedDataSet.html">TransformedDataSet</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>FilteredDataSetBase</strong></span></p>
+<h3>Subclasses</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/ExceptedDataSetView.html">ExceptedDataSetView</a></span>, <span class="type-box"><span class="icon-class"></span><a href="../clean_data/FilteredDataSetView.html">FilteredDataSetView</a></span>, <span class="type-box"><span class="icon-class"></span><a href="../clean_data/IntersectedDataSetView.html">IntersectedDataSetView</a></span>, <span class="type-box"><span class="icon-class"></span><a href="../clean_data/UnionedDataSetView.html">UnionedDataSetView</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>FilteredDataSetBase</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/DataSetView.html">DataSetView</a>&gt; sources) <a class="anchor-link" href="#"
+              title="Permalink to FilteredDataSetBase.FilteredDataSetBase">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+FilteredDataSetBase(List&lt;DataSetView&gt; sources) : super(sources) {
+ // Performs the initial minus operation.
+ for (var i = 0; i &lt; sources.length; i++) {
+   for (var dataObj in sources[i]) {
+     if (_shouldContain(dataObj)) {
+       _data.add(dataObj);
+     }
+   }
+ }
+}
+</pre>
+</div>
+</div>
+</div>
+<div class="inherited">
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="first">
+<button class="show-code">Code</button>
+final <a href="../clean_data/FilteredDataSetBase.html">E</a>         <strong>first</strong> <a class="anchor-link"
+            href="#first"
+            title="Permalink to FilteredDataSetBase.first">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the first element.</p>
+<p>If <code>this</code> is empty throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>. Otherwise this method is
+equivalent to <code>this.elementAt(0)</code></p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E get first {
+ Iterator it = iterator;
+ if (!it.moveNext()) {
+   throw new StateError("No elements");
+ }
+ return it.current;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="isEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isEmpty</strong> <a class="anchor-link"
+            href="#isEmpty"
+            title="Permalink to FilteredDataSetBase.isEmpty">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if there is no element in this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+bool get isEmpty =&gt; !iterator.moveNext();
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="isNotEmpty">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isNotEmpty</strong> <a class="anchor-link"
+            href="#isNotEmpty"
+            title="Permalink to FilteredDataSetBase.isNotEmpty">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if there is at least one element in this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+bool get isNotEmpty =&gt; !isEmpty;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="iterator">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Iterator.html" ref="external">Iterator</a>         <strong>iterator</strong> <a class="anchor-link"
+            href="#iterator"
+            title="Permalink to FilteredDataSetBase.iterator">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterator that iterates over this Iterable object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+Iterator get iterator =&gt; _data.iterator;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="last">
+<button class="show-code">Code</button>
+final <a href="../clean_data/FilteredDataSetBase.html">E</a>         <strong>last</strong> <a class="anchor-link"
+            href="#last"
+            title="Permalink to FilteredDataSetBase.last">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the last element.</p>
+<p>If <code>this</code> is empty throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E get last {
+ Iterator it = iterator;
+ if (!it.moveNext()) {
+   throw new StateError("No elements");
+ }
+ E result;
+ do {
+   result = it.current;
+ } while(it.moveNext());
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="length">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>length</strong> <a class="anchor-link"
+            href="#length"
+            title="Permalink to FilteredDataSetBase.length">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the number of elements in <code>this</code>.</p>
+<p>Counting all elements may be involve running through all elements and can
+therefore be slow.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> </div></div>
+<pre class="source">
+int get length =&gt; _data.length;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to FilteredDataSetBase.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to FilteredDataSetBase.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to FilteredDataSetBase.onChange">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to FilteredDataSetBase.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="single">
+<button class="show-code">Code</button>
+final <a href="../clean_data/FilteredDataSetBase.html">E</a>         <strong>single</strong> <a class="anchor-link"
+            href="#single"
+            title="Permalink to FilteredDataSetBase.single">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the single element in <code>this</code>.</p>
+<p>If <code>this</code> is empty or has more than one element throws a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E get single {
+ Iterator it = iterator;
+ if (!it.moveNext()) throw new StateError("No elements");
+ E result = it.current;
+ if (it.moveNext()) throw new StateError("More than one element");
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="sources">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;dynamic&gt;         <strong>sources</strong> <a class="anchor-link"
+            href="#sources"
+            title="Permalink to FilteredDataSetBase.sources">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/TransformedDataBase.html">TransformedDataBase</a> </div><div class="doc">
+<p>The source <a href="s">ChangeNotificationsMixin</a> this collection is derived from.</p>
+<pre class="source">
+List&lt;dynamic&gt; sources
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="StreamController_onBeforeAddedController">
+<button class="show-code">Code</button>
+final         <strong>StreamController_onBeforeAddedController</strong> <a class="anchor-link"
+            href="#StreamController_onBeforeAddedController"
+            title="Permalink to FilteredDataSetBase.StreamController_onBeforeAddedController">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<pre class="source">
+final StreamController_onBeforeAddedController =
+   new StreamController.broadcast(sync: true)
+</pre>
+</div>
+</div>
+</div>
+<div class="inherited">
+<h3>Methods</h3>
+<div class="method inherited"><h4 id="addIndex">
+<button class="show-code">Code</button>
+void <strong>addIndex</strong>([<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>&gt; indexedProps]) <a class="anchor-link" href="#addIndex"
+              title="Permalink to FilteredDataSetBase.addIndex">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Adds indices on chosen properties. Indexed properties can be
+used to retrieve data by their value with the <a class="crossref" href="../clean_data/DataSetView.html#findBy">findBy</a> method,
+or removed by their value with the <code>removeBy</code> method.</p>
+<pre class="source">
+void addIndex([Iterable&lt;String&gt; indexedProps]) {
+
+ if (indexedProps != null) {
+   // initialize change listener; lazy
+   if (_index.keys.length == 0) {
+      _initIndexListener();
+   }
+
+   for (String prop in indexedProps) {
+     if (!_index.containsKey(prop)) {
+       // create and initialize the index
+       _index[prop] = new HashIndex();
+       _rebuildIndex(prop);
+     }
+   }
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="any">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>any</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#any"
+              title="Permalink to FilteredDataSetBase.any">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if one element of this collection satisfies the
+predicate <code>test</code>. Returns false otherwise.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+bool any(bool f(E element)) {
+ for (E element in this) {
+   if (f(element)) return true;
+ }
+ return false;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="contains">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>contains</strong>(dataObj) <a class="anchor-link" href="#contains"
+              title="Permalink to FilteredDataSetBase.contains">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Returns true iff this set contains the given 
+<span class="param">dataObj</span>.</p>
+<p>@param dataObj Data object to be searched for.</p>
+<pre class="source">
+bool contains(dataObj) =&gt; _data.contains(dataObj);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="dispose">
+<button class="show-code">Code</button>
+void <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to FilteredDataSetBase.dispose">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/TransformedDataSet.html">TransformedDataSet</a> </div><div class="doc">
+<div class="inherited">
+<p>Stream all new changes marked in <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div></div>
+<pre class="source">
+void dispose() {
+ _sourcesSubscription.forEach((subscription) =&gt; subscription.cancel());
+ super.dispose();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="elementAt">
+<button class="show-code">Code</button>
+<a href="../clean_data/FilteredDataSetBase.html">E</a> <strong>elementAt</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> index) <a class="anchor-link" href="#elementAt"
+              title="Permalink to FilteredDataSetBase.elementAt">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the 
+<span class="param">index</span>th element.</p>
+<p>If <code>this</code> has fewer than 
+<span class="param">index</span> elements throws a <a class="crossref" href="http://api.dartlang.org/dart_core/RangeError.html">RangeError</a>.</p>
+<p>Note: if <code>this</code> does not have a deterministic iteration order then the
+function may simply return any element without any iteration if there are
+at least 
+<span class="param">index</span> elements in <code>this</code>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E elementAt(int index) {
+ if (index is! int || index &lt; 0) throw new RangeError.value(index);
+ int remaining = index;
+ for (E element in this) {
+   if (remaining == 0) return element;
+   remaining--;
+ }
+ throw new RangeError.value(index);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="every">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>every</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#every"
+              title="Permalink to FilteredDataSetBase.every">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns true if every elements of this collection satisify the
+predicate <code>test</code>. Returns <code>false</code> otherwise.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+bool every(bool f(E element)) {
+ for (E element in this) {
+   if (!f(element)) return false;
+ }
+ return true;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="expand">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> <strong>expand</strong>(<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#expand"
+              title="Permalink to FilteredDataSetBase.expand">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Expands each element of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> into zero or more elements.</p>
+<p>The resulting Iterable runs through the elements returned
+by 
+<span class="param">f</span> for each element of this, in order.</p>
+<p>The returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is lazy, and calls 
+<span class="param">f</span> for each element
+of this every time it's iterated.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable expand(Iterable f(E element)) =&gt;
+   new ExpandIterable&lt;E, dynamic&gt;(this, f);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="findBy">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/DataMapView.html">DataMapView</a>&gt; <strong>findBy</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> property, value) <a class="anchor-link" href="#findBy"
+              title="Permalink to FilteredDataSetBase.findBy">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Finds all objects that have 
+<span class="param">property</span> equal to 
+<span class="param">value</span> in this set.</p>
+<pre class="source">
+Iterable&lt;DataMapView&gt; findBy(String property, dynamic value) {
+ if (!_index.containsKey(property)) {
+   throw new NoIndexException('Property $property is not indexed.');
+ }
+ return _index[property][value];
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="firstWhere">
+<button class="show-code">Code</button>
+dynamic <strong>firstWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/FilteredDataSetBase.html">E</a> value), {<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> orElse()}) <a class="anchor-link" href="#firstWhere"
+              title="Permalink to FilteredDataSetBase.firstWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the first element that satisfies the given predicate 
+<span class="param">test</span>.</p>
+<p>If none matches, the result of invoking the 
+<span class="param">orElse</span> function is
+returned. By default, when 
+<span class="param">orElse</span> is <code>null</code>, a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is
+thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+dynamic firstWhere(bool test(E value), { Object orElse() }) {
+ for (E element in this) {
+   if (test(element)) return element;
+ }
+ if (orElse != null) return orElse();
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="fold">
+<button class="show-code">Code</button>
+dynamic <strong>fold</strong>(initialValue, combine(previousValue, <a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#fold"
+              title="Permalink to FilteredDataSetBase.fold">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Reduces a collection to a single value by iteratively combining each
+element of the collection with an existing value using the provided
+function.</p>
+<p>Use 
+<span class="param">initialValue</span> as the initial value, and the function 
+<span class="param">combine</span> to
+create a new value from the previous one and an element.</p>
+<p>Example of calculating the sum of an iterable:</p>
+<pre><code>iterable.fold(0, (prev, element) =&gt; prev + element);
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+dynamic fold(var initialValue,
+            dynamic combine(var previousValue, E element)) {
+ var value = initialValue;
+ for (E element in this) value = combine(value, element);
+ return value;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="forEach">
+<button class="show-code">Code</button>
+void <strong>forEach</strong>(void f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#forEach"
+              title="Permalink to FilteredDataSetBase.forEach">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Applies the function 
+<span class="param">f</span> to each element of this collection.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+void forEach(void f(E element)) {
+ for (E element in this) f(element);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="join">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>join</strong>([<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> separator = ""]) <a class="anchor-link" href="#join"
+              title="Permalink to FilteredDataSetBase.join">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Converts each element to a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> and concatenates the strings.</p>
+<p>Converts each element to a <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> by calling <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html#toString">Object.toString</a> on it.
+Then concatenates the strings, optionally separated by the 
+<span class="param">separator</span>
+string.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+String join([String separator = ""]) {
+ Iterator&lt;E&gt; iterator = this.iterator;
+ if (!iterator.moveNext()) return "";
+ StringBuffer buffer = new StringBuffer();
+ if (separator == null || separator == "") {
+   do {
+     buffer.write("${iterator.current}");
+   } while (iterator.moveNext());
+ } else {
+   buffer.write("${iterator.current}");
+   while (iterator.moveNext()) {
+     buffer.write(separator);
+     buffer.write("${iterator.current}");
+   }
+ }
+ return buffer.toString();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="lastWhere">
+<button class="show-code">Code</button>
+dynamic <strong>lastWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/FilteredDataSetBase.html">E</a> value), {<a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> orElse()}) <a class="anchor-link" href="#lastWhere"
+              title="Permalink to FilteredDataSetBase.lastWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the last element that satisfies the given predicate 
+<span class="param">test</span>.</p>
+<p>If none matches, the result of invoking the 
+<span class="param">orElse</span> function is
+returned. By default, when 
+<span class="param">orElse</span> is <code>null</code>, a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is
+thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+dynamic lastWhere(bool test(E value), { Object orElse() }) {
+ E result = null;
+ bool foundMatching = false;
+ for (E element in this) {
+   if (test(element)) {
+     result = element;
+     foundMatching = true;
+   }
+ }
+ if (foundMatching) return result;
+ if (orElse != null) return orElse();
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveDifference">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataSetView.html">DataSetView</a> <strong>liveDifference</strong>(<a href="../clean_data/DataSetView.html">DataSetView</a> other) <a class="anchor-link" href="#liveDifference"
+              title="Permalink to FilteredDataSetBase.liveDifference">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Minuses the data set with another <a class="crossref" href="../clean_data/DataSetView.html">DataSetView</a> to form a new, <a class="crossref" href="../clean_data/ExceptedDataSetView.html">ExceptedDataSetView</a>.</p>
+<p>The set remains up-to-date w.r.t. to the source set via
+background synchronization.</p>
+<pre class="source">
+DataSetView liveDifference(DataSetView other) {
+ return new ExceptedDataSetView(this, other);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveIntersection">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataSetView.html">DataSetView</a> <strong>liveIntersection</strong>(<a href="../clean_data/DataSetView.html">DataSetView</a> other) <a class="anchor-link" href="#liveIntersection"
+              title="Permalink to FilteredDataSetBase.liveIntersection">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Intersects the data set with another <a class="crossref" href="../clean_data/DataSetView.html">DataSetView</a> to form a new, <code>IntersectedSetView</code>.</p>
+<p>The set remains up-to-date w.r.t. to the source set via
+background synchronization.</p>
+<pre class="source">
+DataSetView liveIntersection(DataSetView other) {
+ return other == this
+     ? this
+         : new IntersectedDataSetView(this, other);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveSort">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataListView.html">DataListView</a> <strong>liveSort</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> compare(a, b)) <a class="anchor-link" href="#liveSort"
+              title="Permalink to FilteredDataSetBase.liveSort">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Sorts the data set with the given compare function.</p>
+<pre class="source">
+DataListView liveSort(int compare(a, b)) {
+ return new SortedDataListView(this, compare);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveSortByKey">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataListView.html">DataListView</a> <strong>liveSortByKey</strong>(key(x)) <a class="anchor-link" href="#liveSortByKey"
+              title="Permalink to FilteredDataSetBase.liveSortByKey">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Sorts the data set by comparing keys generated by key function.</p>
+<pre class="source">
+DataListView liveSortByKey(key(x)) {
+ return new SortedDataListView.fromKey(this, key);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveUnion">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataSetView.html">DataSetView</a> <strong>liveUnion</strong>(<a href="../clean_data/DataSetView.html">DataSetView</a> other) <a class="anchor-link" href="#liveUnion"
+              title="Permalink to FilteredDataSetBase.liveUnion">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Unions the data set with another <a class="crossref" href="../clean_data/DataSetView.html">DataSetView</a> to form a new, <code>UnionedSetView</code>.</p>
+<p>The set remains up-to-date w.r.t. to the source set via
+background synchronization.</p>
+<pre class="source">
+DataSetView liveUnion(DataSetView other) {
+ return other == this
+     ? this
+         : new UnionedDataSetView(this, other);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="liveWhere">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataSetView.html">DataSetView</a> <strong>liveWhere</strong>(test, [<a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> args = null]) <a class="anchor-link" href="#liveWhere"
+              title="Permalink to FilteredDataSetBase.liveWhere">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<p>Filters the data set w.r.t. the given filter function 
+<span class="param">test</span>.</p>
+<p>The set remains up-to-date w.r.t. to the source set via
+background synchronization.</p>
+<pre class="source">
+DataSetView liveWhere(test, [ChangeNotificationsMixin args = null]) {
+ return new FilteredDataSetView(this, test, args);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="map">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a> <strong>map</strong>(f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#map"
+              title="Permalink to FilteredDataSetBase.map">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a lazy <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> where each element <code>e</code> of <code>this</code> is replaced
+by the result of <code>f(e)</code>.</p>
+<p>This method returns a view of the mapped elements. As long as the
+returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is not iterated over, the supplied function 
+<span class="param">f</span> will
+not be invoked. The transformed elements will not be cached. Iterating
+multiple times over the the returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> will invoke the supplied
+function 
+<span class="param">f</span> multiple times on the same element.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable map(f(E element)) =&gt; new MappedIterable&lt;E, dynamic&gt;(this, f);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="reduce">
+<button class="show-code">Code</button>
+<a href="../clean_data/FilteredDataSetBase.html">E</a> <strong>reduce</strong>(<a href="../clean_data/FilteredDataSetBase.html">E</a> combine(<a href="../clean_data/FilteredDataSetBase.html">E</a> value, <a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#reduce"
+              title="Permalink to FilteredDataSetBase.reduce">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Reduces a collection to a single value by iteratively combining elements
+of the collection using the provided function.</p>
+<p>Example of calculating the sum of an iterable:</p>
+<pre><code>iterable.reduce((value, element) =&gt; value + element);
+</code></pre>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E reduce(E combine(E value, E element)) {
+ Iterator&lt;E&gt; iterator = this.iterator;
+ if (!iterator.moveNext()) {
+   throw new StateError("No elements");
+ }
+ E value = iterator.current;
+ while (iterator.moveNext()) {
+   value = combine(value, iterator.current);
+ }
+ return value;
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="singleWhere">
+<button class="show-code">Code</button>
+<a href="../clean_data/FilteredDataSetBase.html">E</a> <strong>singleWhere</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/FilteredDataSetBase.html">E</a> value)) <a class="anchor-link" href="#singleWhere"
+              title="Permalink to FilteredDataSetBase.singleWhere">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns the single element that satisfies 
+<span class="param">test</span>. If no or more than one
+element match then a <a class="crossref" href="http://api.dartlang.org/dart_core/StateError.html">StateError</a> is thrown.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+E singleWhere(bool test(E value)) {
+ E result = null;
+ bool foundMatching = false;
+ for (E element in this) {
+   if (test(element)) {
+     if (foundMatching) {
+       throw new StateError("More than one matching element");
+     }
+     result = element;
+     foundMatching = true;
+   }
+ }
+ if (foundMatching) return result;
+ throw new StateError("No matching element");
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="skip">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>skip</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> n) <a class="anchor-link" href="#skip"
+              title="Permalink to FilteredDataSetBase.skip">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that skips the first 
+<span class="param">n</span> elements.</p>
+<p>If <code>this</code> has fewer than 
+<span class="param">n</span> elements, then the resulting Iterable is
+empty.</p>
+<p>It is an error if 
+<span class="param">n</span> is negative.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; skip(int n) {
+ return new SkipIterable&lt;E&gt;(this, n);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="skipWhile">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>skipWhile</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/FilteredDataSetBase.html">E</a> value)) <a class="anchor-link" href="#skipWhile"
+              title="Permalink to FilteredDataSetBase.skipWhile">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that skips elements while 
+<span class="param">test</span> is satisfied.</p>
+<p>The filtering happens lazily. Every new Iterator of the returned
+Iterable iterates over all elements of <code>this</code>.</p>
+<p>As long as the iterator's elements satisfy 
+<span class="param">test</span> they are
+discarded. Once an element does not satisfy the 
+<span class="param">test</span> the iterator stops
+testing and uses every later element unconditionally. That is, the elements
+of the returned Iterable are the elements of <code>this</code> starting from the
+first element that does not satisfy 
+<span class="param">test</span>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; skipWhile(bool test(E value)) {
+ return new SkipWhileIterable&lt;E&gt;(this, test);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="take">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>take</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> n) <a class="anchor-link" href="#take"
+              title="Permalink to FilteredDataSetBase.take">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> with at most 
+<span class="param">n</span> elements.</p>
+<p>The returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> may contain fewer than 
+<span class="param">n</span> elements, if <code>this</code>
+contains fewer than 
+<span class="param">n</span> elements.</p>
+<p>It is an error if 
+<span class="param">n</span> is negative.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; take(int n) {
+ return new TakeIterable&lt;E&gt;(this, n);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="takeWhile">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>takeWhile</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> test(<a href="../clean_data/FilteredDataSetBase.html">E</a> value)) <a class="anchor-link" href="#takeWhile"
+              title="Permalink to FilteredDataSetBase.takeWhile">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns an Iterable that stops once 
+<span class="param">test</span> is not satisfied anymore.</p>
+<p>The filtering happens lazily. Every new Iterator of the returned
+Iterable starts iterating over the elements of <code>this</code>.</p>
+<p>When the iterator encounters an element <code>e</code> that does not satisfy 
+<span class="param">test</span>,
+it discards <code>e</code> and moves into the finished state. That is, it does not
+get or provide any more elements.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; takeWhile(bool test(E value)) {
+ return new TakeWhileIterable&lt;E&gt;(this, test);
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toList">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>toList</strong>({<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> growable: true}) <a class="anchor-link" href="#toList"
+              title="Permalink to FilteredDataSetBase.toList">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Creates a <a class="crossref" href="http://api.dartlang.org/dart_core/List.html">List</a> containing the elements of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a>.</p>
+<p>The elements are in iteration order. The list is fixed-length
+if 
+<span class="param">growable</span> is false.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+List&lt;E&gt; toList({ bool growable: true }) =&gt;
+   new List&lt;E&gt;.from(this, growable: growable);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toSet">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Set.html" ref="external">Set</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>toSet</strong>() <a class="anchor-link" href="#toSet"
+              title="Permalink to FilteredDataSetBase.toSet">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Creates a <a class="crossref" href="http://api.dartlang.org/dart_core/Set.html">Set</a> containing the elements of this <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a>.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Set&lt;E&gt; toSet() =&gt; new Set&lt;E&gt;.from(this);
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to FilteredDataSetBase.toString">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() =&gt; toList().toString();
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="unattachListeners">
+<button class="show-code">Code</button>
+void <strong>unattachListeners</strong>() <a class="anchor-link" href="#unattachListeners"
+              title="Permalink to FilteredDataSetBase.unattachListeners">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_data/DataSetView.html">DataSetView</a> </div><div class="doc">
+<pre class="source">
+void unattachListeners() {
+ _onChangeController.close();
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="where">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; <strong>where</strong>(<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> f(<a href="../clean_data/FilteredDataSetBase.html">E</a> element)) <a class="anchor-link" href="#where"
+              title="Permalink to FilteredDataSetBase.where">#</a></h4>
+<div class="inherited-from">mixed in from <a href="http://api.dartlang.org/dart_collection/IterableMixin.html" ref="external">IterableMixin</a> </div><div class="doc">
+<div class="inherited">
+<p>Returns a lazy <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> with all elements that satisfy the
+predicate <code>test</code>.</p>
+<p>This method returns a view of the mapped elements. As long as the
+returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> is not iterated over, the supplied function <code>test</code> will
+not be invoked. Iterating will not cache results, and thus iterating
+multiple times over the returned <a class="crossref" href="http://api.dartlang.org/dart_core/Iterable.html">Iterable</a> will invoke the supplied
+function <code>test</code> multiple times on the same element.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Iterable.html" ref="external">Iterable</a>&lt;<a href="../clean_data/FilteredDataSetBase.html">E</a>&gt; </div></div>
+<pre class="source">
+Iterable&lt;E&gt; where(bool f(E element)) =&gt; new WhereIterable&lt;E&gt;(this, f);
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

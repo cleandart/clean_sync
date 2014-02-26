@@ -1,0 +1,270 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>MongoDatabase class / clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server" data-type="MongoDatabase">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.server.html">clean_sync.server</a> &rsaquo; <a href="../clean_sync.server/MongoDatabase.html">MongoDatabase</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>MongoDatabase</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class MongoDatabase {
+ Db _db;
+ Future _conn;
+ List&lt;Future&gt; init = [];
+ DbCollection _lock;
+ Cache cache;
+
+ MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
+   _db = new Db(url);
+   _conn = _db.open(); // open connection to database
+   init.add(_conn);
+   init.add(_conn.then((_) {
+     _lock = _db.collection(LOCK_COLLECTION_NAME);
+     return true;
+     }));
+ }
+
+ void close() {
+   Future.wait(init).then((_) =&gt; _db.close());
+ }
+
+ void create_collection(String collectionName) {
+   init.add(_conn.then((_) =&gt;
+       _db.createIndex(historyCollectionName(collectionName), key: 'version',
+       unique: true)));
+ }
+
+ /**
+  * Creates index on chosen collection and corresponding indexes on collection
+  * history. keys is a map in form {field_name: 1 or -1} with 1/-1 specifying
+  * ascending/descending order (same as the map passed to mongo function
+  * ensureIndex).
+  */
+ void createIndex(String collectionName, Map keys, {unique: false}) {
+   Map beforeKeys = {};
+   Map afterKeys = {};
+   keys.forEach((key, val) {
+     beforeKeys['before.$key'] = val;
+     afterKeys['after.$key'] = val;
+   });
+   beforeKeys['version'] = 1;
+   afterKeys['version'] = 1;
+   init.add(_conn.then((_) =&gt;
+       _db.createIndex(historyCollectionName(collectionName),
+           keys: beforeKeys)));
+   init.add(_conn.then((_) =&gt;
+       _db.createIndex(historyCollectionName(collectionName),
+           keys: afterKeys)));
+   if (keys.isNotEmpty) {
+     init.add(_conn.then((_) =&gt;
+         _db.createIndex(collectionName, keys: keys, unique: unique)));
+   }
+ }
+
+ MongoProvider collection(String collectionName) {
+   DbCollection collection = _db.collection(collectionName);
+   DbCollection collectionHistory =
+       _db.collection(historyCollectionName(collectionName));
+   return new MongoProvider(collection, collectionHistory, _lock, cache);
+ }
+
+ Future dropCollection(String collectionName) =&gt;
+   _conn.then((_) =&gt; Future.wait([
+     _db.collection(collectionName).drop(),
+     _db.collection(historyCollectionName(collectionName)).drop()
+   ]));
+
+ Future removeLocks() =&gt; _lock.drop();
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>MongoDatabase</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> url, {<a href="../clean_sync.server/Cache.html">Cache</a> cache: dummyCache}) <a class="anchor-link" href="#"
+              title="Permalink to MongoDatabase.MongoDatabase">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
+ _db = new Db(url);
+ _conn = _db.open(); // open connection to database
+ init.add(_conn);
+ init.add(_conn.then((_) {
+   _lock = _db.collection(LOCK_COLLECTION_NAME);
+   return true;
+   }));
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="cache">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/Cache.html">Cache</a>         <strong>cache</strong> <a class="anchor-link"
+            href="#cache"
+            title="Permalink to MongoDatabase.cache">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Cache cache
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="init">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&gt;         <strong>init</strong> <a class="anchor-link"
+            href="#init"
+            title="Permalink to MongoDatabase.init">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+List&lt;Future&gt; init = []
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="close">
+<button class="show-code">Code</button>
+void <strong>close</strong>() <a class="anchor-link" href="#close"
+              title="Permalink to MongoDatabase.close">#</a></h4>
+<div class="doc">
+<pre class="source">
+void close() {
+ Future.wait(init).then((_) =&gt; _db.close());
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="collection">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>collection</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName) <a class="anchor-link" href="#collection"
+              title="Permalink to MongoDatabase.collection">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider collection(String collectionName) {
+ DbCollection collection = _db.collection(collectionName);
+ DbCollection collectionHistory =
+     _db.collection(historyCollectionName(collectionName));
+ return new MongoProvider(collection, collectionHistory, _lock, cache);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="create_collection">
+<button class="show-code">Code</button>
+void <strong>create_collection</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName) <a class="anchor-link" href="#create_collection"
+              title="Permalink to MongoDatabase.create_collection">#</a></h4>
+<div class="doc">
+<pre class="source">
+void create_collection(String collectionName) {
+ init.add(_conn.then((_) =&gt;
+     _db.createIndex(historyCollectionName(collectionName), key: 'version',
+     unique: true)));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="createIndex">
+<button class="show-code">Code</button>
+void <strong>createIndex</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> keys, {unique: false}) <a class="anchor-link" href="#createIndex"
+              title="Permalink to MongoDatabase.createIndex">#</a></h4>
+<div class="doc">
+<p>Creates index on chosen collection and corresponding indexes on collection
+history. keys is a map in form {field_name: 1 or -1} with 1/-1 specifying
+ascending/descending order (same as the map passed to mongo function
+ensureIndex).</p>
+<pre class="source">
+void createIndex(String collectionName, Map keys, {unique: false}) {
+ Map beforeKeys = {};
+ Map afterKeys = {};
+ keys.forEach((key, val) {
+   beforeKeys['before.$key'] = val;
+   afterKeys['after.$key'] = val;
+ });
+ beforeKeys['version'] = 1;
+ afterKeys['version'] = 1;
+ init.add(_conn.then((_) =&gt;
+     _db.createIndex(historyCollectionName(collectionName),
+         keys: beforeKeys)));
+ init.add(_conn.then((_) =&gt;
+     _db.createIndex(historyCollectionName(collectionName),
+         keys: afterKeys)));
+ if (keys.isNotEmpty) {
+   init.add(_conn.then((_) =&gt;
+       _db.createIndex(collectionName, keys: keys, unique: unique)));
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="dropCollection">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>dropCollection</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName) <a class="anchor-link" href="#dropCollection"
+              title="Permalink to MongoDatabase.dropCollection">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future dropCollection(String collectionName) =&gt;
+ _conn.then((_) =&gt; Future.wait([
+   _db.collection(collectionName).drop(),
+   _db.collection(historyCollectionName(collectionName)).drop()
+ ]));
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeLocks">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>removeLocks</strong>() <a class="anchor-link" href="#removeLocks"
+              title="Permalink to MongoDatabase.removeLocks">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future removeLocks() =&gt; _lock.drop();
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

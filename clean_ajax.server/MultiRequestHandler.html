@@ -1,0 +1,298 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>MultiRequestHandler class / clean_ajax.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.server" data-type="MultiRequestHandler">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.server.html">clean_ajax.server</a> &rsaquo; <a href="../clean_ajax.server/MultiRequestHandler.html">MultiRequestHandler</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>MultiRequestHandler</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Class which can process multiple <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> send in one <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>.
+Is responsible for unpacking <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> and calling aproriate handler which
+has been registered inside it.</p>
+<pre class="source">
+class MultiRequestHandler {
+
+ final _createLoopBackConnection;
+
+ MultiRequestHandler([this._createLoopBackConnection = createLoopBackConnection]) {
+   this.registerHandler("ping", (_) =&gt; new Future.value("pong"));
+ }
+
+ /**
+  * List of handlers for [ClientRequest]. Index is matching with
+  * [ClientRequest.type]
+  */
+ final Map&lt;String, ServerRequestHandler&gt; _registeredExecutors = new Map();
+ /**
+  * Default handler form [ClientRequest]
+  */
+ ServerRequestHandler _defaultExecutor = null;
+
+ /**
+  * Process [HttpRequest] extract from it [HttpBody]
+  * then extract [PackedRequest]s process them and generate proper
+  * [HttpResponse]
+  */
+ void handleHttpRequest(Request request) {
+   if (request.type != 'json') {
+     throw new Exception('Request type is ${request.type}, '
+                         'json was expected!');
+   }
+   List&lt;PackedRequest&gt; packedRequests =
+//        packedRequestsFromJson(JSON.decode(request.body));
+       packedRequestsFromJson(request.body);
+   // decorate individual clientRequests with authenticatedUserId property
+
+   _splitAndProcessRequests(packedRequests, request.authenticatedUserId)
+     .then((response) {
+       request.response
+         ..headers.contentType = JSON_CONTENT_TYPE
+         ..statusCode = HttpStatus.OK
+         ..write(JSON.encode({'responses': response, 'authenticatedUserId': request.authenticatedUserId}))
+         ..close();
+     }).catchError((e) {
+       request.response
+         ..headers.contentType = JSON_CONTENT_TYPE
+         ..statusCode = HttpStatus.BAD_REQUEST
+         ..close();
+     }, test: (e) =&gt; e is UnknownHandlerException);
+ }
+
+ Future&lt;List&gt; handleLoopBackRequest(String requests,
+                                    authenticatedUserId) {
+   return _splitAndProcessRequests(packedRequestsFromJson(JSON.decode(requests)), authenticatedUserId);
+ }
+
+ /**
+  * Run asynchroniusly [PackedRequest]s in order as they are presented in [requests]
+  * and return list of processed results from each request.
+  */
+ Future&lt;List&gt; _splitAndProcessRequests(List&lt;PackedRequest&gt; requests,
+                                       authenticatedUserId) {
+
+   final List responses = new List();
+   //now you need to call on each element of requests function _handleClientRequest
+   //this calls are asynchronous but must run in sequencial order
+   //results from calls are collected inside response
+   //if you encounter error during execution of any fuction run you end
+   //execution of all next functions and complete future result with error
+   return Future.forEach(
+            requests,
+            (PackedRequest request) {
+              // Create new server request from packed request and add
+              // authenticatedUserId to it
+                ServerRequest serverRequest = new ServerRequest(
+                    request.clientRequest.type,
+                    request.clientRequest.args,
+                    authenticatedUserId,
+                    _createLoopBackConnection(this, authenticatedUserId)
+                 );
+
+                return _handleServerRequest(serverRequest).then(
+                    (response) {
+                      responses.add({'id': request.id, 'response': response});
+                });
+            }
+          ).then((_) =&gt; new Future.value(responses)).
+            catchError((e, s) {
+              logger.shout('Exception during request processing: $e \n $s');
+              throw e;
+          });
+ }
+
+ /**
+  * Try to find which handler should execute [ServerRequest].
+  * If for [ServerRequest.type] is not not registered any executor than will
+  * try to run default executor if presented. In other cases throws
+  * exception [UnknownHandlerException].
+  */
+  Future _handleServerRequest(ServerRequest request){
+    if(_registeredExecutors.containsKey(request.type)){
+      return _registeredExecutors[request.type](request);
+    } else if(_defaultExecutor != null) {
+      return _defaultExecutor(request);
+    } else {
+      return new Future.error(new UnknownHandlerException(request.type));
+    }
+  }
+
+  /**
+   * Register default [ClientRequestHandler] for incomming [ClientRequest]
+   * Default executor is called only if executor for [ClientRequest.type] is
+   * not registerd.
+   * Multiple registration cause exception [AlreadyRegisteredHandlerException].
+   */
+  void registerDefaultHandler(ServerRequestHandler requestExecutor)
+  {
+    if (_defaultExecutor == null) {
+      _defaultExecutor = requestExecutor;
+    } else {
+      throw new AlreadyRegisteredHandlerException("");
+    }
+  }
+
+  /**
+   * Register [ClientRequestHandler] for incomming [ClientRequest] with
+   * [ClientRequest.type] setted to [name]. Multiple registration for
+   * same [name] cause exception [AlreadyRegisteredHandlerException].
+   */
+  void registerHandler(String name, ServerRequestHandler requestExecutor){
+    if(_registeredExecutors.containsKey(name)){
+      throw new AlreadyRegisteredHandlerException(name);
+    } else {
+      _registeredExecutors[name] = requestExecutor;
+    }
+  }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>MultiRequestHandler</strong>([_createLoopBackConnection = createLoopBackConnection]) <a class="anchor-link" href="#"
+              title="Permalink to MultiRequestHandler.MultiRequestHandler">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+MultiRequestHandler([this._createLoopBackConnection = createLoopBackConnection]) {
+ this.registerHandler("ping", (_) =&gt; new Future.value("pong"));
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="handleHttpRequest">
+<button class="show-code">Code</button>
+void <strong>handleHttpRequest</strong>(<a href="../clean_backend/Request.html">Request</a> request) <a class="anchor-link" href="#handleHttpRequest"
+              title="Permalink to MultiRequestHandler.handleHttpRequest">#</a></h4>
+<div class="doc">
+<p>Process <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> extract from it <a class="crossref" href="../http_server/HttpBody.html">HttpBody</a>
+then extract <a class="crossref" href="../clean_ajax.common/PackedRequest.html">PackedRequest</a>s process them and generate proper
+<a class="crossref" href="http://api.dartlang.org/dart_io/HttpResponse.html">HttpResponse</a></p>
+<pre class="source">
+void handleHttpRequest(Request request) {
+ if (request.type != 'json') {
+   throw new Exception('Request type is ${request.type}, '
+                       'json was expected!');
+ }
+ List&lt;PackedRequest&gt; packedRequests =
+//        packedRequestsFromJson(JSON.decode(request.body));
+     packedRequestsFromJson(request.body);
+ // decorate individual clientRequests with authenticatedUserId property
+
+ _splitAndProcessRequests(packedRequests, request.authenticatedUserId)
+   .then((response) {
+     request.response
+       ..headers.contentType = JSON_CONTENT_TYPE
+       ..statusCode = HttpStatus.OK
+       ..write(JSON.encode({'responses': response, 'authenticatedUserId': request.authenticatedUserId}))
+       ..close();
+   }).catchError((e) {
+     request.response
+       ..headers.contentType = JSON_CONTENT_TYPE
+       ..statusCode = HttpStatus.BAD_REQUEST
+       ..close();
+   }, test: (e) =&gt; e is UnknownHandlerException);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="handleLoopBackRequest">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&gt; <strong>handleLoopBackRequest</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> requests, authenticatedUserId) <a class="anchor-link" href="#handleLoopBackRequest"
+              title="Permalink to MultiRequestHandler.handleLoopBackRequest">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future&lt;List&gt; handleLoopBackRequest(String requests,
+                                  authenticatedUserId) {
+ return _splitAndProcessRequests(packedRequestsFromJson(JSON.decode(requests)), authenticatedUserId);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="registerDefaultHandler">
+<button class="show-code">Code</button>
+void <strong>registerDefaultHandler</strong>(<a href="../clean_ajax.server/ServerRequestHandler.html">ServerRequestHandler</a> requestExecutor) <a class="anchor-link" href="#registerDefaultHandler"
+              title="Permalink to MultiRequestHandler.registerDefaultHandler">#</a></h4>
+<div class="doc">
+<p>Register default <code>ClientRequestHandler</code> for incomming <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a>
+Default executor is called only if executor for <code>ClientRequest.type</code> is
+not registerd.
+Multiple registration cause exception <a class="crossref" href="../clean_ajax.server/AlreadyRegisteredHandlerException.html">AlreadyRegisteredHandlerException</a>.</p>
+<pre class="source">
+void registerDefaultHandler(ServerRequestHandler requestExecutor)
+{
+ if (_defaultExecutor == null) {
+   _defaultExecutor = requestExecutor;
+ } else {
+   throw new AlreadyRegisteredHandlerException("");
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="registerHandler">
+<button class="show-code">Code</button>
+void <strong>registerHandler</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> name, <a href="../clean_ajax.server/ServerRequestHandler.html">ServerRequestHandler</a> requestExecutor) <a class="anchor-link" href="#registerHandler"
+              title="Permalink to MultiRequestHandler.registerHandler">#</a></h4>
+<div class="doc">
+<p>Register <code>ClientRequestHandler</code> for incomming <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> with
+<code>ClientRequest.type</code> setted to 
+<span class="param">name</span>. Multiple registration for
+same 
+<span class="param">name</span> cause exception <a class="crossref" href="../clean_ajax.server/AlreadyRegisteredHandlerException.html">AlreadyRegisteredHandlerException</a>.</p>
+<pre class="source">
+void registerHandler(String name, ServerRequestHandler requestExecutor){
+ if(_registeredExecutors.containsKey(name)){
+   throw new AlreadyRegisteredHandlerException(name);
+ } else {
+   _registeredExecutors[name] = requestExecutor;
+ }
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

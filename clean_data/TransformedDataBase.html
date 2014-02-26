@@ -1,0 +1,167 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>TransformedDataBase abstract class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="TransformedDataBase">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/TransformedDataBase.html">TransformedDataBase</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>TransformedDataBase</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+abstract class TransformedDataBase implements ChangeNotificationsMixin {
+ /**
+  * The source [ChangeNotificationsMixin](s) this collection is derived from.
+  */
+ List&lt;dynamic&gt; sources;
+ List&lt;StreamSubscription&gt; _sourcesSubscription;
+
+ /**
+  * Reflects [changes] in the collection w.r.t. [config].
+  */
+ void _mergeIn(ChangeSet changes, int sourceNumber, {author}) {
+   changes.addedItems.forEach((dataObj) =&gt; _treatAddedItem(dataObj, sourceNumber));
+   changes.removedItems.forEach((dataObj) =&gt; _treatRemovedItem(dataObj, sourceNumber));
+   changes.strictlyChanged.forEach((dataObj,changes) =&gt; _treatChangedItem(dataObj, changes, sourceNumber));
+   var items = changes.addedItems.union(changes.removedItems).union(new Set.from(changes.changedItems.keys));
+   for (var item in items) {
+     _treatItem(item, changes.strictlyChanged[item]);
+   }
+   _notify(author: author);
+ }
+
+ // Overridable methods follow
+ void _treatAddedItem(dataObj, int sourceNumber) {}
+ void _treatRemovedItem(dataObj, int sourceNumber) {}
+ void _treatChangedItem(dataObj, ChangeSet c, int sourceNumber) {}
+ void _treatItem(dataObj, changeSet) {}
+}
+</pre>
+</div>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a></span></p>
+<div>
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to TransformedDataBase.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to TransformedDataBase.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to TransformedDataBase.onChange">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to TransformedDataBase.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="sources">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;dynamic&gt;         <strong>sources</strong> <a class="anchor-link"
+            href="#sources"
+            title="Permalink to TransformedDataBase.sources">#</a>
+        </h4>
+        <div class="doc">
+<p>The source <a href="s">ChangeNotificationsMixin</a> this collection is derived from.</p>
+<pre class="source">
+List&lt;dynamic&gt; sources
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

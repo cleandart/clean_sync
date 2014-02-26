@@ -1,0 +1,93 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Transport abstract class / clean_ajax.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client" data-type="Transport">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.client.html">clean_ajax.client</a> &rsaquo; <a href="../clean_ajax.client/Transport.html">Transport</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Transport</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Interface implemented by various transport mechanisms used by <a class="crossref" href="../clean_ajax.client/Connection.html">Connection</a>
+like <a class="crossref" href="../clean_ajax.client/HttpTransport.html">HttpTransport</a> and <a class="crossref" href="../clean_ajax.client/LoopBackTransport.html">LoopBackTransport</a>.</p>
+<pre class="source">
+abstract class Transport {
+ dynamic _prepareRequest;
+ dynamic _handleResponse;
+ dynamic _handleError;
+ dynamic _reconnectConnection;
+ dynamic _disconnectConnection;
+
+ setHandlers(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) {
+   _prepareRequest = prepareRequest;
+   _handleResponse = handleResponse;
+   _handleError = handleError;
+   _disconnectConnection = handleDisconnect == null ? (){} : handleDisconnect;
+   _reconnectConnection = handleReconnect == null ? (){} : handleReconnect;
+ }
+
+ void markDirty();
+}
+</pre>
+</div>
+<h3>Subclasses</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_ajax.client/HttpTransport.html">HttpTransport</a></span>, <span class="type-box"><span class="icon-class"></span><a href="../clean_ajax.client/LoopBackTransport.html">LoopBackTransport</a></span></p>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="markDirty">
+abstract void <strong>markDirty</strong>() <a class="anchor-link" href="#markDirty"
+              title="Permalink to Transport.markDirty">#</a></h4>
+<div class="doc">
+</div>
+</div>
+<div class="method"><h4 id="setHandlers">
+<button class="show-code">Code</button>
+dynamic <strong>setHandlers</strong>(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) <a class="anchor-link" href="#setHandlers"
+              title="Permalink to Transport.setHandlers">#</a></h4>
+<div class="doc">
+<pre class="source">
+setHandlers(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) {
+ _prepareRequest = prepareRequest;
+ _handleResponse = handleResponse;
+ _handleError = handleError;
+ _disconnectConnection = handleDisconnect == null ? (){} : handleDisconnect;
+ _reconnectConnection = handleReconnect == null ? (){} : handleReconnect;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

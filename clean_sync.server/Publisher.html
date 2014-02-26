@@ -1,0 +1,189 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Publisher class / clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server" data-type="Publisher">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.server.html">clean_sync.server</a> &rsaquo; <a href="../clean_sync.server/Publisher.html">Publisher</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Publisher</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class Publisher {
+ int counter = 0;
+
+ Map&lt;String, Resource&gt; _resources = {};
+
+ void publish(String collection, DataGenerator generator, {beforeRequest: null}) {
+   _resources[collection] = new Resource(generator, beforeRequest);
+ }
+
+ bool isPublished(String collection) {
+   return _resources.containsKey(collection);
+ }
+
+ Future handleSyncRequest(ServerRequest request) {
+   Map data = request.args;
+   logger.finest("REQUEST:  ${data}");
+
+   if(data['args'] == null) {
+     data['args'] = {};
+   }
+   data['args']['_authenticatedUserId'] = request.authenticatedUserId;
+
+   Resource resource = _resources[data['collection']];
+   var action = data["action"];
+
+   if (action == "get_id_prefix") {
+     return new Future(getIdPrefix).then((prefix) =&gt; {'id_prefix': prefix});
+   }
+
+   return resource.handleSyncRequest(data).
+   catchError((e, s) {
+     if(!e.toString().contains("__TEST__")) {
+       logger.shout('handle sync request error:', e, s);
+     }
+     return new Future.value({
+       'error': e.toString(),
+     });
+   });
+
+ }
+
+ String getIdPrefix() {
+   String prefix =
+       new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
+       prefix_random_part.toRadixString(36) + counter.toRadixString(36);
+   counter = (counter + 1) % MAX;
+   return prefix;
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="counter">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>counter</strong> <a class="anchor-link"
+            href="#counter"
+            title="Permalink to Publisher.counter">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+int counter = 0
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="getIdPrefix">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>getIdPrefix</strong>() <a class="anchor-link" href="#getIdPrefix"
+              title="Permalink to Publisher.getIdPrefix">#</a></h4>
+<div class="doc">
+<pre class="source">
+String getIdPrefix() {
+ String prefix =
+     new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
+     prefix_random_part.toRadixString(36) + counter.toRadixString(36);
+ counter = (counter + 1) % MAX;
+ return prefix;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="handleSyncRequest">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>handleSyncRequest</strong>(<a href="../clean_ajax.server/ServerRequest.html">ServerRequest</a> request) <a class="anchor-link" href="#handleSyncRequest"
+              title="Permalink to Publisher.handleSyncRequest">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future handleSyncRequest(ServerRequest request) {
+ Map data = request.args;
+ logger.finest("REQUEST:  ${data}");
+
+ if(data['args'] == null) {
+   data['args'] = {};
+ }
+ data['args']['_authenticatedUserId'] = request.authenticatedUserId;
+
+ Resource resource = _resources[data['collection']];
+ var action = data["action"];
+
+ if (action == "get_id_prefix") {
+   return new Future(getIdPrefix).then((prefix) =&gt; {'id_prefix': prefix});
+ }
+
+ return resource.handleSyncRequest(data).
+ catchError((e, s) {
+   if(!e.toString().contains("__TEST__")) {
+     logger.shout('handle sync request error:', e, s);
+   }
+   return new Future.value({
+     'error': e.toString(),
+   });
+ });
+
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="isPublished">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>isPublished</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collection) <a class="anchor-link" href="#isPublished"
+              title="Permalink to Publisher.isPublished">#</a></h4>
+<div class="doc">
+<pre class="source">
+bool isPublished(String collection) {
+ return _resources.containsKey(collection);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="publish">
+<button class="show-code">Code</button>
+void <strong>publish</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collection, <a href="../clean_sync.server/DataGenerator.html">DataGenerator</a> generator, {beforeRequest: null}) <a class="anchor-link" href="#publish"
+              title="Permalink to Publisher.publish">#</a></h4>
+<div class="doc">
+<pre class="source">
+void publish(String collection, DataGenerator generator, {beforeRequest: null}) {
+ _resources[collection] = new Resource(generator, beforeRequest);
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

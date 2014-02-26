@@ -1,0 +1,234 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Request class / clean_backend Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_backend" data-type="Request">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_backend.html">clean_backend</a> &rsaquo; <a href="../clean_backend/Request.html">Request</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Request</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class Request {
+ final String type;
+ final dynamic body;
+ final HttpResponse response;
+ final HttpHeaders headers;
+ final HttpRequest httpRequest;
+
+ /**
+  * Params returned from parsing of the path, i.e. /path/{param}/
+  */
+ final Map match;
+
+ final Map&lt;String, dynamic&gt; meta = {};
+ String authenticatedUserId;
+
+ Request(
+     this.type,
+     this.body,
+     this.response,
+     this.headers,
+     this.httpRequest,
+     this.match
+ );
+
+ String toString(){
+   return JSON.encode({
+     'url' : httpRequest.uri.path,
+     'type' : type.toString(),
+     'body' : body.toString(),
+     'response' : response.toString(),
+     'headers' : headers.toString(),
+     'httpRequest' : httpRequest.toString(),
+     'match' : match.toString(),
+   });
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Request</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> type, body, <a href="http://api.dartlang.org/dart_io/HttpResponse.html" ref="external">HttpResponse</a> response, <a href="http://api.dartlang.org/dart_io/HttpHeaders.html" ref="external">HttpHeaders</a> headers, <a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> httpRequest, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> match) <a class="anchor-link" href="#"
+              title="Permalink to Request.Request">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+Request(
+   this.type,
+   this.body,
+   this.response,
+   this.headers,
+   this.httpRequest,
+   this.match
+);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="authenticatedUserId">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>authenticatedUserId</strong> <a class="anchor-link"
+            href="#authenticatedUserId"
+            title="Permalink to Request.authenticatedUserId">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+String authenticatedUserId
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="body">
+<button class="show-code">Code</button>
+final         <strong>body</strong> <a class="anchor-link"
+            href="#body"
+            title="Permalink to Request.body">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final dynamic body
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="headers">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_io/HttpHeaders.html" ref="external">HttpHeaders</a>         <strong>headers</strong> <a class="anchor-link"
+            href="#headers"
+            title="Permalink to Request.headers">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final HttpHeaders headers
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="httpRequest">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>         <strong>httpRequest</strong> <a class="anchor-link"
+            href="#httpRequest"
+            title="Permalink to Request.httpRequest">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final HttpRequest httpRequest
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="match">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>         <strong>match</strong> <a class="anchor-link"
+            href="#match"
+            title="Permalink to Request.match">#</a>
+        </h4>
+        <div class="doc">
+<p>Params returned from parsing of the path, i.e. /path/{param}/</p>
+<pre class="source">
+final Map match
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="meta">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>, dynamic&gt;         <strong>meta</strong> <a class="anchor-link"
+            href="#meta"
+            title="Permalink to Request.meta">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final Map&lt;String, dynamic&gt; meta = {}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="response">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_io/HttpResponse.html" ref="external">HttpResponse</a>         <strong>response</strong> <a class="anchor-link"
+            href="#response"
+            title="Permalink to Request.response">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final HttpResponse response
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="type">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>type</strong> <a class="anchor-link"
+            href="#type"
+            title="Permalink to Request.type">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final String type
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to Request.toString">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString(){
+ return JSON.encode({
+   'url' : httpRequest.uri.path,
+   'type' : type.toString(),
+   'body' : body.toString(),
+   'response' : response.toString(),
+   'headers' : headers.toString(),
+   'httpRequest' : httpRequest.toString(),
+   'match' : match.toString(),
+ });
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

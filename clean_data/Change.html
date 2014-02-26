@@ -1,0 +1,225 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Change class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="Change">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/Change.html">Change</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Change</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A representation of a single change in a scalar value.</p>
+<pre class="source">
+class Change {
+ dynamic oldValue;
+ dynamic newValue;
+
+ get isEmpty {
+   return oldValue == unset &amp;&amp; newValue == unset;
+ }
+
+ /**
+  * Creates new [Change] from information about the value before change
+  * [oldValue] and after the change [newValue].
+  */
+ Change([this.oldValue = unset, this.newValue = unset]){
+   assert(oldValue is! DataReference);
+   assert(newValue is! DataReference);
+ }
+
+ bool equals(dynamic other) {
+   if (other is Change){
+     return oldValue == other.oldValue &amp;&amp;
+            newValue == other.newValue;
+   } else {
+     return false;
+   }
+ }
+
+ /**
+  * Applies another [change] to get representation of whole change.
+  */
+ void mergeIn(Change change) {
+   if (change.isEmpty) {
+     return;
+   }
+   assert(isEmpty || change.oldValue == this.newValue);
+   if (isEmpty) {
+     oldValue = change.oldValue;
+   }
+   newValue = change.newValue;
+ }
+
+ /**
+  * Clones the [change].
+  */
+ Change clone() {
+   return new Change(oldValue, newValue);
+ }
+
+ String toString() =&gt; "Change($oldValue-&gt;$newValue)";
+
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Change</strong>([oldValue = unset, newValue = unset]) <a class="anchor-link" href="#"
+              title="Permalink to Change.Change">#</a></h4>
+<div class="doc">
+<p>Creates new <a class="crossref" href="../clean_data/Change.html">Change</a> from information about the value before change
+
+<span class="param">oldValue</span> and after the change 
+<span class="param">newValue</span>.</p>
+<pre class="source">
+Change([this.oldValue = unset, this.newValue = unset]){
+ assert(oldValue is! DataReference);
+ assert(newValue is! DataReference);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="isEmpty">
+<button class="show-code">Code</button>
+final         <strong>isEmpty</strong> <a class="anchor-link"
+            href="#isEmpty"
+            title="Permalink to Change.isEmpty">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+get isEmpty {
+ return oldValue == unset &amp;&amp; newValue == unset;
+}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="newValue">
+<button class="show-code">Code</button>
+var         <strong>newValue</strong> <a class="anchor-link"
+            href="#newValue"
+            title="Permalink to Change.newValue">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+dynamic newValue
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="oldValue">
+<button class="show-code">Code</button>
+var         <strong>oldValue</strong> <a class="anchor-link"
+            href="#oldValue"
+            title="Permalink to Change.oldValue">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+dynamic oldValue
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="clone">
+<button class="show-code">Code</button>
+<a href="../clean_data/Change.html">Change</a> <strong>clone</strong>() <a class="anchor-link" href="#clone"
+              title="Permalink to Change.clone">#</a></h4>
+<div class="doc">
+<p>Clones the <code>change</code>.</p>
+<pre class="source">
+Change clone() {
+ return new Change(oldValue, newValue);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="equals">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>equals</strong>(other) <a class="anchor-link" href="#equals"
+              title="Permalink to Change.equals">#</a></h4>
+<div class="doc">
+<pre class="source">
+bool equals(dynamic other) {
+ if (other is Change){
+   return oldValue == other.oldValue &amp;&amp;
+          newValue == other.newValue;
+ } else {
+   return false;
+ }
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="mergeIn">
+<button class="show-code">Code</button>
+void <strong>mergeIn</strong>(<a href="../clean_data/Change.html">Change</a> change) <a class="anchor-link" href="#mergeIn"
+              title="Permalink to Change.mergeIn">#</a></h4>
+<div class="doc">
+<p>Applies another 
+<span class="param">change</span> to get representation of whole change.</p>
+<pre class="source">
+void mergeIn(Change change) {
+ if (change.isEmpty) {
+   return;
+ }
+ assert(isEmpty || change.oldValue == this.newValue);
+ if (isEmpty) {
+   oldValue = change.oldValue;
+ }
+ newValue = change.newValue;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to Change.toString">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() =&gt; "Change($oldValue-&gt;$newValue)";
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

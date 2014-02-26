@@ -1,0 +1,133 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>DataProvider abstract class / clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server" data-type="DataProvider">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.server.html">clean_sync.server</a> &rsaquo; <a href="../clean_sync.server/DataProvider.html">DataProvider</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>DataProvider</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+abstract class DataProvider {
+ /** Returns collection of items in the following form:
+  * {'data': [List&lt;Map&gt;] data, 'version': [num] version_num}
+  */
+ Future&lt;Map&gt; data();
+ /** Returns collection of items in the following form:
+  *  {'diff': [List&lt;Map&gt;]} or
+  *  {'diff': null, 'data': [List&lt;Map&gt;] data, 'version': [num] version_num}
+  *
+  *  If 'diff' value is not null, items in the list are of following form:
+  *  {'action': 'add'/'change',
+  *   '_id': 'value0',
+  *   'author': 'Some String',
+  *   'data': {'_id': 'value0', 'field1': 'value1', 'field2': 'value2', ...}
+  *   'version': 5}
+  *
+  *  or
+  *
+  *  {'action': 'remove',
+  *   '_id': 'value0',
+  *   'author': 'Some String',
+  *   'version': 5}
+  *
+  *  In case of 'add', value of 'data' is a [Map] representing new data that
+  *  was added. In case of 'change', value of 'data' is a [Map] containing new
+  *  key-value pairs and/or pairs of already existing keys and updated values.
+  */
+ Future&lt;Map&gt; diffFromVersion(num version);
+ Future add(Map data, String author);
+ Future change(String_id, Map change, String author);
+ Future remove(String id, String author);
+}
+</pre>
+</div>
+<h3>Subclasses</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_sync.server/MongoProvider.html">MongoProvider</a></span></p>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="add">
+abstract <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>add</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> data, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#add"
+              title="Permalink to DataProvider.add">#</a></h4>
+<div class="doc">
+</div>
+</div>
+<div class="method"><h4 id="change">
+abstract <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>change</strong>(String_id, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> change, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#change"
+              title="Permalink to DataProvider.change">#</a></h4>
+<div class="doc">
+</div>
+</div>
+<div class="method"><h4 id="data">
+abstract <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; <strong>data</strong>() <a class="anchor-link" href="#data"
+              title="Permalink to DataProvider.data">#</a></h4>
+<div class="doc">
+<p>Returns collection of items in the following form:
+{'data': [List<Map>] data, 'version': <a class="crossref" href="http://api.dartlang.org/dart_core/num.html">num</a> version_num}</p>
+</div>
+</div>
+<div class="method"><h4 id="diffFromVersion">
+abstract <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; <strong>diffFromVersion</strong>(<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> version) <a class="anchor-link" href="#diffFromVersion"
+              title="Permalink to DataProvider.diffFromVersion">#</a></h4>
+<div class="doc">
+<p>Returns collection of items in the following form:
+ {'diff': [List<Map>]} or
+ {'diff': null, 'data': [List<Map>] data, 'version': <a class="crossref" href="http://api.dartlang.org/dart_core/num.html">num</a> version_num}</p>
+<p> If 'diff' value is not null, items in the list are of following form:
+ {'action': 'add'/'change',
+  '<em>id': 'value0',
+  'author': 'Some String',
+  'data': {'</em>id': 'value0', 'field1': 'value1', 'field2': 'value2', ...}
+  'version': 5}</p>
+<p> or</p>
+<p> {'action': 'remove',
+  '_id': 'value0',
+  'author': 'Some String',
+  'version': 5}</p>
+<p> In case of 'add', value of 'data' is a <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> representing new data that
+ was added. In case of 'change', value of 'data' is a <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> containing new
+ key-value pairs and/or pairs of already existing keys and updated values.</p>
+</div>
+</div>
+<div class="method"><h4 id="remove">
+abstract <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>remove</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> id, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#remove"
+              title="Permalink to DataProvider.remove">#</a></h4>
+<div class="doc">
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,266 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>MimeTypeResolver class / mime Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="mime" data-type="MimeTypeResolver">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../mime.html">mime</a> &rsaquo; <a href="../mime/MimeTypeResolver.html">MimeTypeResolver</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>MimeTypeResolver</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>MIME-type resolver class, used to customize the lookup of mime-types.</p>
+<pre class="source">
+class MimeTypeResolver {
+ final Map&lt;String, String&gt; _extensionMap = {};
+ final List&lt;_MagicNumber&gt; _magicNumbers = [];
+ bool _useDefault;
+ int _magicNumbersMaxLength;
+
+ /**
+  * Create a new empty [MimeTypeResolver].
+  */
+ MimeTypeResolver.empty() : _useDefault = false, _magicNumbersMaxLength = 0;
+
+ /**
+  * Create a new [MimeTypeResolver] containing the default scope.
+  */
+ MimeTypeResolver() :
+     _useDefault = true,
+     _magicNumbersMaxLength = _defaultMagicNumbersMaxLength;
+
+ /**
+  * Get the maximum number of bytes required to match all magic numbers, when
+  * performing [lookup] with headerBytes present.
+  */
+ int get magicNumbersMaxLength =&gt; _magicNumbersMaxLength;
+
+ /**
+  * Extract the extension from [path] and use that for MIME-type lookup.
+  *
+  * If no matching MIME-type was found, `null` is returned.
+  *
+  * If [headerBytes] is present, a match for known magic-numbers will be
+  * performed first. This allows the correct mime-type to be found, even though
+  * a file have been saved using the wrong file-name extension. If less than
+  * [magicNumbersMaxLength] bytes was provided, some magic-numbers won't
+  * be matched against.
+  */
+ String lookup(String path,
+               {List&lt;int&gt; headerBytes}) {
+   String result;
+   if (headerBytes != null) {
+     result =_matchMagic(headerBytes, _magicNumbers);
+     if (result != null) return result;
+     if (_useDefault) {
+       result =_matchMagic(headerBytes, _defaultMagicNumbers);
+       if (result != null) return result;
+     }
+   }
+   var ext = _ext(path);
+   result = _extensionMap[ext];
+   if (result != null) return result;
+   if (_useDefault) {
+     result = _defaultExtensionMap[ext];
+     if (result != null) return result;
+   }
+   return null;
+ }
+
+ /**
+  * Add a new MIME-type mapping to the [MimeTypeResolver]. If the [extension]
+  * is already present in the [MimeTypeResolver], it'll be overwritten.
+  */
+ void addExtension(String extension, String mimeType) {
+   _extensionMap[extension] = mimeType;
+ }
+
+ /**
+  * Add a new magic-number mapping to the [MimeTypeResolver].
+  *
+  * If [mask] is present,the [mask] is used to only perform matching on
+  * selective bits. The [mask] must have the same length as [bytes].
+  */
+ void addMagicNumber(List&lt;int&gt; bytes, String mimeType, {List&lt;int&gt; mask}) {
+   if (mask != null &amp;&amp; bytes.length != mask.length) {
+     throw new ArgumentError('Bytes and mask are of different lengths');
+   }
+   if (bytes.length &gt; _magicNumbersMaxLength) {
+     _magicNumbersMaxLength = bytes.length;
+   }
+   _magicNumbers.add(new _MagicNumber(mimeType, bytes, mask: mask));
+ }
+
+ static String _matchMagic(List&lt;int&gt; headerBytes,
+                           List&lt;_MagicNumber&gt; magicNumbers) {
+   for (var mn in magicNumbers) {
+     if (mn.matches(headerBytes)) return mn.mimeType;
+   }
+   return null;
+ }
+
+ static String _ext(String path) {
+   int index = path.lastIndexOf('.');
+   if (index &lt; 0 || index + 1 &gt;= path.length) return path;
+   return path.substring(index + 1).toLowerCase();
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>MimeTypeResolver</strong>() <a class="anchor-link" href="#"
+              title="Permalink to MimeTypeResolver.MimeTypeResolver">#</a></h4>
+<div class="doc">
+<p>Create a new <a class="crossref" href="../mime/MimeTypeResolver.html">MimeTypeResolver</a> containing the default scope.</p>
+<pre class="source">
+MimeTypeResolver() :
+   _useDefault = true,
+   _magicNumbersMaxLength = _defaultMagicNumbersMaxLength;
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="empty">
+<button class="show-code">Code</button>
+new <strong>MimeTypeResolver.empty</strong>() <a class="anchor-link" href="#empty"
+              title="Permalink to MimeTypeResolver.MimeTypeResolver.empty">#</a></h4>
+<div class="doc">
+<p>Create a new empty <a class="crossref" href="../mime/MimeTypeResolver.html">MimeTypeResolver</a>.</p>
+<pre class="source">
+MimeTypeResolver.empty() : _useDefault = false, _magicNumbersMaxLength = 0;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="magicNumbersMaxLength">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>magicNumbersMaxLength</strong> <a class="anchor-link"
+            href="#magicNumbersMaxLength"
+            title="Permalink to MimeTypeResolver.magicNumbersMaxLength">#</a>
+        </h4>
+        <div class="doc">
+<p>Get the maximum number of bytes required to match all magic numbers, when
+performing <a class="crossref" href="../mime/MimeTypeResolver.html#lookup">lookup</a> with headerBytes present.</p>
+<pre class="source">
+int get magicNumbersMaxLength =&gt; _magicNumbersMaxLength;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="addExtension">
+<button class="show-code">Code</button>
+void <strong>addExtension</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> extension, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> mimeType) <a class="anchor-link" href="#addExtension"
+              title="Permalink to MimeTypeResolver.addExtension">#</a></h4>
+<div class="doc">
+<p>Add a new MIME-type mapping to the <a class="crossref" href="../mime/MimeTypeResolver.html">MimeTypeResolver</a>. If the 
+<span class="param">extension</span>
+is already present in the <a class="crossref" href="../mime/MimeTypeResolver.html">MimeTypeResolver</a>, it'll be overwritten.</p>
+<pre class="source">
+void addExtension(String extension, String mimeType) {
+ _extensionMap[extension] = mimeType;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addMagicNumber">
+<button class="show-code">Code</button>
+void <strong>addMagicNumber</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; bytes, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> mimeType, {<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; mask}) <a class="anchor-link" href="#addMagicNumber"
+              title="Permalink to MimeTypeResolver.addMagicNumber">#</a></h4>
+<div class="doc">
+<p>Add a new magic-number mapping to the <a class="crossref" href="../mime/MimeTypeResolver.html">MimeTypeResolver</a>.</p>
+<p>If 
+<span class="param">mask</span> is present,the 
+<span class="param">mask</span> is used to only perform matching on
+selective bits. The 
+<span class="param">mask</span> must have the same length as 
+<span class="param">bytes</span>.</p>
+<pre class="source">
+void addMagicNumber(List&lt;int&gt; bytes, String mimeType, {List&lt;int&gt; mask}) {
+ if (mask != null &amp;&amp; bytes.length != mask.length) {
+   throw new ArgumentError('Bytes and mask are of different lengths');
+ }
+ if (bytes.length &gt; _magicNumbersMaxLength) {
+   _magicNumbersMaxLength = bytes.length;
+ }
+ _magicNumbers.add(new _MagicNumber(mimeType, bytes, mask: mask));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="lookup">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>lookup</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> path, {<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; headerBytes}) <a class="anchor-link" href="#lookup"
+              title="Permalink to MimeTypeResolver.lookup">#</a></h4>
+<div class="doc">
+<p>Extract the extension from 
+<span class="param">path</span> and use that for MIME-type lookup.</p>
+<p>If no matching MIME-type was found, <code>null</code> is returned.</p>
+<p>If 
+<span class="param">headerBytes</span> is present, a match for known magic-numbers will be
+performed first. This allows the correct mime-type to be found, even though
+a file have been saved using the wrong file-name extension. If less than
+<a class="crossref" href="../mime/MimeTypeResolver.html#magicNumbersMaxLength">magicNumbersMaxLength</a> bytes was provided, some magic-numbers won't
+be matched against.</p>
+<pre class="source">
+String lookup(String path,
+             {List&lt;int&gt; headerBytes}) {
+ String result;
+ if (headerBytes != null) {
+   result =_matchMagic(headerBytes, _magicNumbers);
+   if (result != null) return result;
+   if (_useDefault) {
+     result =_matchMagic(headerBytes, _defaultMagicNumbers);
+     if (result != null) return result;
+   }
+ }
+ var ext = _ext(path);
+ result = _extensionMap[ext];
+ if (result != null) return result;
+ if (_useDefault) {
+   result = _defaultExtensionMap[ext];
+   if (result != null) return result;
+ }
+ return null;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

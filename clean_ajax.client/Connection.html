@@ -1,0 +1,359 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Connection class / clean_ajax.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client" data-type="Connection">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.client.html">clean_ajax.client</a> &rsaquo; <a href="../clean_ajax.client/Connection.html">Connection</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Connection</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Representation of connection to server.</p>
+<pre class="source">
+class Connection {
+
+ /**
+  * Flag which marks whether there are problems with connection or no.
+  * If this is false, automatic checker starts sending requests and when
+  * a response arrives, then it is set back to true.
+  */
+ bool _connected = true;
+
+ bool get isConnected =&gt; _connected;
+
+ StreamController _onDisconnectedController = new StreamController.broadcast();
+ StreamController _onConnectedController = new StreamController.broadcast();
+
+ Stream get onDisconnected =&gt; _onDisconnectedController.stream;
+ Stream get onConnected =&gt; _onConnectedController.stream;
+
+ void _disconnect() {
+   _connected = false;
+   _onDisconnectedController.add(null);
+ }
+
+ void _reconnect() {
+   _connected = true;
+   _onConnectedController.add(null);
+ }
+
+ String _authenticatedUserId;
+
+ String get authenticatedUserId =&gt; _authenticatedUserId;
+
+ final StreamController&lt;String&gt; _onAuthenticatedUserIdChangeController =
+     new StreamController.broadcast();
+
+ Stream&lt;String&gt; get onAuthenticatedUserIdChange =&gt; _onAuthenticatedUserIdChangeController.stream;
+
+ final Transport _transport;
+
+ /**
+  * Dependency injection constructor of [Connection].
+  *
+  * In majority of cases, you want to use either [createHttpConnection] or
+  * [createLoopBackConnection] factories from [clean_ajax.client_browser] and
+  * [clean_ajax.client_backend] libraries.
+  */
+ Connection.config(this._transport) {
+   this._transport.setHandlers(_prepareRequest, _handleResponse, _handleError, _disconnect, _reconnect);
+ }
+
+ /**
+  * Queue of unprepared [ClientRequest]s.
+  * The map entry should contain these keys and values:
+  *   'createRequest': [CreateRequest] object
+  *   'completer': [Completer] object which returns response for the request
+  */
+ final Queue&lt;Map&gt; _requestQueue = new Queue&lt;Map&gt;();
+
+ final Set&lt;Map&gt; _periodicRequests = new Set&lt;Map&gt;();
+
+ /**
+  * Maps [Request] names to their future responses.
+  */
+ final Map&lt;int, Completer&gt; _responseMap = new Map&lt;int, Completer&gt;();
+
+ /**
+  * Counts sent requests. Serves as unique ID for new requests.
+  */
+ int requestCount = 0;
+
+ List&lt;PackedRequest&gt; _prepareRequest() {
+   var request_list = [];
+   for (var request in _periodicRequests) {
+     send(request['createRequest']).then((value) {
+       request['controller'].add(value);
+     }).catchError((e) {
+       request['controller'].addError(e);
+     });
+   }
+   while (!_requestQueue.isEmpty) {
+     var map = _requestQueue.removeFirst();
+     var clientRequest = map['createRequest'](); // create the request
+     if (clientRequest == null) {
+       map['completer'].completeError(new CancelError());
+     } else {
+       request_list.add(new PackedRequest(requestCount, clientRequest));
+       _responseMap[requestCount++] = map['completer'];
+     }
+   }
+   return request_list;
+ }
+
+//  void _handleResponse(List responses) {
+ void _handleResponse(Map responsesAndAuthUser) {
+   String newAuthUserId = responsesAndAuthUser['authenticatedUserId'];
+   if (_authenticatedUserId != newAuthUserId) {
+     _onAuthenticatedUserIdChangeController.add(newAuthUserId);
+     _authenticatedUserId = newAuthUserId;
+   }
+   for (var responseMap in responsesAndAuthUser['responses']) {
+     var id = responseMap['id'];
+     var response = responseMap['response'];
+     if (_responseMap.containsKey(id)) {
+       _responseMap[id].complete(response);
+       _responseMap.remove(id);
+     }
+   }
+   _responseMap.forEach((id, request) {
+     throw new Exception("Request $id was not answered!");
+   });
+ }
+
+ void _handleError(error) {
+   for (var completer in _responseMap.values) {
+     completer.completeError(error);
+   }
+   _responseMap.clear();
+ }
+
+ /**
+  * Schedule the send of [ClientRequest] created by factory function
+  * [createRequest].
+  *
+  * Request will be created immediately before the send, that makes it possible
+  * to send always mostly actual requests.
+  *
+  * Returned [Future] completes with the value of response.
+  */
+ Future send(CreateRequest createRequest) {
+   var completer = new Completer();
+   _requestQueue.add({'createRequest': createRequest, 'completer': completer});
+   _transport.markDirty();
+   return completer.future;
+ }
+
+ /**
+  * Schedule the [ClientRequest]s to be sent periodically and return the
+  * [Stream] of responses.
+  *
+  * Every time the transport layer notifies [Connection] about being ready to
+  * send next request, [createRequest] is executed and resulting
+  * [ClientRequest] is send.
+  *
+  * Similarly to [send], this method will notify the transport layer there is
+  * request to be sent. This notification happens only as direct consequence
+  * of calling [sendPeriodically], it won't happen multiple times for single
+  * [createRequest] factory.
+  *
+  * The returned [Stream] can have only single listener, and periodical
+  * requests are canceled when the subscription to results [Stream] is
+  * canceled.
+  */
+ Stream sendPeriodically(CreateRequest createRequest) {
+   var periodicRequest = {'createRequest': createRequest};
+   var streamController = new StreamController(
+       onCancel: () =&gt; _periodicRequests.remove(periodicRequest));
+   periodicRequest['controller'] = streamController;
+   _periodicRequests.add(periodicRequest);
+   _transport.markDirty();
+   return streamController.stream;
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="config">
+<button class="show-code">Code</button>
+new <strong>Connection.config</strong>(<a href="../clean_ajax.client/Transport.html">Transport</a> _transport) <a class="anchor-link" href="#config"
+              title="Permalink to Connection.Connection.config">#</a></h4>
+<div class="doc">
+<p>Dependency injection constructor of <a class="crossref" href="../clean_ajax.client/Connection.html">Connection</a>.</p>
+<p>In majority of cases, you want to use either <code>createHttpConnection</code> or
+<code>createLoopBackConnection</code> factories from [clean_ajax.client_browser] and
+[clean_ajax.client_backend] libraries.</p>
+<pre class="source">
+Connection.config(this._transport) {
+ this._transport.setHandlers(_prepareRequest, _handleResponse, _handleError, _disconnect, _reconnect);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="authenticatedUserId">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>authenticatedUserId</strong> <a class="anchor-link"
+            href="#authenticatedUserId"
+            title="Permalink to Connection.authenticatedUserId">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+String get authenticatedUserId =&gt; _authenticatedUserId;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="isConnected">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>isConnected</strong> <a class="anchor-link"
+            href="#isConnected"
+            title="Permalink to Connection.isConnected">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+bool get isConnected =&gt; _connected;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="onAuthenticatedUserIdChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>&gt;         <strong>onAuthenticatedUserIdChange</strong> <a class="anchor-link"
+            href="#onAuthenticatedUserIdChange"
+            title="Permalink to Connection.onAuthenticatedUserIdChange">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Stream&lt;String&gt; get onAuthenticatedUserIdChange =&gt; _onAuthenticatedUserIdChangeController.stream;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="onConnected">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>         <strong>onConnected</strong> <a class="anchor-link"
+            href="#onConnected"
+            title="Permalink to Connection.onConnected">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Stream get onConnected =&gt; _onConnectedController.stream;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="onDisconnected">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>         <strong>onDisconnected</strong> <a class="anchor-link"
+            href="#onDisconnected"
+            title="Permalink to Connection.onDisconnected">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Stream get onDisconnected =&gt; _onDisconnectedController.stream;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="requestCount">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>requestCount</strong> <a class="anchor-link"
+            href="#requestCount"
+            title="Permalink to Connection.requestCount">#</a>
+        </h4>
+        <div class="doc">
+<p>Counts sent requests. Serves as unique ID for new requests.</p>
+<pre class="source">
+int requestCount = 0
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="send">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>send</strong>(<a href="../clean_ajax.client/CreateRequest.html">CreateRequest</a> createRequest) <a class="anchor-link" href="#send"
+              title="Permalink to Connection.send">#</a></h4>
+<div class="doc">
+<p>Schedule the send of <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> created by factory function
+
+<span class="param">createRequest</span>.</p>
+<p>Request will be created immediately before the send, that makes it possible
+to send always mostly actual requests.</p>
+<p>Returned <a class="crossref" href="http://api.dartlang.org/dart_async/Future.html">Future</a> completes with the value of response.</p>
+<pre class="source">
+Future send(CreateRequest createRequest) {
+ var completer = new Completer();
+ _requestQueue.add({'createRequest': createRequest, 'completer': completer});
+ _transport.markDirty();
+ return completer.future;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="sendPeriodically">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a> <strong>sendPeriodically</strong>(<a href="../clean_ajax.client/CreateRequest.html">CreateRequest</a> createRequest) <a class="anchor-link" href="#sendPeriodically"
+              title="Permalink to Connection.sendPeriodically">#</a></h4>
+<div class="doc">
+<p>Schedule the <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a>s to be sent periodically and return the
+<a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a> of responses.</p>
+<p>Every time the transport layer notifies <a class="crossref" href="../clean_ajax.client/Connection.html">Connection</a> about being ready to
+send next request, 
+<span class="param">createRequest</span> is executed and resulting
+<a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> is send.</p>
+<p>Similarly to <a class="crossref" href="../clean_ajax.client/Connection.html#send">send</a>, this method will notify the transport layer there is
+request to be sent. This notification happens only as direct consequence
+of calling <a class="crossref" href="../clean_ajax.client/Connection.html#sendPeriodically">sendPeriodically</a>, it won't happen multiple times for single
+
+<span class="param">createRequest</span> factory.</p>
+<p>The returned <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a> can have only single listener, and periodical
+requests are canceled when the subscription to results <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a> is
+canceled.</p>
+<pre class="source">
+Stream sendPeriodically(CreateRequest createRequest) {
+ var periodicRequest = {'createRequest': createRequest};
+ var streamController = new StreamController(
+     onCancel: () =&gt; _periodicRequests.remove(periodicRequest));
+ periodicRequest['controller'] = streamController;
+ _periodicRequests.add(periodicRequest);
+ _transport.markDirty();
+ return streamController.stream;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,190 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>clean_ajax.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client">
+        <div class="page">
+        <div class="header">
+          <a href="index.html"><div class="logo"></div></a>
+          <a href="index.html">Dart Documentation</a>
+         &rsaquo; <a href="clean_ajax.client.html">clean_ajax.client</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+<h2><strong>clean_ajax.client</strong> library</h2>
+<div class="doc"><p>A library for efficient server-client communication that guarantees order of
+requests and responses.</p>
+<h2>Examples</h2>
+<p>Following example demonstrate simple usage of connection in browser. It is
+guaranteed that the first request finishes before the second.</p>
+<pre><code> import "package:clean_ajax/client_browser.dart";
+
+ var connection = createHttpConnection("http://www.example.com/api/",
+                                       new Duration(milliseconds: 100));
+
+ connection.send(() =&gt; new ClientRequest("user/get", {"name": "John"}))
+ .then((user) {
+   showUserInfo(user);
+ });
+
+ connection.send(() =&gt; new ClientRequest("user/get", {"name": "Peter"}))
+ .then((user) {
+   showUserInfo(user);
+ });
+</code></pre>
+<p>It can be handy to send some requests periodically, for example to check the
+state of the email inbox.</p>
+<pre><code> import "package:clean_ajax/client_browser.dart";
+
+ var connection = createHttpConnection("http://www.example.com/api/",
+                                       new Duration(milliseconds: 100));
+
+ connection.sendPeriodically(() =&gt; new ClientRequest("inbox/get", {}))
+ .listen((inbox) {
+   updateInbox(inbox);
+ });
+</code></pre>
+<p>Periodical requests are canceled simply by canceling the subscription to
+results.</p>
+<pre><code> import "package:clean_ajax/client_browser.dart";
+
+ var connection = createHttpConnection("http://www.example.com/api/",
+                                       new Duration(milliseconds: 100));
+
+ var subscription = connection.sendPeriodically(
+     () =&gt; new ClientRequest("inbox/get", {})
+ ).listen((inbox) {
+   updateInbox(inbox);
+ });
+
+ // Stop sending requests when the inbox is closed by the user.
+ onInboxClose(() =&gt; subscription.cancel());
+</code></pre>
+<p>Reusal of code on server is encouraged by <a class="crossref" href="clean_ajax.client/LoopBackTransport.html">LoopBackTransport</a> layer, that
+works on the server.</p>
+<pre><code> import "package:clean_ajax/client_backend.dart";
+
+ var connection = createLoopBackConnection(requestHandler);
+
+ connection.send(() =&gt; new ClientRequest("user/get", {"name": "John"}))
+ .then((user) {
+   showUserInfo(user);
+ });
+
+ connection.send(() =&gt; new ClientRequest("user/get", {"name": "Peter"}))
+ .then((user) {
+   showUserInfo(user);
+ });
+</code></pre>
+<p>However, <code>sendPeriodically</code> is not supported by <a class="crossref" href="clean_ajax.client/LoopBackTransport.html">LoopBackTransport</a>, it is
+not error to call it on the server, however it gets send only first time and
+later times when normal <code>send</code> is triggered.</p></div>
+<h3>Exports</h3>
+<ul>
+<ul><a href="clean_ajax.common.html">clean_ajax.common</a> show <a class="crossref" href="clean_ajax.common/ClientRequest.html">ClientRequest</a></ul>
+</ul>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="logger">
+<button class="show-code">Code</button>
+final         <strong>logger</strong> <a class="anchor-link"
+            href="#logger"
+            title="Permalink to logger">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final logger = new Logger('clean_ajax')
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Abstract Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/Transport.html"><strong>Transport</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Classes</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/Connection.html"><strong>Connection</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/HttpTransport.html"><strong>HttpTransport</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/LoopBackTransport.html"><strong>LoopBackTransport</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Typedefs</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/CreateRequest.html"><strong>CreateRequest</strong></a>
+          </h4>
+          </div>
+          
+</div>
+<div>
+<h3>Exceptions</h3>
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/CancelError.html"><strong>CancelError</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/ConnectionError.html"><strong>ConnectionError</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/FailedRequestException.html"><strong>FailedRequestException</strong></a>
+          </h4>
+          </div>
+          
+          <div class="type">
+          <h4>
+            <a href="clean_ajax.client/ResponseError.html"><strong>ResponseError</strong></a>
+          </h4>
+          </div>
+          
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,329 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Route class / clean_router.common Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_router.common" data-type="Route">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_router.common.html">clean_router.common</a> &rsaquo; <a href="../clean_router.common/Route.html">Route</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Route</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Maps <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> of variables to <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> Url component and vice versa.</p>
+<pre class="source">
+class Route {
+ RegExp _matchExp;
+ String _absolutePart = '';
+ List&lt;String&gt; _variables = [];
+ List _urlParts = [];
+ bool _anyTail = false;
+
+ get isAbsolute =&gt; _absolutePart.isNotEmpty;
+
+ /**
+  * Constructs [Route] using [String] pattern.
+  *
+  * Url is dividid into absolute and patter part.
+  * Pattern is divided to parts by slash '/' character. The slash must be the
+  * very first character of the pattern. Each part can be either static or
+  * placeholder. Static part can contain arbitrary number of [a-zA-Z0-9_-]
+  * characters. Placeholder part consists of variable name enclosed in curly
+  * braces. Variable name consists of any characters expect curly braces
+  * with the first character being not an underscore.
+  */
+
+ Route(String url) {
+   String pattern;
+   if(url.startsWith(new RegExp(r'^(ht|f)tp(s?)://'))) {
+     int endOfAbsolutePart = url.indexOf('/', url.indexOf('://') + 3);
+     if(endOfAbsolutePart == -1) {
+       throw new FormatException('Absolute Url pattern has to have pattern part');
+     }
+     _absolutePart = url.substring(0, endOfAbsolutePart);
+     pattern = url.substring(endOfAbsolutePart);
+   }
+   else {
+     pattern = url;
+   }
+
+   if (pattern.isEmpty || pattern[0] != '/') {
+     throw new FormatException("Url pattern has to begin with '/' character.");
+   }
+   if(pattern[pattern.length - 1] == '*'){
+     _anyTail = true;
+     pattern = pattern.substring(0, pattern.length - 1);
+   }
+
+   RegExp exp = new RegExp(r"^(?:([\w-.]*)|{([^_{}][^{}]*)})$");
+
+   var matcherParts = new List();
+   var parts = pattern.split('/');
+   for (var part in parts) {
+     var match = exp.firstMatch(part);
+     if (match == null) {
+       throw new FormatException(
+           """Only alphanumeric characters, dash '-' and underscore '_'
+            are allowed in the URL."""
+       );
+     }
+     if (match.group(1) != null) {
+       var group = match.group(1);
+       matcherParts.add(group);
+       _urlParts.add({'value': group, 'isVariable': false});
+     } else {
+       var group = match.group(2);
+       matcherParts.add("([^/]*)");
+       _variables.add(group);
+       _urlParts.add({'value': group, 'isVariable': true});
+     }
+   }
+
+   var tailRegExp = r"";
+   if(_anyTail){
+     tailRegExp = r"(.*)";
+   }
+
+   _matchExp = new RegExp(r"^" + _absolutePart + matcherParts.join('/') + tailRegExp + r"$");
+ }
+
+ /**
+  * Matches the [url] against the [Route] pattern and returns [Map] of matched.
+  * This is the inverse function to [Route.path].
+  */
+ Map match(String url) {
+   var match = _matchExp.firstMatch(url);
+
+   // If the [url] does not match, returns [null].
+   if (match == null) {
+     return null;
+   }
+
+   // Decode [url] parameters and fill them into [Map].
+   Map result = new Map();
+   for (var i = 0; i &lt; _variables.length; i++) {
+     result[_variables[i]] = Uri.decodeComponent(match.group(i + 1));
+   }
+
+   //Matched url after prefix
+   if(_anyTail){
+     result[PARAM_TAIL] = Uri.decodeComponent(match.group(_variables.length + 1));
+   }
+
+   return result;
+ }
+
+ /**
+  * Constructs the [url] using the [Route] pattern and values in [variables].
+  * This is theiInverse function to [Route.match].
+  * Accepts both [Map] as parameters.
+  * All [args] of [Route] must be provided.
+  */
+ String path(Map args) {
+   var parts = [];
+   for (var part in this._urlParts) {
+     var value = part['value'];
+     if (part['isVariable']) {
+       value = args[value];
+       if (value == null) {
+         throw new ArgumentError("Missing value for ${part['value']}.");
+       }
+     }
+     parts.add(Uri.encodeComponent(value));
+   }
+   if (_anyTail) {
+     parts.removeLast();
+     parts.add(args[PARAM_TAIL]);
+   }
+   return _absolutePart + parts.join('/');
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Route</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> url) <a class="anchor-link" href="#"
+              title="Permalink to Route.Route">#</a></h4>
+<div class="doc">
+<p>Constructs <a class="crossref" href="../clean_router.common/Route.html">Route</a> using <a class="crossref" href="http://api.dartlang.org/dart_core/String.html">String</a> pattern.</p>
+<p>Url is dividid into absolute and patter part.
+Pattern is divided to parts by slash '/' character. The slash must be the
+very first character of the pattern. Each part can be either static or
+placeholder. Static part can contain arbitrary number of <code>a-zA-Z0-9_-</code>
+characters. Placeholder part consists of variable name enclosed in curly
+braces. Variable name consists of any characters expect curly braces
+with the first character being not an underscore.</p>
+<pre class="source">
+Route(String url) {
+ String pattern;
+ if(url.startsWith(new RegExp(r'^(ht|f)tp(s?)://'))) {
+   int endOfAbsolutePart = url.indexOf('/', url.indexOf('://') + 3);
+   if(endOfAbsolutePart == -1) {
+     throw new FormatException('Absolute Url pattern has to have pattern part');
+   }
+   _absolutePart = url.substring(0, endOfAbsolutePart);
+   pattern = url.substring(endOfAbsolutePart);
+ }
+ else {
+   pattern = url;
+ }
+
+ if (pattern.isEmpty || pattern[0] != '/') {
+   throw new FormatException("Url pattern has to begin with '/' character.");
+ }
+ if(pattern[pattern.length - 1] == '*'){
+   _anyTail = true;
+   pattern = pattern.substring(0, pattern.length - 1);
+ }
+
+ RegExp exp = new RegExp(r"^(?:([\w-.]*)|{([^_{}][^{}]*)})$");
+
+ var matcherParts = new List();
+ var parts = pattern.split('/');
+ for (var part in parts) {
+   var match = exp.firstMatch(part);
+   if (match == null) {
+     throw new FormatException(
+         """Only alphanumeric characters, dash '-' and underscore '_'
+          are allowed in the URL."""
+     );
+   }
+   if (match.group(1) != null) {
+     var group = match.group(1);
+     matcherParts.add(group);
+     _urlParts.add({'value': group, 'isVariable': false});
+   } else {
+     var group = match.group(2);
+     matcherParts.add("([^/]*)");
+     _variables.add(group);
+     _urlParts.add({'value': group, 'isVariable': true});
+   }
+ }
+
+ var tailRegExp = r"";
+ if(_anyTail){
+   tailRegExp = r"(.*)";
+ }
+
+ _matchExp = new RegExp(r"^" + _absolutePart + matcherParts.join('/') + tailRegExp + r"$");
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="isAbsolute">
+<button class="show-code">Code</button>
+final         <strong>isAbsolute</strong> <a class="anchor-link"
+            href="#isAbsolute"
+            title="Permalink to Route.isAbsolute">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+get isAbsolute =&gt; _absolutePart.isNotEmpty;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="match">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> <strong>match</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> url) <a class="anchor-link" href="#match"
+              title="Permalink to Route.match">#</a></h4>
+<div class="doc">
+<p>Matches the 
+<span class="param">url</span> against the <a class="crossref" href="../clean_router.common/Route.html">Route</a> pattern and returns <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> of matched.
+This is the inverse function to <a class="crossref" href="../clean_router.common/Route.html#path">Route.path</a>.</p>
+<pre class="source">
+Map match(String url) {
+ var match = _matchExp.firstMatch(url);
+
+ // If the [url] does not match, returns [null].
+ if (match == null) {
+   return null;
+ }
+
+ // Decode [url] parameters and fill them into [Map].
+ Map result = new Map();
+ for (var i = 0; i &lt; _variables.length; i++) {
+   result[_variables[i]] = Uri.decodeComponent(match.group(i + 1));
+ }
+
+ //Matched url after prefix
+ if(_anyTail){
+   result[PARAM_TAIL] = Uri.decodeComponent(match.group(_variables.length + 1));
+ }
+
+ return result;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="path">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>path</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> args) <a class="anchor-link" href="#path"
+              title="Permalink to Route.path">#</a></h4>
+<div class="doc">
+<p>Constructs the <code>url</code> using the <a class="crossref" href="../clean_router.common/Route.html">Route</a> pattern and values in <code>variables</code>.
+This is theiInverse function to <a class="crossref" href="../clean_router.common/Route.html#match">Route.match</a>.
+Accepts both <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> as parameters.
+All 
+<span class="param">args</span> of <a class="crossref" href="../clean_router.common/Route.html">Route</a> must be provided.</p>
+<pre class="source">
+String path(Map args) {
+ var parts = [];
+ for (var part in this._urlParts) {
+   var value = part['value'];
+   if (part['isVariable']) {
+     value = args[value];
+     if (value == null) {
+       throw new ArgumentError("Missing value for ${part['value']}.");
+     }
+   }
+   parts.add(Uri.encodeComponent(value));
+ }
+ if (_anyTail) {
+   parts.removeLast();
+   parts.add(args[PARAM_TAIL]);
+ }
+ return _absolutePart + parts.join('/');
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

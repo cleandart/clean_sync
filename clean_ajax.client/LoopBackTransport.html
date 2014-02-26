@@ -1,0 +1,191 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>LoopBackTransport class / clean_ajax.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client" data-type="LoopBackTransport">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.client.html">clean_ajax.client</a> &rsaquo; <a href="../clean_ajax.client/LoopBackTransport.html">LoopBackTransport</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>LoopBackTransport</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Transport mechanism used on server, that directly uses <code>RequestHandler</code>,
+used by <code>createLoopBackConnection</code>.</p>
+<pre class="source">
+class LoopBackTransport extends Transport {
+ /**
+  * RequestFactory is a function like LoopBackRequest.request() that returns
+  * [Future&lt;LoopBackRequest&gt;].
+  */
+ final _sendLoopBackRequest;
+
+ /**
+  * Id of the user currently authenticated.
+  */
+ final _authenticatedUserId;
+
+ /**
+  * Indicates whether a [LoopBackRequest] is currently on the way.
+  */
+ bool _isRunning = false;
+
+ bool _isDirty;
+
+ LoopBackTransport(this._sendLoopBackRequest, [this._authenticatedUserId = null]);
+
+ markDirty() {
+   _isDirty = true;
+   performRequest();
+ }
+
+ bool _shouldSendLoopBackRequest() {
+   return !_isRunning &amp;&amp;
+       _isDirty;
+ }
+
+ void _openRequest() {
+   _isRunning = true;
+   _isDirty = false;
+ }
+
+ void _closeRequest() {
+   _isRunning = false;
+   performRequest();
+ }
+
+ /**
+  * Begins performing LoopBackRequest. Is not launched if another request is
+  * already running or the request Queue is empty. Sets [_isRunning] as true
+  * for the time this request is running and hooks up another request
+  * after this one.
+  */
+ void performRequest() {
+   if (!_shouldSendLoopBackRequest()) {
+     return;
+   }
+
+   _openRequest();
+
+   _sendLoopBackRequest(JSON.encode(_prepareRequest()), _authenticatedUserId)
+   .then((response) {
+     _handleResponse({'responses': response, 'authenticatedUserId': _authenticatedUserId});
+     _closeRequest();
+   }).catchError((e) =&gt; _handleError(new FailedRequestException()));
+
+ }
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_ajax.client/Transport.html">Transport</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>LoopBackTransport</strong></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>LoopBackTransport</strong>(_sendLoopBackRequest, [_authenticatedUserId = null]) <a class="anchor-link" href="#"
+              title="Permalink to LoopBackTransport.LoopBackTransport">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+LoopBackTransport(this._sendLoopBackRequest, [this._authenticatedUserId = null]);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="markDirty">
+<button class="show-code">Code</button>
+dynamic <strong>markDirty</strong>() <a class="anchor-link" href="#markDirty"
+              title="Permalink to LoopBackTransport.markDirty">#</a></h4>
+<div class="doc">
+<pre class="source">
+markDirty() {
+ _isDirty = true;
+ performRequest();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="performRequest">
+<button class="show-code">Code</button>
+void <strong>performRequest</strong>() <a class="anchor-link" href="#performRequest"
+              title="Permalink to LoopBackTransport.performRequest">#</a></h4>
+<div class="doc">
+<p>Begins performing LoopBackRequest. Is not launched if another request is
+already running or the request Queue is empty. Sets <a class="crossref" href="../clean_ajax.client/LoopBackTransport.html#_isRunning">_isRunning</a> as true
+for the time this request is running and hooks up another request
+after this one.</p>
+<pre class="source">
+void performRequest() {
+ if (!_shouldSendLoopBackRequest()) {
+   return;
+ }
+
+ _openRequest();
+
+ _sendLoopBackRequest(JSON.encode(_prepareRequest()), _authenticatedUserId)
+ .then((response) {
+   _handleResponse({'responses': response, 'authenticatedUserId': _authenticatedUserId});
+   _closeRequest();
+ }).catchError((e) =&gt; _handleError(new FailedRequestException()));
+
+}
+</pre>
+</div>
+</div>
+<div class="method inherited"><h4 id="setHandlers">
+<button class="show-code">Code</button>
+dynamic <strong>setHandlers</strong>(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) <a class="anchor-link" href="#setHandlers"
+              title="Permalink to LoopBackTransport.setHandlers">#</a></h4>
+<div class="inherited-from">inherited from <a href="../clean_ajax.client/Transport.html">Transport</a> </div><div class="doc">
+<pre class="source">
+setHandlers(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) {
+ _prepareRequest = prepareRequest;
+ _handleResponse = handleResponse;
+ _handleError = handleError;
+ _disconnectConnection = handleDisconnect == null ? (){} : handleDisconnect;
+ _reconnectConnection = handleReconnect == null ? (){} : handleReconnect;
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

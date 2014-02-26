@@ -1,0 +1,106 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>HttpRequestBody abstract class / http_server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="http_server" data-type="HttpRequestBody">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../http_server.html">http_server</a> &rsaquo; <a href="../http_server/HttpRequestBody.html">HttpRequestBody</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>HttpRequestBody</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>The <a class="crossref" href="../http_server/HttpBody.html">HttpBody</a> of a <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> will be of type <a class="crossref" href="../http_server/HttpRequestBody.html">HttpRequestBody</a>. It
+provides access to the request, for reading all request header information
+and responding to the client.</p>
+<pre class="source">
+abstract class HttpRequestBody extends HttpBody {
+ /**
+  * The [HttpRequest] from which the [HttpRequestBody] was created.
+  *
+  * Note that the [HttpRequest] is already drained at this point, so the
+  * `Stream` methods cannot be used.
+  */
+ HttpRequest get request;
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../http_server/HttpBody.html">HttpBody</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>HttpRequestBody</strong></span></p>
+<div>
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="body">
+<button class="show-code">Code</button>
+final         <strong>body</strong> <a class="anchor-link"
+            href="#body"
+            title="Permalink to HttpRequestBody.body">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../http_server/HttpBody.html">HttpBody</a> </div><div class="doc">
+<p>The actual body. The type depends on <a class="crossref" href="../http_server/HttpBody.html#type">type</a>.</p>
+<pre class="source">
+dynamic get body;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="request">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>         <strong>request</strong> <a class="anchor-link"
+            href="#request"
+            title="Permalink to HttpRequestBody.request">#</a>
+        </h4>
+        <div class="doc">
+<p>The <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> from which the <a class="crossref" href="../http_server/HttpRequestBody.html">HttpRequestBody</a> was created.</p>
+<p>Note that the <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a> is already drained at this point, so the
+<code>Stream</code> methods cannot be used.</p>
+<pre class="source">
+HttpRequest get request;
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="type">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>type</strong> <a class="anchor-link"
+            href="#type"
+            title="Permalink to HttpRequestBody.type">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../http_server/HttpBody.html">HttpBody</a> </div><div class="doc">
+<p>A high-level type value, that reflects how the body was parsed, e.g.
+"text", "binary" and "json".</p>
+<pre class="source">
+String get type;
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

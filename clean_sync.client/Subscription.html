@@ -1,0 +1,680 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Subscription class / clean_sync.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.client" data-type="Subscription">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.client.html">clean_sync.client</a> &rsaquo; <a href="../clean_sync.client/Subscription.html">Subscription</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Subscription</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class Subscription {
+ // constructor arguments:
+ String collectionName;
+ DataSet collection;
+ Connection _connection;
+ // author field is not used anymore; we are keeping it in the DB mainly for debugging
+ // and logging purposes
+ String _author;
+ IdGenerator _idGenerator;
+ Function _handleData = handleData;
+ Function _handleDiff = handleDiff;
+ // Used for testing and debugging. If true, data (instead of diff) is
+ // requested periodically.
+ bool _forceDataRequesting = false;
+ Map args = {};
+ // Maps _id of a document to Future, that completes when server response
+ // to document's update is completed
+ Map&lt;String, Future&gt; _sentItems = {};
+ // reflects changes to this.collection, that were not already sent to the server
+ ChangeSet _modifiedItems = new ChangeSet();
+ // flag used to prevent subscription to have multiple get_diff requests 'pending'.
+ // This is mainly solved by clean_ajax itself; however, following is still possible:
+ // 1. send_diff
+ // 2. response obtained, response listener notified, end
+ // 3. send_diff
+ // 4. response listener process diff requested in step 1.
+ // clearly, send_diff in step 3 can and should be avoided.
+ bool requestLock = false;
+ // this is another approach to obtain functionality formerly provided by clean_data
+ // authors; when applying changes obtained from server, use this flag to
+ // prevent detection and re-sending of these changes to the server
+ bool updateLock = false;
+ // all changes with version &lt; _version MUST be already applied by this subscription.
+ // Some of the later changes may also be applied; this happens, when collection
+ // applies user change, but is not synced to the very last version at that moment.
+ num _version = 0;
+
+ // version exposed only for testing and debugging
+ get version =&gt; _version;
+
+ String toString() =&gt; 'Subscription(${_author}, ver: ${_version})';
+ Completer _initialSync = new Completer();
+ List&lt;StreamSubscription&gt; _subscriptions = [];
+ StreamController _errorStreamController;
+ Stream get errorStream {
+   if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
+   return _errorStreamController.stream;
+ }
+
+ /// Completes after first request to get data is answered and handled.
+ Future get initialSync =&gt; _initialSync.future;
+
+ Subscription.config(this.collectionName, this.collection, this._connection,
+     this._author, this._idGenerator, this._handleData, this._handleDiff,
+     this._forceDataRequesting, [this.args]);
+
+ Subscription(this.collectionName, this._connection, this._author,
+     this._idGenerator, [this.args]) {
+   collection = new DataSet();
+   collection.addIndex(['_id']);
+   _errorStreamController = new StreamController.broadcast();
+   start();
+ }
+
+
+ /**
+  * Waits for initialSync of all provided subscriptions.
+  */
+ static Future wait(List&lt;Subscription&gt; subscriptions) {
+   return Future.wait(
+       subscriptions.map((subscription) =&gt; subscription.initialSync));
+ }
+
+ // TODO rename to something private-like
+ void setupListeners() {
+   _subscriptions.add(collection.onBeforeAdd.listen((data) {
+     // if data["_id"] is null, it was added by this client and _id should be
+     // assigned
+     if(data["_id"] == null) {
+       data["_id"] = _idGenerator.next();
+     }
+   }));
+
+   var change = new ChangeSet();
+
+   sendRequest(dynamic elem){
+       Future result = _connection.send((){
+         assert(_modifiedItems.changedItems.containsKey(elem));
+         var req;
+         if (_modifiedItems.addedItems.contains(elem)) {
+           req = new ClientRequest("sync", {
+             "action" : "add",
+             "collection" : collectionName,
+             "data" : elem,
+             'args': args,
+             "author" : _author
+           });
+         }
+         if (_modifiedItems.strictlyChanged.containsKey(elem)) {
+           req = new ClientRequest("sync", {
+             "action" : "change",
+             "collection" : collectionName,
+             'args': args,
+             "_id": elem["_id"],
+             "change" : elem,
+             "author" : _author
+           });
+         }
+         if (_modifiedItems.removedItems.contains(elem)) {
+           req = new ClientRequest("sync", {
+             "action" : "remove",
+             "collection" : collectionName,
+             'args': args,
+             "_id" : elem["_id"],
+             "author" : _author
+           });
+         }
+         _modifiedItems.changedItems.remove(elem);
+         return req;
+       }).then((result){
+         if (result is Map)
+           if (result['error'] != null)
+             _errorStreamController.add(result['error']);
+         return result;
+       }).catchError((e){
+         if(e is! CancelError) throw e;
+       });
+
+       var id = elem['_id'];
+       _sentItems[id] = result;
+       result.then((nextVersion){
+         // if the request that already finished was last request modifying
+         // current field, mark the field as free
+         if (_sentItems[id] == result) {
+           _sentItems.remove(id);
+           // if there are some more changes, sent them
+           if (_modifiedItems.changedItems.containsKey(elem)){
+             sendRequest(elem);
+           };
+         }
+       });
+   };
+
+   _subscriptions.add(collection.onChangeSync.listen((event) {
+     if (!this.updateLock) {
+       ChangeSet change = event['change'];
+       _modifiedItems.mergeIn(change);
+       for (var key in change.changedItems.keys) {
+         if (!_sentItems.containsKey(key['_id'])) {
+           sendRequest(key);
+         }
+       }
+     }
+   }));
+ }
+
+ _createDataRequest() =&gt; new ClientRequest("sync", {
+   "action" : "get_data",
+   "collection" : collectionName,
+   'args': args
+ });
+
+ _createDiffRequest() {
+   if (requestLock || _sentItems.isNotEmpty) {
+     return null;
+   } else {
+     requestLock = true;
+     return new ClientRequest("sync", {
+     "action" : "get_diff",
+     "collection" : collectionName,
+     'args': args,
+     "version" : _version
+     });
+   }
+ }
+
+ // TODO rename to something private-like
+ void setupDataRequesting() {
+   // request initial data
+   _connection.send(_createDataRequest).then((response) {
+     if (response['error'] != null) {
+       if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
+       else _errorStreamController.add(new DatabaseAccessError(response['error']));
+       return;
+     }
+     _version = response['version'];
+     _handleData(response['data'], this, _author);
+
+     logger.info("Got initial data, synced to version ${_version}");
+
+     // TODO remove the check? (restart/dispose should to sth about initialSynd)
+     if (!_initialSync.isCompleted) _initialSync.complete();
+
+     var subscription = _connection
+       .sendPeriodically(_forceDataRequesting ?
+           _createDataRequest : _createDiffRequest)
+       .listen((response) {
+         requestLock = false;
+         // id data and version was sent, diff is set to null
+         if (response['error'] != null) {
+           throw new Exception(response['error']);
+         }
+         if(response['diff'] == null) {
+           _version = response['version'];
+           _handleData(response['data'], this, _author);
+         } else {
+           if(!response['diff'].isEmpty) {
+             _version = max(_version, _handleDiff(response['diff'], this, _author));
+           } else {
+               if (response.containsKey('version'))
+                  _version = response['version'];
+           }
+         }
+       }, onError: (e){
+         if (e is! CancelError)throw e;
+       });
+     _subscriptions.add(subscription);
+   });
+ }
+
+ void start() {
+   setupListeners();
+   setupDataRequesting();
+ }
+
+ Future dispose() {
+   return Future.forEach(_subscriptions, (sub) =&gt; sub.cancel());
+ }
+
+ Future close() {
+   return dispose()
+     .then((_) =&gt;
+       Future.wait(_sentItems.values))
+     .then((_) =&gt;
+        new Future.delayed(new Duration(milliseconds: 100), (){
+         collection.dispose();
+   }));
+ }
+
+ Future restart([Map args]) {
+   this.args = args;
+   return dispose().then((_) {
+     start();
+   });
+ }
+
+ Stream onClose() {
+
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Static Methods</h3>
+<div class="method"><h4 id="wait">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>wait</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="../clean_sync.client/Subscription.html">Subscription</a>&gt; subscriptions) <a class="anchor-link" href="#wait"
+              title="Permalink to Subscription.wait">#</a></h4>
+<div class="doc">
+<p>Waits for initialSync of all provided subscriptions.</p>
+<pre class="source">
+static Future wait(List&lt;Subscription&gt; subscriptions) {
+ return Future.wait(
+     subscriptions.map((subscription) =&gt; subscription.initialSync));
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Subscription</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName, <a href="../clean_ajax.client/Connection.html">Connection</a> _connection, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _author, <a href="../clean_sync.client/IdGenerator.html">IdGenerator</a> _idGenerator, [<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> args]) <a class="anchor-link" href="#"
+              title="Permalink to Subscription.Subscription">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+Subscription(this.collectionName, this._connection, this._author,
+   this._idGenerator, [this.args]) {
+ collection = new DataSet();
+ collection.addIndex(['_id']);
+ _errorStreamController = new StreamController.broadcast();
+ start();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="config">
+<button class="show-code">Code</button>
+new <strong>Subscription.config</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> collectionName, <a href="../clean_data/DataSet.html">DataSet</a> collection, <a href="../clean_ajax.client/Connection.html">Connection</a> _connection, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _author, <a href="../clean_sync.client/IdGenerator.html">IdGenerator</a> _idGenerator, <a href="http://api.dartlang.org/dart_core/Function.html" ref="external">Function</a> _handleData, <a href="http://api.dartlang.org/dart_core/Function.html" ref="external">Function</a> _handleDiff, <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> _forceDataRequesting, [<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> args]) <a class="anchor-link" href="#config"
+              title="Permalink to Subscription.Subscription.config">#</a></h4>
+<div class="doc">
+<pre class="source">
+Subscription.config(this.collectionName, this.collection, this._connection,
+   this._author, this._idGenerator, this._handleData, this._handleDiff,
+   this._forceDataRequesting, [this.args]);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="args">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>         <strong>args</strong> <a class="anchor-link"
+            href="#args"
+            title="Permalink to Subscription.args">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Map args = {}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="collection">
+<button class="show-code">Code</button>
+<a href="../clean_data/DataSet.html">DataSet</a>         <strong>collection</strong> <a class="anchor-link"
+            href="#collection"
+            title="Permalink to Subscription.collection">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+DataSet collection
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="collectionName">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>collectionName</strong> <a class="anchor-link"
+            href="#collectionName"
+            title="Permalink to Subscription.collectionName">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+String collectionName
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="errorStream">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>         <strong>errorStream</strong> <a class="anchor-link"
+            href="#errorStream"
+            title="Permalink to Subscription.errorStream">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Stream get errorStream {
+ if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
+ return _errorStreamController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="initialSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>         <strong>initialSync</strong> <a class="anchor-link"
+            href="#initialSync"
+            title="Permalink to Subscription.initialSync">#</a>
+        </h4>
+        <div class="doc">
+<p>Completes after first request to get data is answered and handled.</p>
+<pre class="source">
+Future get initialSync =&gt; _initialSync.future;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="requestLock">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>requestLock</strong> <a class="anchor-link"
+            href="#requestLock"
+            title="Permalink to Subscription.requestLock">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+bool requestLock = false
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="updateLock">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>updateLock</strong> <a class="anchor-link"
+            href="#updateLock"
+            title="Permalink to Subscription.updateLock">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+bool updateLock = false
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="version">
+<button class="show-code">Code</button>
+final         <strong>version</strong> <a class="anchor-link"
+            href="#version"
+            title="Permalink to Subscription.version">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+get version =&gt; _version;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="close">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>close</strong>() <a class="anchor-link" href="#close"
+              title="Permalink to Subscription.close">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future close() {
+ return dispose()
+   .then((_) =&gt;
+     Future.wait(_sentItems.values))
+   .then((_) =&gt;
+      new Future.delayed(new Duration(milliseconds: 100), (){
+       collection.dispose();
+ }));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="dispose">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to Subscription.dispose">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future dispose() {
+ return Future.forEach(_subscriptions, (sub) =&gt; sub.cancel());
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="onClose">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a> <strong>onClose</strong>() <a class="anchor-link" href="#onClose"
+              title="Permalink to Subscription.onClose">#</a></h4>
+<div class="doc">
+<pre class="source">
+Stream onClose() {
+
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="restart">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>restart</strong>([<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> args]) <a class="anchor-link" href="#restart"
+              title="Permalink to Subscription.restart">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future restart([Map args]) {
+ this.args = args;
+ return dispose().then((_) {
+   start();
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setupDataRequesting">
+<button class="show-code">Code</button>
+void <strong>setupDataRequesting</strong>() <a class="anchor-link" href="#setupDataRequesting"
+              title="Permalink to Subscription.setupDataRequesting">#</a></h4>
+<div class="doc">
+<pre class="source">
+void setupDataRequesting() {
+ // request initial data
+ _connection.send(_createDataRequest).then((response) {
+   if (response['error'] != null) {
+     if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
+     else _errorStreamController.add(new DatabaseAccessError(response['error']));
+     return;
+   }
+   _version = response['version'];
+   _handleData(response['data'], this, _author);
+
+   logger.info("Got initial data, synced to version ${_version}");
+
+   // TODO remove the check? (restart/dispose should to sth about initialSynd)
+   if (!_initialSync.isCompleted) _initialSync.complete();
+
+   var subscription = _connection
+     .sendPeriodically(_forceDataRequesting ?
+         _createDataRequest : _createDiffRequest)
+     .listen((response) {
+       requestLock = false;
+       // id data and version was sent, diff is set to null
+       if (response['error'] != null) {
+         throw new Exception(response['error']);
+       }
+       if(response['diff'] == null) {
+         _version = response['version'];
+         _handleData(response['data'], this, _author);
+       } else {
+         if(!response['diff'].isEmpty) {
+           _version = max(_version, _handleDiff(response['diff'], this, _author));
+         } else {
+             if (response.containsKey('version'))
+                _version = response['version'];
+         }
+       }
+     }, onError: (e){
+       if (e is! CancelError)throw e;
+     });
+   _subscriptions.add(subscription);
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setupListeners">
+<button class="show-code">Code</button>
+void <strong>setupListeners</strong>() <a class="anchor-link" href="#setupListeners"
+              title="Permalink to Subscription.setupListeners">#</a></h4>
+<div class="doc">
+<pre class="source">
+void setupListeners() {
+ _subscriptions.add(collection.onBeforeAdd.listen((data) {
+   // if data["_id"] is null, it was added by this client and _id should be
+   // assigned
+   if(data["_id"] == null) {
+     data["_id"] = _idGenerator.next();
+   }
+ }));
+
+ var change = new ChangeSet();
+
+ sendRequest(dynamic elem){
+     Future result = _connection.send((){
+       assert(_modifiedItems.changedItems.containsKey(elem));
+       var req;
+       if (_modifiedItems.addedItems.contains(elem)) {
+         req = new ClientRequest("sync", {
+           "action" : "add",
+           "collection" : collectionName,
+           "data" : elem,
+           'args': args,
+           "author" : _author
+         });
+       }
+       if (_modifiedItems.strictlyChanged.containsKey(elem)) {
+         req = new ClientRequest("sync", {
+           "action" : "change",
+           "collection" : collectionName,
+           'args': args,
+           "_id": elem["_id"],
+           "change" : elem,
+           "author" : _author
+         });
+       }
+       if (_modifiedItems.removedItems.contains(elem)) {
+         req = new ClientRequest("sync", {
+           "action" : "remove",
+           "collection" : collectionName,
+           'args': args,
+           "_id" : elem["_id"],
+           "author" : _author
+         });
+       }
+       _modifiedItems.changedItems.remove(elem);
+       return req;
+     }).then((result){
+       if (result is Map)
+         if (result['error'] != null)
+           _errorStreamController.add(result['error']);
+       return result;
+     }).catchError((e){
+       if(e is! CancelError) throw e;
+     });
+
+     var id = elem['_id'];
+     _sentItems[id] = result;
+     result.then((nextVersion){
+       // if the request that already finished was last request modifying
+       // current field, mark the field as free
+       if (_sentItems[id] == result) {
+         _sentItems.remove(id);
+         // if there are some more changes, sent them
+         if (_modifiedItems.changedItems.containsKey(elem)){
+           sendRequest(elem);
+         };
+       }
+     });
+ };
+
+ _subscriptions.add(collection.onChangeSync.listen((event) {
+   if (!this.updateLock) {
+     ChangeSet change = event['change'];
+     _modifiedItems.mergeIn(change);
+     for (var key in change.changedItems.keys) {
+       if (!_sentItems.containsKey(key['_id'])) {
+         sendRequest(key);
+       }
+     }
+   }
+ }));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="start">
+<button class="show-code">Code</button>
+void <strong>start</strong>() <a class="anchor-link" href="#start"
+              title="Permalink to Subscription.start">#</a></h4>
+<div class="doc">
+<pre class="source">
+void start() {
+ setupListeners();
+ setupDataRequesting();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to Subscription.toString">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() =&gt; 'Subscription(${_author}, ver: ${_version})';
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

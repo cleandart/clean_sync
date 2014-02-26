@@ -1,0 +1,586 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Backend class / clean_backend Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_backend" data-type="Backend">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_backend.html">clean_backend</a> &rsaquo; <a href="../clean_backend/Backend.html">Backend</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Backend</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class Backend {
+ static final String COOKIE_PATH = "/";
+ static final bool COOKIE_HTTP_ONLY = true;
+
+ /**
+  * Register routes which are matched with request.uri .
+  */
+ final Router router;
+
+ /**
+  * Calls handlers associated with a particular routeName.
+  */
+ final RequestNavigator _requestNavigator;
+
+ /**
+  * Handles the incoming stream of [HttpRequest]s
+  */
+ final HttpServer _server;
+
+ List _defaulHttpHeaders = new List();
+
+ /**
+  * For cookies.
+  */
+ final _hmacFactory;
+
+ /**
+  * HttpBodyHandler.processRequest
+  */
+ final _httpBodyExtractor;
+
+ /**
+  * Default handler for NotFoundView.
+  */
+ RequestHandler _notFoundViewHandler = (Request request) {
+   request.response
+     ..statusCode = HttpStatus.NOT_FOUND
+     ..close();
+ };
+
+ /**
+  * Constructor.
+  */
+ Backend.config(this._server, this.router, this._requestNavigator,
+   this._hmacFactory, this._httpBodyExtractor) {
+   // Add default handler for not found views. Before not found view response
+   // is sent, check if URI ends with a slash and if not, try to add it.
+   _requestNavigator.registerDefaultHandler((httpRequest, urlParams)
+     =&gt; prepareRequestHandler(httpRequest, urlParams, (Request request) {
+       var uri = request.httpRequest.uri;
+       if (!uri.path.endsWith('/')) {
+         //we set request.httpRequest.response because of consistency
+         //  as (request.response := request.httpRequest.response)
+         request.httpRequest.response.redirect(new Uri(
+             scheme: uri.scheme,
+             host: uri.host,
+             port: uri.port,
+             path: uri.path + '/',
+             query: uri.query
+         ));
+       }
+       else{
+         _notFoundViewHandler(request);
+       }
+     }));
+ }
+
+ /**
+  * Creates a new backend.
+  */
+ static Future&lt;Backend&gt; bind(key, hashMethod, {String host: "0.0.0.0", int port: 8080}){
+   return HttpServer.bind(host, port).then((httpServer) {
+     var router = new Router("http://$host:$port", {});
+     var requestNavigator = new RequestNavigator(httpServer.asBroadcastStream(), router);
+     return new Backend.config(httpServer, router, requestNavigator,
+         () =&gt; new HMAC(hashMethod, key), HttpBodyHandler.processRequest);
+   });
+ }
+
+ /**
+  * Adds header which will be attached to each response. Could be overwritten.
+  */
+ void addDefaultHttpHeader(name, value) {
+   _defaulHttpHeaders.add({'name': name, 'value': value});
+ }
+
+ /**
+  * Transforms [httpRequest] with [urlParams] and creates [Request] which is
+  * passed asynchronously to [handler].
+  */
+ Future prepareRequestHandler(HttpRequest httpRequest, Map urlParams,
+   RequestHandler handler) {
+   return _httpBodyExtractor(httpRequest).then((HttpBody body) {
+
+     if (_defaulHttpHeaders != null) {
+       _defaulHttpHeaders.forEach((header) =&gt;
+           httpRequest.response.headers.add(header['name'], header['value']));
+     }
+
+     Request request = new Request(body.type, body.body, httpRequest.response,
+         httpRequest.headers, httpRequest, urlParams);
+     request.authenticatedUserId = getAuthenticatedUser(request.headers);
+
+     handler(request);
+     return true;
+   });
+ }
+
+ /**
+  * Adds [route] for a particular [route] so handler could be attached to [routeName]s.
+  */
+ void addRoute(String routeName, Route route){
+   router.addRoute(routeName, route);
+ }
+
+ /**
+  * Adds [handler] for a particular [routeName].
+  */
+ void addView(String routeName, RequestHandler handler) {
+   _requestNavigator.registerHandler(routeName, (httpRequest, urlParams)
+       =&gt; prepareRequestHandler(httpRequest, urlParams, handler));
+ }
+
+ /**
+  * Corresponding [Route] for [routeName] should be in the prefix format,
+  * i.e. "/uploads/*", as backend will look for files documentRoot/matchedSufix
+  */*/
+ void addStaticView(String routeName, String documentRoot) {
+   var vd = new VirtualDirectory(documentRoot);
+   _requestNavigator.registerHandler(routeName, (httpRequest, urlParams) {
+     var relativePath = urlParams['_tail'];
+     if (relativePath.split('/').contains('..')) {
+       httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+       httpRequest.response.close();
+       return;
+     }
+     String path = p.join(documentRoot, relativePath);
+     FileSystemEntity.type(path).then((type) {
+       switch (type) {
+         case FileSystemEntityType.FILE:
+           // If file, serve as such.
+           vd.serveFile(new File(path), httpRequest);
+           break;
+         case FileSystemEntityType.DIRECTORY:
+           // File not found, fall back to 404.
+           httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+           httpRequest.response.close();
+           break;
+         default:
+           // File not found, fall back to 404.
+           httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+           httpRequest.response.close();
+           break;
+        }
+     });
+   });
+ }
+
+ /**
+  * If nothing is matched. There is a default [_notFoundViewHandler], but it
+  * can be overwritten by this method.
+  */
+ void addNotFoundView(RequestHandler handler) {
+   _notFoundViewHandler = handler;
+ }
+
+ List&lt;int&gt; sign(String msg) {
+   HMAC hmac = _hmacFactory();
+   _stringToHash(msg, hmac);
+   return hmac.close();
+ }
+
+ bool verifySignature(String msg, List&lt;int&gt; signature) {
+   HMAC hmac = _hmacFactory();
+   _stringToHash(msg, hmac);
+   return hmac.verify(signature);
+ }
+
+ void _stringToHash(String value, HMAC hmac) {
+   Utf8Codec codec = new Utf8Codec();
+   List&lt;int&gt; encodedUserId = codec.encode(value);
+   hmac.add(encodedUserId);
+ }
+
+ void authenticate(HttpResponse response, String userId) {
+   List&lt;int&gt; userIdSignature = sign(userId);
+   Cookie cookie = new Cookie('authentication', JSON.encode({
+     'userID': userId, 'signature': userIdSignature}));
+   cookie.expires = new DateTime.now().add(new Duration(days: 365));
+   cookie.path = COOKIE_PATH;
+   cookie.httpOnly = COOKIE_HTTP_ONLY;
+   response.headers.add(HttpHeaders.SET_COOKIE, cookie);
+ }
+
+ String getAuthenticatedUser(HttpHeaders headers) {
+   if (headers[HttpHeaders.COOKIE] == null) {
+     return null;
+   }
+   for (String cookieString in headers[HttpHeaders.COOKIE]) {
+     Cookie cookie = new Cookie.fromSetCookieValue(cookieString);
+     if (cookie.name == 'authentication') {
+       Map authentication = JSON.decode(cookie.value);
+       if (verifySignature(authentication['userID'], authentication['signature'])) {
+         return authentication['userID'];
+       }
+     }
+   }
+   return null;
+ }
+
+ void logout(Request request) {
+       Cookie cookie = new Cookie('authentication', "");
+       cookie.expires = new DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+       cookie.path = COOKIE_PATH;
+       cookie.httpOnly = COOKIE_HTTP_ONLY;
+       request.response.headers.add(HttpHeaders.SET_COOKIE, cookie);
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Static Properties</h3>
+<div class="field"><h4 id="COOKIE_HTTP_ONLY">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>COOKIE_HTTP_ONLY</strong> <a class="anchor-link"
+            href="#COOKIE_HTTP_ONLY"
+            title="Permalink to Backend.COOKIE_HTTP_ONLY">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+static final bool COOKIE_HTTP_ONLY = true
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="COOKIE_PATH">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>COOKIE_PATH</strong> <a class="anchor-link"
+            href="#COOKIE_PATH"
+            title="Permalink to Backend.COOKIE_PATH">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+static final String COOKIE_PATH = "/"
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Static Methods</h3>
+<div class="method"><h4 id="bind">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="../clean_backend/Backend.html">Backend</a>&gt; <strong>bind</strong>(key, hashMethod, {<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> host: "0.0.0.0", <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> port: 8080}) <a class="anchor-link" href="#bind"
+              title="Permalink to Backend.bind">#</a></h4>
+<div class="doc">
+<p>Creates a new backend.</p>
+<pre class="source">
+static Future&lt;Backend&gt; bind(key, hashMethod, {String host: "0.0.0.0", int port: 8080}){
+ return HttpServer.bind(host, port).then((httpServer) {
+   var router = new Router("http://$host:$port", {});
+   var requestNavigator = new RequestNavigator(httpServer.asBroadcastStream(), router);
+   return new Backend.config(httpServer, router, requestNavigator,
+       () =&gt; new HMAC(hashMethod, key), HttpBodyHandler.processRequest);
+ });
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="config">
+<button class="show-code">Code</button>
+new <strong>Backend.config</strong>(<a href="http://api.dartlang.org/dart_io/HttpServer.html" ref="external">HttpServer</a> _server, <a href="../clean_router.common/Router.html">Router</a> router, <a href="../clean_router.server/RequestNavigator.html">RequestNavigator</a> _requestNavigator, _hmacFactory, _httpBodyExtractor) <a class="anchor-link" href="#config"
+              title="Permalink to Backend.Backend.config">#</a></h4>
+<div class="doc">
+<p>Constructor.</p>
+<pre class="source">
+Backend.config(this._server, this.router, this._requestNavigator,
+ this._hmacFactory, this._httpBodyExtractor) {
+ // Add default handler for not found views. Before not found view response
+ // is sent, check if URI ends with a slash and if not, try to add it.
+ _requestNavigator.registerDefaultHandler((httpRequest, urlParams)
+   =&gt; prepareRequestHandler(httpRequest, urlParams, (Request request) {
+     var uri = request.httpRequest.uri;
+     if (!uri.path.endsWith('/')) {
+       //we set request.httpRequest.response because of consistency
+       //  as (request.response := request.httpRequest.response)
+       request.httpRequest.response.redirect(new Uri(
+           scheme: uri.scheme,
+           host: uri.host,
+           port: uri.port,
+           path: uri.path + '/',
+           query: uri.query
+       ));
+     }
+     else{
+       _notFoundViewHandler(request);
+     }
+   }));
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="router">
+<button class="show-code">Code</button>
+final <a href="../clean_router.common/Router.html">Router</a>         <strong>router</strong> <a class="anchor-link"
+            href="#router"
+            title="Permalink to Backend.router">#</a>
+        </h4>
+        <div class="doc">
+<p>Register routes which are matched with request.uri .</p>
+<pre class="source">
+final Router router
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="addDefaultHttpHeader">
+<button class="show-code">Code</button>
+void <strong>addDefaultHttpHeader</strong>(name, value) <a class="anchor-link" href="#addDefaultHttpHeader"
+              title="Permalink to Backend.addDefaultHttpHeader">#</a></h4>
+<div class="doc">
+<p>Adds header which will be attached to each response. Could be overwritten.</p>
+<pre class="source">
+void addDefaultHttpHeader(name, value) {
+ _defaulHttpHeaders.add({'name': name, 'value': value});
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addNotFoundView">
+<button class="show-code">Code</button>
+void <strong>addNotFoundView</strong>(<a href="../clean_backend/RequestHandler.html">RequestHandler</a> handler) <a class="anchor-link" href="#addNotFoundView"
+              title="Permalink to Backend.addNotFoundView">#</a></h4>
+<div class="doc">
+<p>If nothing is matched. There is a default <a class="crossref" href="../clean_backend/Backend.html#_notFoundViewHandler">_notFoundViewHandler</a>, but it
+can be overwritten by this method.</p>
+<pre class="source">
+void addNotFoundView(RequestHandler handler) {
+ _notFoundViewHandler = handler;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addRoute">
+<button class="show-code">Code</button>
+void <strong>addRoute</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, <a href="../clean_router.common/Route.html">Route</a> route) <a class="anchor-link" href="#addRoute"
+              title="Permalink to Backend.addRoute">#</a></h4>
+<div class="doc">
+<p>Adds 
+<span class="param">route</span> for a particular 
+<span class="param">route</span> so handler could be attached to 
+<span class="param">routeName</span>s.</p>
+<pre class="source">
+void addRoute(String routeName, Route route){
+ router.addRoute(routeName, route);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addStaticView">
+<button class="show-code">Code</button>
+void <strong>addStaticView</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> documentRoot) <a class="anchor-link" href="#addStaticView"
+              title="Permalink to Backend.addStaticView">#</a></h4>
+<div class="doc">
+<p>Corresponding <a class="crossref" href="../clean_router.common/Route.html">Route</a> for 
+<span class="param">routeName</span> should be in the prefix format,
+i.e. "/uploads/*", as backend will look for files documentRoot/matchedSufix
+/</p>
+<pre class="source">
+void addStaticView(String routeName, String documentRoot) {
+ var vd = new VirtualDirectory(documentRoot);
+ _requestNavigator.registerHandler(routeName, (httpRequest, urlParams) {
+   var relativePath = urlParams['_tail'];
+   if (relativePath.split('/').contains('..')) {
+     httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+     httpRequest.response.close();
+     return;
+   }
+   String path = p.join(documentRoot, relativePath);
+   FileSystemEntity.type(path).then((type) {
+     switch (type) {
+       case FileSystemEntityType.FILE:
+         // If file, serve as such.
+         vd.serveFile(new File(path), httpRequest);
+         break;
+       case FileSystemEntityType.DIRECTORY:
+         // File not found, fall back to 404.
+         httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+         httpRequest.response.close();
+         break;
+       default:
+         // File not found, fall back to 404.
+         httpRequest.response.statusCode = HttpStatus.NOT_FOUND;
+         httpRequest.response.close();
+         break;
+      }
+   });
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addView">
+<button class="show-code">Code</button>
+void <strong>addView</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> routeName, <a href="../clean_backend/RequestHandler.html">RequestHandler</a> handler) <a class="anchor-link" href="#addView"
+              title="Permalink to Backend.addView">#</a></h4>
+<div class="doc">
+<p>Adds 
+<span class="param">handler</span> for a particular 
+<span class="param">routeName</span>.</p>
+<pre class="source">
+void addView(String routeName, RequestHandler handler) {
+ _requestNavigator.registerHandler(routeName, (httpRequest, urlParams)
+     =&gt; prepareRequestHandler(httpRequest, urlParams, handler));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="authenticate">
+<button class="show-code">Code</button>
+void <strong>authenticate</strong>(<a href="http://api.dartlang.org/dart_io/HttpResponse.html" ref="external">HttpResponse</a> response, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> userId) <a class="anchor-link" href="#authenticate"
+              title="Permalink to Backend.authenticate">#</a></h4>
+<div class="doc">
+<pre class="source">
+void authenticate(HttpResponse response, String userId) {
+ List&lt;int&gt; userIdSignature = sign(userId);
+ Cookie cookie = new Cookie('authentication', JSON.encode({
+   'userID': userId, 'signature': userIdSignature}));
+ cookie.expires = new DateTime.now().add(new Duration(days: 365));
+ cookie.path = COOKIE_PATH;
+ cookie.httpOnly = COOKIE_HTTP_ONLY;
+ response.headers.add(HttpHeaders.SET_COOKIE, cookie);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="getAuthenticatedUser">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>getAuthenticatedUser</strong>(<a href="http://api.dartlang.org/dart_io/HttpHeaders.html" ref="external">HttpHeaders</a> headers) <a class="anchor-link" href="#getAuthenticatedUser"
+              title="Permalink to Backend.getAuthenticatedUser">#</a></h4>
+<div class="doc">
+<pre class="source">
+String getAuthenticatedUser(HttpHeaders headers) {
+ if (headers[HttpHeaders.COOKIE] == null) {
+   return null;
+ }
+ for (String cookieString in headers[HttpHeaders.COOKIE]) {
+   Cookie cookie = new Cookie.fromSetCookieValue(cookieString);
+   if (cookie.name == 'authentication') {
+     Map authentication = JSON.decode(cookie.value);
+     if (verifySignature(authentication['userID'], authentication['signature'])) {
+       return authentication['userID'];
+     }
+   }
+ }
+ return null;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="logout">
+<button class="show-code">Code</button>
+void <strong>logout</strong>(<a href="../clean_backend/Request.html">Request</a> request) <a class="anchor-link" href="#logout"
+              title="Permalink to Backend.logout">#</a></h4>
+<div class="doc">
+<pre class="source">
+void logout(Request request) {
+     Cookie cookie = new Cookie('authentication', "");
+     cookie.expires = new DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+     cookie.path = COOKIE_PATH;
+     cookie.httpOnly = COOKIE_HTTP_ONLY;
+     request.response.headers.add(HttpHeaders.SET_COOKIE, cookie);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="prepareRequestHandler">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>prepareRequestHandler</strong>(<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> httpRequest, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> urlParams, <a href="../clean_backend/RequestHandler.html">RequestHandler</a> handler) <a class="anchor-link" href="#prepareRequestHandler"
+              title="Permalink to Backend.prepareRequestHandler">#</a></h4>
+<div class="doc">
+<p>Transforms 
+<span class="param">httpRequest</span> with 
+<span class="param">urlParams</span> and creates <a class="crossref" href="../clean_backend/Request.html">Request</a> which is
+passed asynchronously to 
+<span class="param">handler</span>.</p>
+<pre class="source">
+Future prepareRequestHandler(HttpRequest httpRequest, Map urlParams,
+ RequestHandler handler) {
+ return _httpBodyExtractor(httpRequest).then((HttpBody body) {
+
+   if (_defaulHttpHeaders != null) {
+     _defaulHttpHeaders.forEach((header) =&gt;
+         httpRequest.response.headers.add(header['name'], header['value']));
+   }
+
+   Request request = new Request(body.type, body.body, httpRequest.response,
+       httpRequest.headers, httpRequest, urlParams);
+   request.authenticatedUserId = getAuthenticatedUser(request.headers);
+
+   handler(request);
+   return true;
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="sign">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; <strong>sign</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> msg) <a class="anchor-link" href="#sign"
+              title="Permalink to Backend.sign">#</a></h4>
+<div class="doc">
+<pre class="source">
+List&lt;int&gt; sign(String msg) {
+ HMAC hmac = _hmacFactory();
+ _stringToHash(msg, hmac);
+ return hmac.close();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="verifySignature">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> <strong>verifySignature</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> msg, <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt; signature) <a class="anchor-link" href="#verifySignature"
+              title="Permalink to Backend.verifySignature">#</a></h4>
+<div class="doc">
+<pre class="source">
+bool verifySignature(String msg, List&lt;int&gt; signature) {
+ HMAC hmac = _hmacFactory();
+ _stringToHash(msg, hmac);
+ return hmac.verify(signature);
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,101 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>DataChangeListenersMixin&lt;T&gt; abstract class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="DataChangeListenersMixin&amp;lt;T&amp;gt;">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/DataChangeListenersMixin.html">DataChangeListenersMixin&lt;T&gt;</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>DataChangeListenersMixin&lt;T&gt;</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+abstract class DataChangeListenersMixin&lt;T&gt; {
+
+ void _markChanged(T key, changeSet);
+ void _notify({author});
+ /**
+  * Internal Set of data objects removed from Collection that still have DataListener listening.
+  */
+ Set&lt;T&gt; _removedObjects = new Set();
+ /**
+  * Internal set of listeners for change events on individual data objects.
+  */
+ final Map&lt;dynamic, StreamSubscription&gt; _dataListeners =
+     new Map&lt;dynamic, StreamSubscription&gt;();
+
+ /**
+  * Removes listeners to all objects which have been removed and stacked in [_removedObjects]
+  */
+ void _onBeforeNotify() {
+   // if this object was removed and then re-added in this event loop, don't
+   // destroy onChange listener to it.
+   for(T key in _removedObjects.toList()) {
+     _removeOnDataChangeListener(key);
+   }
+   _removedObjects.clear();
+ }
+
+ /**
+  * Starts listening to changes on [dataObj].
+  */
+ void _addOnDataChangeListener(T key, DataReference dataObj) {
+   if (_dataListeners.containsKey(dataObj)) return;
+
+   _dataListeners[key] = dataObj.onChangeSync.listen((changeEvent) {
+     _markChanged(key, changeEvent['change']);
+     _notify(author: changeEvent['author']);
+   });
+ }
+
+ /**
+  * Stops listening to changes on [dataObj]
+  * Second possibility is to add to [_removedObjects] and call [_onBeforeNotify]
+  */
+ void _removeAllOnDataChangeListeners() {
+   for(T key in _removedObjects.toList()) {
+     _removeOnDataChangeListener(key);
+   }
+ }
+
+ void _removeOnDataChangeListener(T key) {
+   if (_dataListeners.containsKey(key)) {
+     _dataListeners[key].cancel();
+     _dataListeners.remove(key);
+   }
+ }
+}
+</pre>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

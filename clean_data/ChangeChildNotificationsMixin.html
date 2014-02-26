@@ -1,0 +1,224 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>ChangeChildNotificationsMixin abstract class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="ChangeChildNotificationsMixin">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/ChangeChildNotificationsMixin.html">ChangeChildNotificationsMixin</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>ChangeChildNotificationsMixin</strong>
+          abstract class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+abstract class ChangeChildNotificationsMixin implements ChangeNotificationsMixin {
+ /**
+  * Holds pending changes.
+  */
+
+ ChangeSet _change;
+ ChangeSet _changeSync;
+
+ /**
+  * Internal set of listeners for change events on individual data objects.
+  */
+ Map&lt;dynamic, StreamSubscription&gt; _dataListeners;
+
+ _clearChanges() {
+   _change = null;
+   _changeSync = null;
+ }
+
+ _clearChangesSync() {
+   _changeSync = null;
+ }
+
+ _markAdded(dynamic key, dynamic value) {
+   if (_change == null) {
+     _change = new ChangeSet();
+   }
+   if (_changeSync == null) {
+     _changeSync = new ChangeSet();
+   }
+   if(_onBeforeAddedController != null) _onBeforeAddedController.add(key);
+   _changeSync.markAdded(key, value);
+   _change.markAdded(key, value);
+ }
+
+ _markRemoved(dynamic key, dynamic value) {
+   if (_change == null) {
+     _change = new ChangeSet();
+   }
+   if (_changeSync == null) {
+     _changeSync = new ChangeSet();
+   }
+   if(_onBeforeRemovedController != null) _onBeforeRemovedController.add(key);
+   _change.markRemoved(key, value);
+   _changeSync.markRemoved(key, value);
+ }
+
+ _markChanged(dynamic key, dynamic change) {
+   if (_change == null) {
+     _change = new ChangeSet();
+   }
+   if (_changeSync == null) {
+     _changeSync = new ChangeSet();
+   }
+   if(change is Change) {
+     if(change.oldValue == undefined &amp;&amp; _onBeforeAddedController != null)
+       _onBeforeAddedController.add(key);
+     if(change.newValue == undefined &amp;&amp; _onBeforeRemovedController != null)
+       _onBeforeRemovedController.add(key);
+   }
+   _change.markChanged(key, change);
+   _changeSync.markChanged(key, change);
+ }
+
+ /**
+  * Starts listening to changes on [dataObj].
+  */
+ void _addOnDataChangeListener(key, dataObj) {
+   if (_dataListeners == null){
+     _dataListeners = {};
+   }
+   if (_dataListeners.containsKey(key)) {
+     throw new Exception('Re-adding listener on key: $key, with dataObj: $dataObj in: $this.');
+   }
+
+   _dataListeners[key] = dataObj.onChangeSync.listen((changeEvent) {
+     _markChanged(key, changeEvent['change']);
+     _notify(author: changeEvent['author']);
+   });
+ }
+
+ void _removeOnDataChangeListener(key) {
+   if (_dataListeners == null){
+     return;
+   }
+   if (_dataListeners.containsKey(key)) {
+     _dataListeners[key].cancel();
+     _dataListeners.remove(key);
+   }
+ }
+
+ void _dispose() {
+   _closeChangeStreams();
+   if(_onBeforeAddedController != null) _onBeforeAddedController.close();
+   if(_onBeforeRemovedController != null) _onBeforeRemovedController.close();
+   if(_dataListeners != null) _dataListeners.forEach((K, V) =&gt; V.cancel());
+ }
+}
+</pre>
+</div>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a></span></p>
+<div class="inherited">
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to ChangeChildNotificationsMixin.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to ChangeChildNotificationsMixin.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to ChangeChildNotificationsMixin.onChange">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to ChangeChildNotificationsMixin.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">inherited from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,1296 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>MongoProvider class / clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server" data-type="MongoProvider">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.server.html">clean_sync.server</a> &rsaquo; <a href="../clean_sync.server/MongoProvider.html">MongoProvider</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>MongoProvider</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class MongoProvider implements DataProvider {
+ final DbCollection collection, _collectionHistory, _lock;
+ List&lt;Map&gt; _selectorList = [];
+ Map _sortParams = {};
+ List _excludeFields = [];
+ List _fields = [];
+ num _limit = NOLIMIT;
+ num _skip = NOSKIP;
+ Cache cache;
+
+ //for testing purposes
+ Future&lt;int&gt; get maxVersion =&gt; _maxVersion;
+
+ Future&lt;int&gt; get _maxVersion =&gt;
+     _collectionHistory.find(where.sortBy('version', descending : true)
+         .limit(1)).toList()
+     .then((data) =&gt; data.isEmpty? 0: data.first['version']);
+
+ Map get _rawSelector =&gt; {QUERY: _selectorList.isEmpty ?
+     {} : {AND: _selectorList}, ORDERBY: _sortParams};
+
+ MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
+
+
+ Future deleteHistory(num version) {
+   return _collectionHistory.remove({'version': {LT: version}});
+ }
+
+ MongoProvider fields(List&lt;String&gt; fields) {
+   var res = mpClone(this);
+   res._fields.addAll(fields);
+   return res;
+ }
+
+ MongoProvider excludeFields(List&lt;String&gt; excludeFields) {
+   var res = mpClone(this);
+   res._excludeFields.addAll(excludeFields);
+   return res;
+ }
+
+ MongoProvider find([Map params = const {}]) {
+   var res = mpClone(this);
+   res._selectorList.add(params);
+   return res;
+ }
+
+ MongoProvider sort(Map params) {
+   var res = mpClone(this);
+   res._sortParams.addAll(params);
+   return res;
+ }
+
+ MongoProvider limit(num value) {
+   var res = mpClone(this);
+   this._limit = value;
+   return res;
+ }
+
+ MongoProvider skip(num value) {
+   var res = mpClone(this);
+   res._skip = value;
+   return res;
+ }
+
+ String get repr{
+   return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
+ }
+
+
+ Future&lt;Map&gt; data({stripVersion: true}) {
+   return cache.putIfAbsent('data $repr', () =&gt; _data(stripVersion: stripVersion));
+ }
+
+ createSelector(Map selector, List fields, List excludeFields) {
+   var sel = new SelectorBuilder().raw(selector);
+   if (fields.isNotEmpty) {
+     sel.fields(fields);
+   }
+   if (excludeFields.isNotEmpty) {
+     sel.excludeFields(excludeFields);
+   }
+   return sel;
+ }
+
+ /**
+  * Returns data and version of this data.
+  */
+ Future&lt;Map&gt; _data({stripVersion: true}) {
+   var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
+   SelectorBuilder selector = createSelector(_rawSelector, __fields, _excludeFields)
+                              .limit(_limit).skip(_skip);
+   return collection.find(selector).toList().then((data) {
+     num watchID = startWatch('MP data ${collection.collectionName}');
+     // TODO _data should also return version!
+     //return _maxVersion.then((version) =&gt; {'data': data, 'version': version});
+     var version = data.length == 0 ? 0 : data.map((item) =&gt; item['__clean_version']).reduce(max);
+     if(stripVersion) _stripCleanVersion(data);
+     assert(version != null);
+     return {'data': data, 'version': version};
+   }).then((result) {
+     stopWatch(watchID);
+     return result;
+   });
+ }
+
+ Future add(Map data, String author) {
+   num nextVersion;
+   return _get_locks().then((_) =&gt;
+        collection.findOne({"_id" : data['_id']}))
+       .then((Map record) {
+         if(record != null) throw true;
+         }).
+       then((_) =&gt; _maxVersion).then((version) {
+       nextVersion = version + 1;
+       data[VERSION_FIELD_NAME] = nextVersion;
+       return collection.insert(data);
+     }).then((_) =&gt;
+       _collectionHistory.insert({
+         "before" : {},
+         "after" : data,
+         "action" : "add",
+         "author" : author,
+         "version" : nextVersion
+       })
+     ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+     .catchError((e) =&gt; _release_locks().then((_) {
+       if (e is! Exception){
+         return e;
+       } else {
+         throw e;
+       }
+     }));
+ }
+
+ Future addAll(List&lt;Map&gt; data, String author) {
+   num nextVersion;
+   return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+       nextVersion = version + 1;
+       data.forEach((elem) =&gt; elem[VERSION_FIELD_NAME] = nextVersion++);
+       return collection.insertAll(data);
+     }).then((_) =&gt;
+       _collectionHistory.insertAll(data.map((elem) =&gt;
+           {
+             "before" : {},
+             "after" : elem,
+             "action" : "add",
+             "author" : author,
+             "version" : elem[VERSION_FIELD_NAME]
+           }).toList(growable: false)),
+     onError: (e) {
+       // Errors thrown by MongoDatabase are Map objects with fields err, code,
+       // ...
+       return _release_locks().then((_) {
+         throw new MongoException(e);
+       });
+     }
+     ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+ }
+
+ Future deprecatedChange(String _id, Map change, String author) {
+   num nextVersion;
+   Map newRecord;
+   return _get_locks().then((_) =&gt; collection.findOne({"_id" : _id}))
+     .then((Map record) {
+       if(record == null) {
+         throw new MongoException(null,
+             'Change was not applied, document with id $_id does not exist.');
+       } else if (change.containsKey('_id') &amp;&amp; change['_id'] != _id) {
+         throw new MongoException(null,
+             'New document id ${change['_id']} should be same as old one $_id.');
+       } else {
+         return _maxVersion.then((version) {
+           nextVersion = version + 1;
+           newRecord = new Map.from(record);
+           newRecord.addAll(change);
+           newRecord[VERSION_FIELD_NAME] = nextVersion;
+           return collection.save(newRecord);
+         }).then((_) =&gt;
+           _collectionHistory.insert({
+             "before" : record,
+             "after" : newRecord,
+             "action" : "change",
+             "author" : author,
+             "version" : nextVersion
+           }));
+       }
+     },
+     onError: (e) {
+       // Errors thrown by MongoDatabase are Map objects with fields err, code,
+       // ...
+       return _release_locks().then((_) {
+         throw new MongoException(e);
+       });
+     }
+     ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+ }
+
+ //TODO: change means new data, rename it
+ Future change(String _id, Map change, String author) {
+   num nextVersion;
+   Map newRecord;
+   return _get_locks().then((_) =&gt; collection.findOne({"_id" : _id}))
+     .then((Map record) {
+       if(record == null) {
+         throw true;
+       } else if (change.containsKey('_id') &amp;&amp; change['_id'] != _id) {
+         throw new MongoException(null,
+             'New document id ${change['_id']} should be same as old one $_id.');
+       } else {
+         return _maxVersion.then((version) {
+           nextVersion = version + 1;
+           newRecord = change;
+           newRecord[VERSION_FIELD_NAME] = nextVersion;
+           return collection.save(newRecord);
+         }).then((_) =&gt;
+           _collectionHistory.insert({
+             "before" : record,
+             "after" : newRecord,
+             "action" : "change",
+             "author" : author,
+             "version" : nextVersion
+           }));
+       }
+     }).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+     .catchError((e) =&gt; _release_locks().then((_) {
+       if (e is! Exception){
+         return e;
+       } else {
+         throw e;
+       }
+     }));
+
+ }
+
+ Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+   num nextVersion;
+   List oldData;
+   return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+       nextVersion = version + 1;
+       num versionUpdate = nextVersion;
+       var prepare;
+       if(document.keys.any((K) =&gt; K.startsWith('\$'))) {
+         prepare = (doc) {
+           doc[SET][VERSION_FIELD_NAME] =  versionUpdate++;
+           return doc;
+         };
+         if(!document.containsKey(SET))
+           document[SET] = {};
+       }
+       else {
+         prepare = (doc) {
+           doc[VERSION_FIELD_NAME] =  versionUpdate++;
+           return doc;
+         };
+       }
+
+       var col = collection.find(selector);
+       return col.toList().then((data) {
+         oldData = data;
+         return Future.forEach(data,
+             (item) =&gt; collection.update({'_id': item['_id']},
+                 prepare(document), upsert: upsert, multiUpdate: multiUpdate,
+                 writeConcern: writeConcern));
+       });
+     }).then((_) {
+       return Future.forEach(oldData,
+         (oldItem) {
+           return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =&gt;
+           _collectionHistory.insert({
+             "before" : oldItem,
+             "after" : newItem.single,
+             "action" : "change",
+             "author" : author,
+             "version" : nextVersion++
+           }));
+         });
+       }).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+       .catchError( (e) {
+         // Errors thrown by MongoDatabase are Map objects with fields err, code,
+         // ...
+         return _release_locks().then((_) {
+           throw new MongoException(e);
+         });
+       });
+ }
+
+ Future remove(String _id, String author) {
+   num nextVersion;
+   return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+       nextVersion = version + 1;
+       return collection.findOne({'_id': _id});
+     }).then((record) {
+       if (record == null) {
+         throw true;
+       } else {
+         return collection.remove({'_id': _id}).then((_) =&gt;
+           _collectionHistory.insert({
+             "before" : record,
+             "after" : {},
+             "action" : "remove",
+             "author" : author,
+             "version" : nextVersion
+         }));
+       }
+     }
+     ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+     .catchError((e) =&gt; _release_locks().then((_) {
+       if (e is! Exception){
+         return e;
+       } else {
+         throw e;
+       }
+     }));
+ }
+
+ Future removeAll(query, String author) {
+   num nextVersion;
+   return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+       nextVersion = version + 1;
+       return collection.find(query).toList();
+     }).then((data) {
+       return collection.remove(query).then((_) =&gt;
+         _collectionHistory.insertAll(data.map((elem) =&gt; {
+           "before" : elem,
+           "after" : {},
+           "action" : "remove",
+           "author" : author,
+           "version" : nextVersion++
+       }).toList(growable: false)));
+     },
+     onError: (e) {
+       // Errors thrown by MongoDatabase are Map objects with fields err, code,
+       // ...
+       return _release_locks().then((_) {
+         throw new MongoException(e);
+       });
+     }
+     ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+ }
+
+ num diffCount = 0;
+
+ Future&lt;Map&gt; diffFromVersion(num version) {
+   return cache.putIfAbsent('version ${collection.collectionName}', () =&gt; _maxVersion)
+     .then((maxVer) {
+       if (maxVer == version) {
+         return {'diff': []};
+       }
+
+       addVer(Future&lt;Map&gt; diffRes) {
+         return diffRes.then((res) {
+           res['version'] = maxVer;
+           return res;
+         });
+       }
+
+       return cache.putIfAbsent('diff $version  $repr', () =&gt; addVer(_diffFromVersion(version)));
+     });
+ }
+
+ Future&lt;Map&gt; _diffFromVersion(num version) {
+   try{
+     return __diffFromVersion(version).then((d) {
+       return {'diff': d};
+     });
+   } on DiffNotPossibleException catch(e) {
+     return data().then((d) {
+       d['diff'] = null;
+       return d;
+     });
+   }
+ }
+
+ List pretify(List diff){
+   Set seen = new Set();
+   var res = [];
+   for (Map change in diff.reversed) {
+     if (change['_id'] is! String) {
+       throw new Exception('prettify: found ID that is not String ${change}');
+     }
+     var id = change['_id']+change['action'];
+     assert(id is String);
+     if (!seen.contains(id)) {
+       res.add(change);
+     }
+     seen.add(id);
+   }
+   return new List.from(res.reversed);
+ }
+
+ Future&lt;List&gt; __diffFromVersion(num version) {
+   // if (some case not covered so far) {
+   // throw new DiffNotPossibleException('diff not possible');
+   // selects records that fulfilled _selector before change
+   Map beforeSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
+   // selects records that fulfill _selector after change
+   Map afterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
+   // selects records that fulfill _selector before or after change
+   Map beforeOrAfterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
+
+   // {before: {GT: {}}} to handle selectors like {before.age: null}
+   List&lt;Map&gt; _beforeSelector = [{"version" : {GT : version}}, {"before" : {GT: {}}}];
+   List&lt;Map&gt; _afterSelector = [{"version" : {GT : version}}, {"after" : {GT: {}}}];
+   _selectorList.forEach((item) {
+     Map itemB = {};
+     Map itemA = {};
+     item.forEach((key, val) {
+       itemB["before.${key}"] = val;
+       itemA["after.${key}"] = val;
+     });
+     _beforeSelector.add(itemB);
+     _afterSelector.add(itemA);
+   });
+   beforeSelector[QUERY][AND] = _beforeSelector;
+   afterSelector[QUERY][AND] = _afterSelector;
+   beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
+                                       {AND: _afterSelector}];
+
+   beforeOrAfterSelector[QUERY]['version'] = {GT: version};
+
+   Set before, after;
+   List beforeOrAfter, diff;
+   // if someone wants to select field X this means, we need to select before.X
+   // and after.X, also we need everythoing from the top level (version, _id,
+   // author, action
+   List beforeOrAfterFields = [], beforeOrAfterExcludedFields = [];
+   for (String field in addFieldIfNotEmpty(this._fields, '_id')){
+     beforeOrAfterFields.add('before.$field');
+     beforeOrAfterFields.add('after.$field');
+   }
+   for (String field in this._excludeFields){
+     beforeOrAfterExcludedFields.add('before.$field');
+     beforeOrAfterExcludedFields.add('after.$field');
+   }
+   if (beforeOrAfterFields.isNotEmpty) {
+     beforeOrAfterFields.addAll(['version', '_id', 'author', 'action']);
+   }
+       return _collectionHistory.find(createSelector(beforeOrAfterSelector,
+                          beforeOrAfterFields, beforeOrAfterExcludedFields)).toList()
+       .then((result) {
+         beforeOrAfter = result;
+         if (beforeOrAfter.isEmpty){
+           throw [];
+         } else
+         return Future.wait([
+           _collectionHistory.find(createSelector(beforeSelector, ['_id'], [])).toList(),
+           _collectionHistory.find(createSelector(afterSelector, ['_id'], [])).toList()]);})
+       .then((results) {
+           before = new Set.from(results[0].map((d) =&gt; d['_id']));
+           after = new Set.from(results[1].map((d) =&gt; d['_id']));
+           diff = [];
+
+           beforeOrAfter.forEach((record) {
+             assert(record['version']&gt;version);
+
+             _stripCleanVersion(record['before']);
+             _stripCleanVersion(record['after']);
+
+             if(before.contains(record['_id']) &amp;&amp; after.contains(record['_id']))
+             {
+               // record was changed
+               diff.add({
+                 "action" : "change",
+                 "_id" : record["before"]["_id"],
+                 "before" : record["before"],
+                 "data" : record["after"],
+                 "version" : record["version"],
+                 "author" : record["author"],
+               });
+             } else if(before.contains(record['_id'])) {
+               // record was removed
+               diff.add({
+                 "action" : "remove",
+                 "_id" : record["before"]["_id"],
+                 "data" : record["before"],
+                 "version" : record["version"],
+                 "author" : record["author"],
+               });
+             } else {
+               // record was added
+               diff.add({
+                 "action" : "add",
+                 "_id" : record["after"]["_id"],
+                 "data" : record["after"],
+                 "version" : record["version"],
+                 "author" : record["author"],
+               });
+             }
+           });
+
+           if (_limit &gt; NOLIMIT || _skip &gt; NOSKIP) {
+             throw new Exception('not correctly implemented');
+             return _limitedDiffFromVersion(diff);
+           }
+
+           return pretify(diff);
+   }).catchError((e){
+    if (e is List) {
+      return e;
+    } else {
+      throw e;
+    }
+   });
+ }
+
+ num _defaultCompare(a, b) {
+   return Comparable.compare(a,b); //a.compareTo(b);
+ }
+
+ _getCompareFunction(bool reverse) {
+   if (reverse) {
+     return (a, b) =&gt; -1 * _defaultCompare(a, b);
+   }
+
+   return _defaultCompare;
+ }
+
+ _getComparator(Map sortParams) {
+   List&lt;Map&gt; fields = [];
+
+   sortParams.forEach((field, order) {
+     fields.add({"name" : field, "comparator" : _getCompareFunction(order == -1)});
+   });
+
+   return (Map item1, Map item2) {
+     String name;
+     num result = 0;
+
+     for (Map field in fields) {
+       name = field["name"];
+
+       result = field["comparator"](item1[name], item2[name]);
+
+       if (result != 0) {
+         break;
+       }
+     }
+
+     return result;
+   };
+ }
+
+ void _insertIntoSorted(List&lt;Map&gt; data, Map record, Map sortParams) {
+   data.add(record);
+   data.sort(_getComparator(sortParams));
+ }
+
+ Future&lt;List&lt;Map&gt;&gt; _limitedDiffFromVersion(List&lt;Map&gt; diff) {
+   return collection.find(where.raw(_rawSelector).limit(_skip + _limit + diff.length)).toList().then((data) {
+     return collection.find(where.raw(_rawSelector).limit(_limit).skip(_skip)).toList().then((currentData) {
+       List&lt;Map&gt; reversedDiff = diff.reversed.toList();
+       List&lt;Map&gt; clientData = new List.from(data);
+       List&lt;Map&gt; clientDiff = [];
+       num maxVersion = reversedDiff.isEmpty ? 0 : reversedDiff[0]["version"];
+       String defaultAuthor = "_clean_";
+
+       reversedDiff.forEach((Map change) {
+         if (change["action"] == "add") {
+           clientData.removeWhere((d) =&gt; d["_id"] == change["_id"]);
+         }
+         else if (change["action"] == "remove") {
+           _insertIntoSorted(clientData, change["data"], _sortParams);
+         }
+         else if (change["action"] == "change") {
+           Map record = clientData.firstWhere((d) =&gt; d["_id"] == change["_id"]);
+
+           if (record == null) {
+             //TODO: the record should be certainly in clientData, throw some nice exception here
+           }
+
+           record.addAll(slice(change["before"], change["data"].keys.toList()));
+           clientData.sort(_getComparator(_sortParams));
+
+           if (!record.containsKey("_metadata")) {
+             record["_metadata"] = {};
+           }
+
+           change["data"].forEach((name, value) {
+             if (!record["_metadata"].containsKey(name)) {
+               record["_metadata"][name] = value;
+             }
+           });
+
+         }
+       });
+
+       if (clientData.length &gt; _skip) {
+         clientData = clientData.getRange(_skip, [clientData.length, _skip + _limit].reduce(min)).toList();
+       }
+       else {
+         clientData = [];
+       }
+
+       Set clientDataSet = new Set.from(clientData.map((d) =&gt; d['_id']));
+       Set dataSet = new Set.from(currentData.map((d) =&gt; d['_id']));
+
+       // as these diffs are generated from two data views (not fetched from
+       // the DB), there is no way to tell the version nor author. These diffs
+       // have to be applied alltogether or not at all
+
+       clientData.forEach((Map clientRecord) {
+         if (dataSet.contains(clientRecord["_id"])) {
+           if (clientRecord.containsKey("_metadata")) {
+             clientDiff.add({
+               "action" : "change",
+               "_id" : clientRecord["_id"],
+               "data" : clientRecord["_metadata"],
+               "version" : maxVersion,
+               "author" : defaultAuthor,
+             });
+           }
+         }
+         else {
+           // data does not contain the clientRecord thus it needs to be removed
+           clientDiff.add({
+             "action" : "remove",
+             "_id" : clientRecord["_id"],
+             "version" : maxVersion,
+             "author" : defaultAuthor,
+           });
+         }
+       });
+
+       currentData.forEach((Map record) {
+         if (!clientDataSet.contains(record["_id"])) {
+           clientDiff.add({
+             "action" : "add",
+             "_id" : record["_id"],
+             "data" : record,
+             "version" : maxVersion,
+             "author" : defaultAuthor,
+           });
+         }
+       });
+
+       return clientDiff;
+     });
+   });
+ }
+
+ Future _get_locks() {
+   return _lock.insert({'_id': collection.collectionName}).then(
+     (_) =&gt; _lock.insert({'_id': _collectionHistory.collectionName}),
+     onError: (e) {
+       if(e['code'] == 11000) {
+         // duplicate key error index
+         return _get_locks();
+       } else {
+         throw(e);
+       }
+     }).then((_) =&gt; true);
+ }
+
+ Future _release_locks() {
+   return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =&gt;
+   _lock.remove({'_id': collection.collectionName})).then((_) =&gt;
+   true);
+ }
+
+ void _stripCleanVersion(dynamic data) {
+   if (data is Iterable) {
+     data.forEach((Map item) {
+       item.remove('__clean_version');
+     });
+   } else {
+     data.remove('__clean_version');
+   }
+ }
+}
+</pre>
+</div>
+<h3>Implements</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_sync.server/DataProvider.html">DataProvider</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>MongoProvider</strong>(<a href="../mongo_dart/DbCollection.html">DbCollection</a> collection, <a href="../mongo_dart/DbCollection.html">DbCollection</a> _collectionHistory, <a href="../mongo_dart/DbCollection.html">DbCollection</a> _lock, <a href="../clean_sync.server/Cache.html">Cache</a> cache) <a class="anchor-link" href="#"
+              title="Permalink to MongoProvider.MongoProvider">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="cache">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/Cache.html">Cache</a>         <strong>cache</strong> <a class="anchor-link"
+            href="#cache"
+            title="Permalink to MongoProvider.cache">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Cache cache
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="collection">
+<button class="show-code">Code</button>
+final <a href="../mongo_dart/DbCollection.html">DbCollection</a>         <strong>collection</strong> <a class="anchor-link"
+            href="#collection"
+            title="Permalink to MongoProvider.collection">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final DbCollection collection
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="diffCount">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a>         <strong>diffCount</strong> <a class="anchor-link"
+            href="#diffCount"
+            title="Permalink to MongoProvider.diffCount">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+num diffCount = 0
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="maxVersion">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>&gt;         <strong>maxVersion</strong> <a class="anchor-link"
+            href="#maxVersion"
+            title="Permalink to MongoProvider.maxVersion">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Future&lt;int&gt; get maxVersion =&gt; _maxVersion;
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="repr">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>repr</strong> <a class="anchor-link"
+            href="#repr"
+            title="Permalink to MongoProvider.repr">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+String get repr{
+ return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="add">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>add</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> data, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#add"
+              title="Permalink to MongoProvider.add">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future add(Map data, String author) {
+ num nextVersion;
+ return _get_locks().then((_) =&gt;
+      collection.findOne({"_id" : data['_id']}))
+     .then((Map record) {
+       if(record != null) throw true;
+       }).
+     then((_) =&gt; _maxVersion).then((version) {
+     nextVersion = version + 1;
+     data[VERSION_FIELD_NAME] = nextVersion;
+     return collection.insert(data);
+   }).then((_) =&gt;
+     _collectionHistory.insert({
+       "before" : {},
+       "after" : data,
+       "action" : "add",
+       "author" : author,
+       "version" : nextVersion
+     })
+   ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+   .catchError((e) =&gt; _release_locks().then((_) {
+     if (e is! Exception){
+       return e;
+     } else {
+       throw e;
+     }
+   }));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="addAll">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>addAll</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; data, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#addAll"
+              title="Permalink to MongoProvider.addAll">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future addAll(List&lt;Map&gt; data, String author) {
+ num nextVersion;
+ return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+     nextVersion = version + 1;
+     data.forEach((elem) =&gt; elem[VERSION_FIELD_NAME] = nextVersion++);
+     return collection.insertAll(data);
+   }).then((_) =&gt;
+     _collectionHistory.insertAll(data.map((elem) =&gt;
+         {
+           "before" : {},
+           "after" : elem,
+           "action" : "add",
+           "author" : author,
+           "version" : elem[VERSION_FIELD_NAME]
+         }).toList(growable: false)),
+   onError: (e) {
+     // Errors thrown by MongoDatabase are Map objects with fields err, code,
+     // ...
+     return _release_locks().then((_) {
+       throw new MongoException(e);
+     });
+   }
+   ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="change">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>change</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _id, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> change, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#change"
+              title="Permalink to MongoProvider.change">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future change(String _id, Map change, String author) {
+ num nextVersion;
+ Map newRecord;
+ return _get_locks().then((_) =&gt; collection.findOne({"_id" : _id}))
+   .then((Map record) {
+     if(record == null) {
+       throw true;
+     } else if (change.containsKey('_id') &amp;&amp; change['_id'] != _id) {
+       throw new MongoException(null,
+           'New document id ${change['_id']} should be same as old one $_id.');
+     } else {
+       return _maxVersion.then((version) {
+         nextVersion = version + 1;
+         newRecord = change;
+         newRecord[VERSION_FIELD_NAME] = nextVersion;
+         return collection.save(newRecord);
+       }).then((_) =&gt;
+         _collectionHistory.insert({
+           "before" : record,
+           "after" : newRecord,
+           "action" : "change",
+           "author" : author,
+           "version" : nextVersion
+         }));
+     }
+   }).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+   .catchError((e) =&gt; _release_locks().then((_) {
+     if (e is! Exception){
+       return e;
+     } else {
+       throw e;
+     }
+   }));
+
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="createSelector">
+<button class="show-code">Code</button>
+dynamic <strong>createSelector</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> selector, <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> fields, <a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> excludeFields) <a class="anchor-link" href="#createSelector"
+              title="Permalink to MongoProvider.createSelector">#</a></h4>
+<div class="doc">
+<pre class="source">
+createSelector(Map selector, List fields, List excludeFields) {
+ var sel = new SelectorBuilder().raw(selector);
+ if (fields.isNotEmpty) {
+   sel.fields(fields);
+ }
+ if (excludeFields.isNotEmpty) {
+   sel.excludeFields(excludeFields);
+ }
+ return sel;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="data">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; <strong>data</strong>({stripVersion: true}) <a class="anchor-link" href="#data"
+              title="Permalink to MongoProvider.data">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns collection of items in the following form:
+{'data': [List<Map>] data, 'version': <a class="crossref" href="http://api.dartlang.org/dart_core/num.html">num</a> version_num}</p>
+<div class="docs-inherited-from">docs inherited from <a href="../clean_sync.server/DataProvider.html">DataProvider</a> </div></div>
+<pre class="source">
+Future&lt;Map&gt; data({stripVersion: true}) {
+ return cache.putIfAbsent('data $repr', () =&gt; _data(stripVersion: stripVersion));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="deleteHistory">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>deleteHistory</strong>(<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> version) <a class="anchor-link" href="#deleteHistory"
+              title="Permalink to MongoProvider.deleteHistory">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future deleteHistory(num version) {
+ return _collectionHistory.remove({'version': {LT: version}});
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="deprecatedChange">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>deprecatedChange</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _id, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> change, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#deprecatedChange"
+              title="Permalink to MongoProvider.deprecatedChange">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future deprecatedChange(String _id, Map change, String author) {
+ num nextVersion;
+ Map newRecord;
+ return _get_locks().then((_) =&gt; collection.findOne({"_id" : _id}))
+   .then((Map record) {
+     if(record == null) {
+       throw new MongoException(null,
+           'Change was not applied, document with id $_id does not exist.');
+     } else if (change.containsKey('_id') &amp;&amp; change['_id'] != _id) {
+       throw new MongoException(null,
+           'New document id ${change['_id']} should be same as old one $_id.');
+     } else {
+       return _maxVersion.then((version) {
+         nextVersion = version + 1;
+         newRecord = new Map.from(record);
+         newRecord.addAll(change);
+         newRecord[VERSION_FIELD_NAME] = nextVersion;
+         return collection.save(newRecord);
+       }).then((_) =&gt;
+         _collectionHistory.insert({
+           "before" : record,
+           "after" : newRecord,
+           "action" : "change",
+           "author" : author,
+           "version" : nextVersion
+         }));
+     }
+   },
+   onError: (e) {
+     // Errors thrown by MongoDatabase are Map objects with fields err, code,
+     // ...
+     return _release_locks().then((_) {
+       throw new MongoException(e);
+     });
+   }
+   ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="diffFromVersion">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt; <strong>diffFromVersion</strong>(<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> version) <a class="anchor-link" href="#diffFromVersion"
+              title="Permalink to MongoProvider.diffFromVersion">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns collection of items in the following form:
+ {'diff': [List<Map>]} or
+ {'diff': null, 'data': [List<Map>] data, 'version': <a class="crossref" href="http://api.dartlang.org/dart_core/num.html">num</a> version_num}</p>
+<p> If 'diff' value is not null, items in the list are of following form:
+ {'action': 'add'/'change',
+  '<em>id': 'value0',
+  'author': 'Some String',
+  'data': {'</em>id': 'value0', 'field1': 'value1', 'field2': 'value2', ...}
+  'version': 5}</p>
+<p> or</p>
+<p> {'action': 'remove',
+  '_id': 'value0',
+  'author': 'Some String',
+  'version': 5}</p>
+<p> In case of 'add', value of 'data' is a <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> representing new data that
+ was added. In case of 'change', value of 'data' is a <a class="crossref" href="http://api.dartlang.org/dart_core/Map.html">Map</a> containing new
+ key-value pairs and/or pairs of already existing keys and updated values.</p>
+<div class="docs-inherited-from">docs inherited from <a href="../clean_sync.server/DataProvider.html">DataProvider</a> </div></div>
+<pre class="source">
+Future&lt;Map&gt; diffFromVersion(num version) {
+ return cache.putIfAbsent('version ${collection.collectionName}', () =&gt; _maxVersion)
+   .then((maxVer) {
+     if (maxVer == version) {
+       return {'diff': []};
+     }
+
+     addVer(Future&lt;Map&gt; diffRes) {
+       return diffRes.then((res) {
+         res['version'] = maxVer;
+         return res;
+       });
+     }
+
+     return cache.putIfAbsent('diff $version  $repr', () =&gt; addVer(_diffFromVersion(version)));
+   });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="excludeFields">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>excludeFields</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>&gt; excludeFields) <a class="anchor-link" href="#excludeFields"
+              title="Permalink to MongoProvider.excludeFields">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider excludeFields(List&lt;String&gt; excludeFields) {
+ var res = mpClone(this);
+ res._excludeFields.addAll(excludeFields);
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="fields">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>fields</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a>&lt;<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>&gt; fields) <a class="anchor-link" href="#fields"
+              title="Permalink to MongoProvider.fields">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider fields(List&lt;String&gt; fields) {
+ var res = mpClone(this);
+ res._fields.addAll(fields);
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="find">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>find</strong>([<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> params = const{}]) <a class="anchor-link" href="#find"
+              title="Permalink to MongoProvider.find">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider find([Map params = const {}]) {
+ var res = mpClone(this);
+ res._selectorList.add(params);
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="limit">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>limit</strong>(<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> value) <a class="anchor-link" href="#limit"
+              title="Permalink to MongoProvider.limit">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider limit(num value) {
+ var res = mpClone(this);
+ this._limit = value;
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="pretify">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> <strong>pretify</strong>(<a href="http://api.dartlang.org/dart_core/List.html" ref="external">List</a> diff) <a class="anchor-link" href="#pretify"
+              title="Permalink to MongoProvider.pretify">#</a></h4>
+<div class="doc">
+<pre class="source">
+List pretify(List diff){
+ Set seen = new Set();
+ var res = [];
+ for (Map change in diff.reversed) {
+   if (change['_id'] is! String) {
+     throw new Exception('prettify: found ID that is not String ${change}');
+   }
+   var id = change['_id']+change['action'];
+   assert(id is String);
+   if (!seen.contains(id)) {
+     res.add(change);
+   }
+   seen.add(id);
+ }
+ return new List.from(res.reversed);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="remove">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>remove</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _id, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#remove"
+              title="Permalink to MongoProvider.remove">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future remove(String _id, String author) {
+ num nextVersion;
+ return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+     nextVersion = version + 1;
+     return collection.findOne({'_id': _id});
+   }).then((record) {
+     if (record == null) {
+       throw true;
+     } else {
+       return collection.remove({'_id': _id}).then((_) =&gt;
+         _collectionHistory.insert({
+           "before" : record,
+           "after" : {},
+           "action" : "remove",
+           "author" : author,
+           "version" : nextVersion
+       }));
+     }
+   }
+   ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+   .catchError((e) =&gt; _release_locks().then((_) {
+     if (e is! Exception){
+       return e;
+     } else {
+       throw e;
+     }
+   }));
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="removeAll">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>removeAll</strong>(query, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author) <a class="anchor-link" href="#removeAll"
+              title="Permalink to MongoProvider.removeAll">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future removeAll(query, String author) {
+ num nextVersion;
+ return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+     nextVersion = version + 1;
+     return collection.find(query).toList();
+   }).then((data) {
+     return collection.remove(query).then((_) =&gt;
+       _collectionHistory.insertAll(data.map((elem) =&gt; {
+         "before" : elem,
+         "after" : {},
+         "action" : "remove",
+         "author" : author,
+         "version" : nextVersion++
+     }).toList(growable: false)));
+   },
+   onError: (e) {
+     // Errors thrown by MongoDatabase are Map objects with fields err, code,
+     // ...
+     return _release_locks().then((_) {
+       throw new MongoException(e);
+     });
+   }
+   ).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="skip">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>skip</strong>(<a href="http://api.dartlang.org/dart_core/num.html" ref="external">num</a> value) <a class="anchor-link" href="#skip"
+              title="Permalink to MongoProvider.skip">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider skip(num value) {
+ var res = mpClone(this);
+ res._skip = value;
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="sort">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/MongoProvider.html">MongoProvider</a> <strong>sort</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> params) <a class="anchor-link" href="#sort"
+              title="Permalink to MongoProvider.sort">#</a></h4>
+<div class="doc">
+<pre class="source">
+MongoProvider sort(Map params) {
+ var res = mpClone(this);
+ res._sortParams.addAll(params);
+ return res;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="update">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>update</strong>(selector, <a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> document, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> author, {<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> upsert: false, <a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a> multiUpdate: false, <a href="../mongo_dart/WriteConcern.html">WriteConcern</a> writeConcern}) <a class="anchor-link" href="#update"
+              title="Permalink to MongoProvider.update">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+ num nextVersion;
+ List oldData;
+ return _get_locks().then((_) =&gt; _maxVersion).then((version) {
+     nextVersion = version + 1;
+     num versionUpdate = nextVersion;
+     var prepare;
+     if(document.keys.any((K) =&gt; K.startsWith('\$'))) {
+       prepare = (doc) {
+         doc[SET][VERSION_FIELD_NAME] =  versionUpdate++;
+         return doc;
+       };
+       if(!document.containsKey(SET))
+         document[SET] = {};
+     }
+     else {
+       prepare = (doc) {
+         doc[VERSION_FIELD_NAME] =  versionUpdate++;
+         return doc;
+       };
+     }
+
+     var col = collection.find(selector);
+     return col.toList().then((data) {
+       oldData = data;
+       return Future.forEach(data,
+           (item) =&gt; collection.update({'_id': item['_id']},
+               prepare(document), upsert: upsert, multiUpdate: multiUpdate,
+               writeConcern: writeConcern));
+     });
+   }).then((_) {
+     return Future.forEach(oldData,
+       (oldItem) {
+         return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =&gt;
+         _collectionHistory.insert({
+           "before" : oldItem,
+           "after" : newItem.single,
+           "action" : "change",
+           "author" : author,
+           "version" : nextVersion++
+         }));
+       });
+     }).then((_) =&gt; _release_locks()).then((_) =&gt; nextVersion)
+     .catchError( (e) {
+       // Errors thrown by MongoDatabase are Map objects with fields err, code,
+       // ...
+       return _release_locks().then((_) {
+         throw new MongoException(e);
+       });
+     });
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

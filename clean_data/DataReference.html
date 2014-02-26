@@ -1,0 +1,297 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>DataReference class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="DataReference">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/DataReference.html">DataReference</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>DataReference</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Observable object, which represents single primitive in Data.</p>
+<pre class="source">
+class DataReference extends Object with ChangeNotificationsMixin, ChangeValueNotificationsMixin{
+
+ /**
+  * Encapsulated value
+  */
+ dynamic _value;
+
+ StreamSubscription _onDataChangeListener, _onDataChangeSyncListener;
+
+ /**
+  * Return value of a primitive type.
+  */
+ get value =&gt; _value;
+
+ /**
+  * Change value of primitive type and notify listeners.
+  */
+ set value(newValue) {
+   changeValue(newValue);
+ }
+
+ _silentChangeValue(newValue){
+   assert(newValue is! DataReference);
+   _value = newValue;
+
+   if(_onDataChangeListener != null) {
+     _onDataChangeListener.cancel();
+     _onDataChangeListener = null;
+   }
+   if(_onDataChangeSyncListener != null) {
+     _onDataChangeSyncListener.cancel();
+     _onDataChangeSyncListener = null;
+   }
+
+   if(newValue is ChangeNotificationsMixin) {
+     _onDataChangeSyncListener = newValue.onChangeSync.listen((changeEvent) {
+       _onChangeSyncController.add(changeEvent);
+     });
+     _onDataChangeListener = newValue.onChange.listen((changeEvent) {
+       // due to its lazy initialization, _onChangeController does not need to
+       // exist; if not ignore the change, no one is listening!
+       if (_onChangeController != null) {
+         _onChangeController.add(changeEvent);
+       }
+     });
+   }
+
+ }
+
+ changeValue(newValue, {author: null}) {
+   _markChanged(this._value, newValue);
+   _silentChangeValue(newValue);
+   _notify(author: author);
+ }
+
+ /**
+  * Creates new DataReference with [value]
+  */
+ DataReference(value) {
+   _silentChangeValue(value);
+   _clearChanges();
+   _clearChangesSync();
+ }
+
+ void dispose() {
+   _dispose();
+   if (_onDataChangeListener != null) {
+     _onDataChangeListener.cancel();
+   }
+   if (_onDataChangeSyncListener != null) {
+     _onDataChangeSyncListener.cancel();
+   }
+
+ }
+
+ String toString() =&gt; 'Ref(${_value.toString()})';
+}
+</pre>
+</div>
+<h3>Mixins</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a></span>, <span class="type-box"><span class="icon-class"></span><a href="../clean_data/ChangeValueNotificationsMixin.html">ChangeValueNotificationsMixin</a></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>DataReference</strong>(value) <a class="anchor-link" href="#"
+              title="Permalink to DataReference.DataReference">#</a></h4>
+<div class="doc">
+<p>Creates new DataReference with 
+<span class="param">value</span></p>
+<pre class="source">
+DataReference(value) {
+ _silentChangeValue(value);
+ _clearChanges();
+ _clearChangesSync();
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field inherited"><h4 id="onBeforeAdd">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeAdd</strong> <a class="anchor-link"
+            href="#onBeforeAdd"
+            title="Permalink to DataReference.onBeforeAdd">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is added.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeAdd {
+ if(_onBeforeAddedController == null) {
+   _onBeforeAddedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeAddedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onBeforeRemove">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;dynamic&gt;         <strong>onBeforeRemove</strong> <a class="anchor-link"
+            href="#onBeforeRemove"
+            title="Permalink to DataReference.onBeforeRemove">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/DataMapView.html">DataMapView</a> events before any
+data object is removed.</p>
+<pre class="source">
+Stream&lt;dynamic&gt; get onBeforeRemove {
+ if(_onBeforeRemovedController == null) {
+   _onBeforeRemovedController =
+       new StreamController.broadcast(sync: true);
+ }
+ return _onBeforeRemovedController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChange">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="../clean_data/ChangeSet.html">ChangeSet</a>&gt;         <strong>onChange</strong> <a class="anchor-link"
+            href="#onChange"
+            title="Permalink to DataReference.onChange">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a> events whenever the collection or any
+of data object contained gets changed.</p>
+<pre class="source">
+Stream&lt;ChangeSet&gt; get onChange {
+ if(_onChangeController == null) {
+   _onChangeController =
+       new StreamController.broadcast();
+ }
+ return _onChangeController.stream;
+}
+</pre>
+</div>
+</div>
+<div class="field inherited"><h4 id="onChangeSync">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a>&gt;         <strong>onChangeSync</strong> <a class="anchor-link"
+            href="#onChangeSync"
+            title="Permalink to DataReference.onChangeSync">#</a>
+        </h4>
+        <div class="inherited-from">mixed in from <a href="../clean_data/ChangeNotificationsMixin.html">ChangeNotificationsMixin</a> </div><div class="doc">
+<p>Stream populated with {'change': <a class="crossref" href="../clean_data/ChangeSet.html">ChangeSet</a>, 'author': <code>dynamic</code>} events
+synchronously at the moment when the collection or any data object contained
+gets changed.</p>
+<pre class="source">
+Stream&lt;Map&gt; get onChangeSync =&gt; _onChangeSyncController.stream;
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="value">
+<button class="show-code">Code</button>
+dynamic <strong>get value</strong> <a class="anchor-link" href="#value"
+              title="Permalink to DataReference.get value">#</a></h4>
+<div class="doc">
+<p>Return value of a primitive type.</p>
+<pre class="source">
+get value =&gt; _value;
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="value=">
+<button class="show-code">Code</button>
+dynamic <strong>set value</strong>(newValue) <a class="anchor-link" href="#value="
+              title="Permalink to DataReference.set value">#</a></h4>
+<div class="doc">
+<p>Change value of primitive type and notify listeners.</p>
+<pre class="source">
+set value(newValue) {
+ changeValue(newValue);
+}
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="changeValue">
+<button class="show-code">Code</button>
+dynamic <strong>changeValue</strong>(newValue, {author: null}) <a class="anchor-link" href="#changeValue"
+              title="Permalink to DataReference.changeValue">#</a></h4>
+<div class="doc">
+<pre class="source">
+changeValue(newValue, {author: null}) {
+ _markChanged(this._value, newValue);
+ _silentChangeValue(newValue);
+ _notify(author: author);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="dispose">
+<button class="show-code">Code</button>
+void <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to DataReference.dispose">#</a></h4>
+<div class="doc">
+<pre class="source">
+void dispose() {
+ _dispose();
+ if (_onDataChangeListener != null) {
+   _onDataChangeListener.cancel();
+ }
+ if (_onDataChangeSyncListener != null) {
+   _onDataChangeSyncListener.cancel();
+ }
+
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="toString">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> <strong>toString</strong>() <a class="anchor-link" href="#toString"
+              title="Permalink to DataReference.toString">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Returns a string representation of this object.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+String toString() =&gt; 'Ref(${_value.toString()})';
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

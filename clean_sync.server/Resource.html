@@ -1,0 +1,229 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>Resource class / clean_sync.server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_sync.server" data-type="Resource">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_sync.server.html">clean_sync.server</a> &rsaquo; <a href="../clean_sync.server/Resource.html">Resource</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>Resource</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class Resource {
+ DataGenerator generator;
+ Function beforeRequestCallback;
+
+ Future handleSyncRequest (Map data) {
+   num watchID = startWatch('${data["action"]}, ${data['collection']}');
+
+   var action = data["action"];
+   var reqVersion = data['version'];
+   List&lt;String&gt; modifications = ['add', 'change', 'remove'];
+
+   Future beforeRequest = new Future.value(null);
+   if (beforeRequestCallback != null &amp;&amp; modifications.contains(action)) {
+     var value;
+     if (action == 'add') value = data['data'];
+     else if (action == 'change') value = data['change'];
+     else if (action == 'remove') value = {};
+     beforeRequest = beforeRequestCallback(value, data['args']);
+   }
+
+   DataProvider dp;
+
+   return beforeRequest
+     .then((_) =&gt; generator(data['args']))
+     .then((DataProvider _dp) {
+       dp = _dp;
+       if (action == "get_data") {
+         return dp.data().then((result) {
+           stopWatch(watchID);
+           return result;
+         });
+       }
+       else if(action == "get_diff") {
+         return dp.diffFromVersion(reqVersion)
+           .then((result) {
+               stopWatch(watchID);
+               return result;
+            });
+       }
+       else if (action == "add") {
+         return dp.add(data['data'], data['author'])
+         .then((result) {
+           stopWatch(watchID);
+           return result;
+         });
+       }
+       else if (action == "change") {
+         return dp.change(data['_id'], data['change'], data['author'])
+             .then((result) {
+               stopWatch(watchID);
+               return result;
+             });
+       }
+       else if (action == "remove") {
+         return dp.remove(data['_id'], data['author'])
+             .then((result) {
+               stopWatch(watchID);
+               return result;
+             });
+       }
+     });
+
+ }
+
+ Resource(this.generator, this.beforeRequestCallback);
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>Resource</strong>(<a href="../clean_sync.server/DataGenerator.html">DataGenerator</a> generator, <a href="http://api.dartlang.org/dart_core/Function.html" ref="external">Function</a> beforeRequestCallback) <a class="anchor-link" href="#"
+              title="Permalink to Resource.Resource">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+Resource(this.generator, this.beforeRequestCallback);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="beforeRequestCallback">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Function.html" ref="external">Function</a>         <strong>beforeRequestCallback</strong> <a class="anchor-link"
+            href="#beforeRequestCallback"
+            title="Permalink to Resource.beforeRequestCallback">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+Function beforeRequestCallback
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="generator">
+<button class="show-code">Code</button>
+<a href="../clean_sync.server/DataGenerator.html">DataGenerator</a>         <strong>generator</strong> <a class="anchor-link"
+            href="#generator"
+            title="Permalink to Resource.generator">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+DataGenerator generator
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="handleSyncRequest">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_async/Future.html" ref="external">Future</a> <strong>handleSyncRequest</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> data) <a class="anchor-link" href="#handleSyncRequest"
+              title="Permalink to Resource.handleSyncRequest">#</a></h4>
+<div class="doc">
+<pre class="source">
+Future handleSyncRequest (Map data) {
+ num watchID = startWatch('${data["action"]}, ${data['collection']}');
+
+ var action = data["action"];
+ var reqVersion = data['version'];
+ List&lt;String&gt; modifications = ['add', 'change', 'remove'];
+
+ Future beforeRequest = new Future.value(null);
+ if (beforeRequestCallback != null &amp;&amp; modifications.contains(action)) {
+   var value;
+   if (action == 'add') value = data['data'];
+   else if (action == 'change') value = data['change'];
+   else if (action == 'remove') value = {};
+   beforeRequest = beforeRequestCallback(value, data['args']);
+ }
+
+ DataProvider dp;
+
+ return beforeRequest
+   .then((_) =&gt; generator(data['args']))
+   .then((DataProvider _dp) {
+     dp = _dp;
+     if (action == "get_data") {
+       return dp.data().then((result) {
+         stopWatch(watchID);
+         return result;
+       });
+     }
+     else if(action == "get_diff") {
+       return dp.diffFromVersion(reqVersion)
+         .then((result) {
+             stopWatch(watchID);
+             return result;
+          });
+     }
+     else if (action == "add") {
+       return dp.add(data['data'], data['author'])
+       .then((result) {
+         stopWatch(watchID);
+         return result;
+       });
+     }
+     else if (action == "change") {
+       return dp.change(data['_id'], data['change'], data['author'])
+           .then((result) {
+             stopWatch(watchID);
+             return result;
+           });
+     }
+     else if (action == "remove") {
+       return dp.remove(data['_id'], data['author'])
+           .then((result) {
+             stopWatch(watchID);
+             return result;
+           });
+     }
+   });
+
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

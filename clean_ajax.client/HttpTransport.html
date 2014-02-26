@@ -1,0 +1,273 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>HttpTransport class / clean_ajax.client Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client" data-type="HttpTransport">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.client.html">clean_ajax.client</a> &rsaquo; <a href="../clean_ajax.client/HttpTransport.html">HttpTransport</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>HttpTransport</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Transport mechanism using ajax polling used by <code>createHttpConnection</code>.</p>
+<pre class="source">
+class HttpTransport extends Transport {
+ /**
+  * RequestFactory is a function like HttpRequest.request() that returns
+  * [Future&lt;HttpRequest&gt;].
+  */
+ final _sendHttpRequest;
+
+ /**
+  * The URL where to perform requests.
+  */
+ final String _url;
+
+ /**
+  * Indicates whether a [HttpRequest] is currently on the way.
+  */
+ bool _isRunning = false;
+
+ /**
+  * Time interval between response to a request is received and next request
+  * is sent.
+  */
+ Duration _delayBetweenRequests;
+
+ Timer _timer;
+
+ bool _connected = true;
+
+ void _disconnect() {
+   _connected = false;
+   _disconnectConnection();
+ }
+
+ void _reconnect() {
+   _connected = true;
+   _reconnectConnection();
+ }
+
+ HttpTransport(this._sendHttpRequest, this._url, this._delayBetweenRequests, [this._timeout = null]);
+
+ /**
+  * Seconds after which request is declared as timed-out. Optional parameter.
+  * Use only with HttpRequest factories which support it. (Like the one in http_request.dart)
+  */
+ int _timeout;
+ int get timeout =&gt; _timeout;
+
+ setHandlers(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) {
+   super.setHandlers(prepareRequest, handleResponse, handleError, handleDisconnect, handleReconnect);
+   _timer = new Timer.periodic(this._delayBetweenRequests, (_) =&gt; _performRequest());
+ }
+
+ /**
+  * Notifies [HttpTransport] instance that there are some requests to be sent
+  * and attempts to send them immediately. If a HttpRequest is already running,
+  * the new requests will be sent in next "iteration" (after response is
+  * received + time interval _delayBetweenRequests passes).
+  */
+ markDirty() {}
+
+ /**
+  * Marks timer as disposed, which prevents him from future sending of http
+  * requests.
+  */
+ dispose() {
+   if(_timer != null) _timer.cancel();
+ }
+
+ bool _shouldSendHttpRequest() =&gt; !_isRunning &amp;&amp; _connected;
+
+ void _openRequest() {
+   _isRunning = true;
+ }
+
+ void _closeRequest() {
+   _isRunning = false;
+ }
+
+ Future _buildRequest(data) {
+   if (null == _timeout) {
+     return _sendHttpRequest(
+         _url,
+         method: 'POST',
+         requestHeaders: {'Content-Type': 'application/json'},
+         sendData: JSON.encode(data)
+     );
+   } else {
+     return _sendHttpRequest(
+         _url,
+         method: 'POST',
+         requestHeaders: {'Content-Type': 'application/json'},
+         sendData: JSON.encode(data),
+         timeout: _timeout
+     );
+   }
+ }
+
+ /**
+  * Begins performing HttpRequest. Is not launched if another request is
+  * already running ([_isRunning] is true) or the request Queue is empty,
+  * ([_isDirty] is false). Sets [_isRunning] as true for the time this request
+  * is running and hooks up another request after this one with a delay of
+  * [_delayBetweenRequests].
+  */
+ void _performRequest() {
+   if (_connected) _sendDataRequest();
+   else _sendPingRequest();
+ }
+
+ void _sendDataRequest() {
+   if (!_shouldSendHttpRequest()) {
+     return;
+   }
+   var data = _prepareRequest();
+   if (data.isEmpty) return;
+
+   _openRequest();
+   _buildRequest(data).then((xhr) {
+       _handleResponse(JSON.decode(xhr.responseText));
+       _closeRequest();
+   }).catchError((e, s) {
+     if (e is ConnectionError) {
+       _handleError(e);
+       _disconnect();
+     } else {
+       logger.shout("error", e, s);
+       _handleError(new FailedRequestException());
+     }
+     _closeRequest();
+   });
+ }
+
+ void _sendPingRequest() {
+   _openRequest();
+   _buildRequest([new PackedRequest(0, new ClientRequest('ping', 'ping'))]).then((xhr) {
+     _reconnect();
+     _closeRequest();
+   }).catchError((e) {
+     if (e is ConnectionError) {
+     } else {
+       _reconnect();
+     }
+     _closeRequest();
+   });
+ }
+}
+</pre>
+</div>
+<h3>Extends</h3>
+<p>
+<span class="type-box"><span class="icon-class"></span><a href="../clean_ajax.client/Transport.html">Transport</a></span>&nbsp;&gt;&nbsp;<span class="type-box"><span class="icon-class"></span><strong>HttpTransport</strong></span></p>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>HttpTransport</strong>(_sendHttpRequest, <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> _url, <a href="http://api.dartlang.org/dart_core/Duration.html" ref="external">Duration</a> _delayBetweenRequests, [<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> _timeout = null]) <a class="anchor-link" href="#"
+              title="Permalink to HttpTransport.HttpTransport">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+HttpTransport(this._sendHttpRequest, this._url, this._delayBetweenRequests, [this._timeout = null]);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="timeout">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>timeout</strong> <a class="anchor-link"
+            href="#timeout"
+            title="Permalink to HttpTransport.timeout">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+int get timeout =&gt; _timeout;
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="dispose">
+<button class="show-code">Code</button>
+dynamic <strong>dispose</strong>() <a class="anchor-link" href="#dispose"
+              title="Permalink to HttpTransport.dispose">#</a></h4>
+<div class="doc">
+<p>Marks timer as disposed, which prevents him from future sending of http
+requests.</p>
+<pre class="source">
+dispose() {
+ if(_timer != null) _timer.cancel();
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="markDirty">
+<button class="show-code">Code</button>
+dynamic <strong>markDirty</strong>() <a class="anchor-link" href="#markDirty"
+              title="Permalink to HttpTransport.markDirty">#</a></h4>
+<div class="doc">
+<p>Notifies <a class="crossref" href="../clean_ajax.client/HttpTransport.html">HttpTransport</a> instance that there are some requests to be sent
+and attempts to send them immediately. If a HttpRequest is already running,
+the new requests will be sent in next "iteration" (after response is
+received + time interval _delayBetweenRequests passes).</p>
+<pre class="source">
+markDirty() {}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="setHandlers">
+<button class="show-code">Code</button>
+dynamic <strong>setHandlers</strong>(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) <a class="anchor-link" href="#setHandlers"
+              title="Permalink to HttpTransport.setHandlers">#</a></h4>
+<div class="doc">
+<pre class="source">
+setHandlers(prepareRequest, handleResponse, handleError, [handleDisconnect = null, handleReconnect = null]) {
+ super.setHandlers(prepareRequest, handleResponse, handleError, handleDisconnect, handleReconnect);
+ _timer = new Timer.periodic(this._delayBetweenRequests, (_) =&gt; _performRequest());
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

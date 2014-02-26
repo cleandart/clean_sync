@@ -1,0 +1,158 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>HashIndex&lt;E&gt; class / clean_data Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_data" data-type="HashIndex&amp;lt;E&amp;gt;">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_data.html">clean_data</a> &rsaquo; <a href="../clean_data/HashIndex.html">HashIndex&lt;E&gt;</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>HashIndex&lt;E&gt;</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>Really simple inverted index implementation.</p>
+<pre class="source">
+class HashIndex&lt;E&gt; {
+ HashIndex();
+
+ /**
+  * Holds the mapping of values to data objects.
+  */
+ Map&lt;dynamic, Set&lt;E&gt;&gt; _index = new Map&lt;dynamic, Set&lt;E&gt;&gt;();
+
+ /**
+  * Returns a set of objects that have this value. If no such
+  * object exists, empty Set is returned.
+  */
+ Set&lt;E&gt; operator[](dynamic value) =&gt; _index.containsKey(value) ?
+                                     _index[value] :
+                                     new Set&lt;E&gt;();
+
+ /**
+  * Adds a [value] to [object] mapping to the index.
+  */
+ void add(dynamic value, E object) {
+   if (!_index.containsKey(value)) {
+     _index[value] = new Set&lt;E&gt;();
+   }
+
+   _index[value].add(object);
+ }
+
+ /**
+  * Removes a [value] to [object] mapping from the index.
+  */
+ void remove(dynamic value, E object) {
+   if (_index.containsKey(value)) {
+     _index[value].remove(object);
+   }
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>HashIndex</strong>() <a class="anchor-link" href="#"
+              title="Permalink to HashIndex&lt;E&gt;.HashIndex">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+HashIndex();
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Operators</h3>
+<div class="method"><h4 id="[]">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Set.html" ref="external">Set</a>&lt;<a href="../clean_data/HashIndex.html">E</a>&gt; <strong>operator []</strong>(value) <a class="anchor-link" href="#[]"
+              title="Permalink to HashIndex&lt;E&gt;.operator []">#</a></h4>
+<div class="doc">
+<p>Returns a set of objects that have this value. If no such
+object exists, empty Set is returned.</p>
+<pre class="source">
+Set&lt;E&gt; operator[](dynamic value) =&gt; _index.containsKey(value) ?
+                                   _index[value] :
+                                   new Set&lt;E&gt;();
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="add">
+<button class="show-code">Code</button>
+void <strong>add</strong>(value, <a href="../clean_data/HashIndex.html">E</a> object) <a class="anchor-link" href="#add"
+              title="Permalink to HashIndex&lt;E&gt;.add">#</a></h4>
+<div class="doc">
+<p>Adds a 
+<span class="param">value</span> to 
+<span class="param">object</span> mapping to the index.</p>
+<pre class="source">
+void add(dynamic value, E object) {
+ if (!_index.containsKey(value)) {
+   _index[value] = new Set&lt;E&gt;();
+ }
+
+ _index[value].add(object);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="remove">
+<button class="show-code">Code</button>
+void <strong>remove</strong>(value, <a href="../clean_data/HashIndex.html">E</a> object) <a class="anchor-link" href="#remove"
+              title="Permalink to HashIndex&lt;E&gt;.remove">#</a></h4>
+<div class="doc">
+<p>Removes a 
+<span class="param">value</span> to 
+<span class="param">object</span> mapping from the index.</p>
+<pre class="source">
+void remove(dynamic value, E object) {
+ if (_index.containsKey(value)) {
+   _index[value].remove(object);
+ }
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

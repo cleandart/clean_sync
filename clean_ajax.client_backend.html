@@ -1,0 +1,63 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>clean_ajax.client_backend Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.client_backend">
+        <div class="page">
+        <div class="header">
+          <a href="index.html"><div class="logo"></div></a>
+          <a href="index.html">Dart Documentation</a>
+         &rsaquo; <a href="clean_ajax.client_backend.html">clean_ajax.client_backend</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+<h2><strong>clean_ajax.client_backend</strong> library</h2>
+<div class="doc"><p>A library for server-client communication and interaction
+Client(Browser) side</p></div>
+<h3>Exports</h3>
+<ul>
+<ul><a href="clean_ajax.client.html">clean_ajax.client</a></ul>
+<ul><a href="clean_ajax.common.html">clean_ajax.common</a> show <a class="crossref" href="clean_ajax.common/ClientRequest.html">ClientRequest</a></ul>
+</ul>
+<div>
+<h3>Functions</h3>
+<div class="method"><h4 id="createLoopBackConnection">
+<button class="show-code">Code</button>
+<a href="clean_ajax.client/Connection.html">Connection</a> <strong>createLoopBackConnection</strong>(<a href="clean_ajax.server/MultiRequestHandler.html">MultiRequestHandler</a> requestHandler, [authenticatedUserId]) <a class="anchor-link" href="#createLoopBackConnection"
+              title="Permalink to createLoopBackConnection">#</a></h4>
+<div class="doc">
+<pre class="source">
+Connection createLoopBackConnection(MultiRequestHandler requestHandler,
+                                   [authenticatedUserId]) =&gt;
+ new Connection.config(
+     new LoopBackTransport(requestHandler.handleLoopBackRequest,
+         authenticatedUserId)
+ );
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="client-live-nav.js"></script>
+        </body></html>
+        

@@ -1,0 +1,135 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>PackedRequest class / clean_ajax.common Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="clean_ajax.common" data-type="PackedRequest">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../clean_ajax.common.html">clean_ajax.common</a> &rsaquo; <a href="../clean_ajax.common/PackedRequest.html">PackedRequest</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>PackedRequest</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<pre class="source">
+class PackedRequest {
+ final int id;
+ final ClientRequest clientRequest;
+
+ /**
+  * Encapsulate [ClientRequest] with unique id to enable sending of multiple
+  * [ClientRequest] in one list
+  */
+ PackedRequest(this.id,this.clientRequest);
+
+ /**
+  * Converts [PackedRequest] to JSON serializable map.
+  */
+ Map toJson() =&gt; {'id': id, 'clientRequest': clientRequest.toJson()};
+
+ /**
+  * Create a [ClientRequest] from JSON map {'name' : something, 'args': somethingElse}
+  */
+ factory PackedRequest.fromJson(Map data) =&gt;
+     new PackedRequest(data['id'], new ClientRequest.fromJson(data['clientRequest']));
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>PackedRequest</strong>(<a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a> id, <a href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> clientRequest) <a class="anchor-link" href="#"
+              title="Permalink to PackedRequest.PackedRequest">#</a></h4>
+<div class="doc">
+<p>Encapsulate <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> with unique id to enable sending of multiple
+<a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> in one list</p>
+<pre class="source">
+PackedRequest(this.id,this.clientRequest);
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="fromJson">
+<button class="show-code">Code</button>
+factory <strong>PackedRequest.fromJson</strong>(<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> data) <a class="anchor-link" href="#fromJson"
+              title="Permalink to PackedRequest.PackedRequest.fromJson">#</a></h4>
+<div class="doc">
+<p>Create a <a class="crossref" href="../clean_ajax.common/ClientRequest.html">ClientRequest</a> from JSON map {'name' : something, 'args': somethingElse}</p>
+<pre class="source">
+factory PackedRequest.fromJson(Map data) =&gt;
+   new PackedRequest(data['id'], new ClientRequest.fromJson(data['clientRequest']));
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="clientRequest">
+<button class="show-code">Code</button>
+final <a href="../clean_ajax.common/ClientRequest.html">ClientRequest</a>         <strong>clientRequest</strong> <a class="anchor-link"
+            href="#clientRequest"
+            title="Permalink to PackedRequest.clientRequest">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final ClientRequest clientRequest
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="id">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/int.html" ref="external">int</a>         <strong>id</strong> <a class="anchor-link"
+            href="#id"
+            title="Permalink to PackedRequest.id">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final int id
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="toJson">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/Map.html" ref="external">Map</a> <strong>toJson</strong>() <a class="anchor-link" href="#toJson"
+              title="Permalink to PackedRequest.toJson">#</a></h4>
+<div class="doc">
+<p>Converts <a class="crossref" href="../clean_ajax.common/PackedRequest.html">PackedRequest</a> to JSON serializable map.</p>
+<pre class="source">
+Map toJson() =&gt; {'id': id, 'clientRequest': clientRequest.toJson()};
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        

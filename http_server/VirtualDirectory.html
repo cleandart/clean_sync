@@ -1,0 +1,603 @@
+        <!DOCTYPE html>
+        <html>
+        <head>
+                <meta charset="utf-8">
+        <title>VirtualDirectory class / http_server Library / Dart Documentation</title>
+        <link rel="stylesheet" type="text/css"
+            href="../styles.css">
+        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css">
+        <link rel="shortcut icon" href="../favicon.ico">
+        
+        </head>
+        <body data-library="http_server" data-type="VirtualDirectory">
+        <div class="page">
+        <div class="header">
+          <a href="../index.html"><div class="logo"></div></a>
+          <a href="../index.html">Dart Documentation</a>
+         &rsaquo; <a href="../http_server.html">http_server</a> &rsaquo; <a href="../http_server/VirtualDirectory.html">VirtualDirectory</a>        <div id="search-box">
+          <input type="search" name="q" id="q" autocomplete="off"
+              class="search-input" placeholder="Search API">
+        </div>
+        
+      </div>
+      <div class="drop-down" id="drop-down"></div>
+      
+        <div class="nav">
+        
+</div>
+<div class="content">
+        <h2><strong>VirtualDirectory</strong>
+          class
+        </h2>
+        
+<button id="show-inherited" class="show-inherited">Hide inherited</button>
+<div class="doc">
+<p>A <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a> can serve files and directory-listing from a root path,
+to <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>s.</p>
+<p>The <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a> providing secure handling of request uris and
+file-system links, correct mime-types and custom error pages.</p>
+<pre class="source">
+class VirtualDirectory {
+ final String root;
+
+ /**
+  * Set or get if the [VirtualDirectory] should list the content of
+  * directories.
+  */
+ bool allowDirectoryListing = false;
+
+ /**
+  * Set or get if the [VirtualDirectory] should follow links, that point
+  * to other resources within the [root] directory.
+  */
+ bool followLinks = true;
+
+ /**
+  * Set or get if the [VirtualDirectory] should jail the root. When the root is
+  * not jailed, links can be followed to outside the [root] directory.
+  */
+ bool jailRoot = true;
+
+ final RegExp _invalidPathRegExp = new RegExp("[\\\/\x00]");
+
+ Function _errorCallback;
+ Function _dirCallback;
+
+ /*
+  * Create a new [VirtualDirectory] for serving static file content of
+  * the path [root].
+  *
+  * The [root] is not required to exist. If the [root] doesn't exist at time of
+  * a request, a 404 is generated.
+  */
+ VirtualDirectory(this.root);
+
+ /**
+  * Serve a [Stream] of [HttpRequest]s, in this [VirtualDirectory].
+  */
+ void serve(Stream&lt;HttpRequest&gt; requests) {
+   requests.listen(serveRequest);
+ }
+
+ /**
+  * Serve a single [HttpRequest], in this [VirtualDirectory].
+  */
+ void serveRequest(HttpRequest request) {
+   _locateResource('.', request.uri.pathSegments.iterator..moveNext())
+       .then((entity) {
+         if (entity == null) {
+           _serveErrorPage(HttpStatus.NOT_FOUND, request);
+           return;
+         }
+         if (entity is File) {
+           serveFile(entity, request);
+         } else if (entity is Directory) {
+           _serveDirectory(entity, request);
+         } else {
+           _serveErrorPage(HttpStatus.NOT_FOUND, request);
+         }
+       });
+ }
+
+ /**
+  * Set the [callback] to override the default directory listing. The
+  * [callback] will be called with the [Directory] to be listed and the
+  * [HttpRequest].
+  */
+ void set directoryHandler(void callback(Directory dir, HttpRequest request)) {
+   _dirCallback = callback;
+ }
+
+ /**
+  * Set the [callback] to override the error page handler. When [callback] is
+  * invoked, the `statusCode` property of the response is set.
+  */
+ void set errorPageHandler(void callback(HttpRequest request)) {
+   _errorCallback = callback;
+ }
+
+ Future&lt;FileSystemEntity&gt; _locateResource(String path,
+                                          Iterator&lt;String&gt; segments) {
+   // Don't allow navigating up paths.
+   if (segments.current == "..") return new Future.value(null);
+   path = normalize(path);
+   // If we jail to root, the relative path can never go up.
+   if (jailRoot &amp;&amp; split(path).first == "..") return new Future.value(null);
+   String fullPath() =&gt; join(root, path);
+   return FileSystemEntity.type(fullPath(), followLinks: false)
+       .then((type) {
+         switch (type) {
+           case FileSystemEntityType.FILE:
+             if (segments.current == null) {
+               return new File(fullPath());
+             }
+             break;
+
+           case FileSystemEntityType.DIRECTORY:
+             if (segments.current == null) {
+               if (allowDirectoryListing) {
+                 return new Directory(fullPath());
+               }
+             } else {
+               if (_invalidPathRegExp.hasMatch(segments.current)) break;
+               return _locateResource(join(path, segments.current),
+                                      segments..moveNext());
+             }
+             break;
+
+           case FileSystemEntityType.LINK:
+             if (followLinks) {
+               return new Link(fullPath()).target()
+                   .then((target) {
+                     String targetPath = normalize(target);
+                     if (isAbsolute(targetPath)) {
+                       // If we jail to root, the path can never be absolute.
+                       if (jailRoot) return null;
+                       return _locateResource(targetPath, segments);
+                     } else {
+                       targetPath = join(dirname(path), targetPath);
+                       return _locateResource(targetPath, segments);
+                     }
+                   });
+             }
+             break;
+         }
+         // Return `null` on fall-through, to indicate NOT_FOUND.
+         return null;
+       });
+ }
+
+ /**
+  * Serve the content of [file] to [request].
+  *
+  * This is usefull when e.g. overriding [directoryHandler] to redirect to
+  * some index file.
+  *
+  * In the request contains the [HttpStatus.IF_MODIFIED_SINCE] header,
+  * [serveFile] will send a [HttpStatus.NOT_MODIFIED] response if the file
+  * was not changed.
+  *
+  * Note that if it was unabled to read from [file], the [request]s response
+  * is closed with error-code [HttpStatus.NOT_FOUND].
+  */
+ void serveFile(File file, HttpRequest request) {
+   var response = request.response;
+   // TODO(ajohnsen): Set up Zone support for these errors.
+   file.lastModified().then((lastModified) {
+     if (request.headers.ifModifiedSince != null &amp;&amp;
+         !lastModified.isAfter(request.headers.ifModifiedSince)) {
+       response.statusCode = HttpStatus.NOT_MODIFIED;
+       response.close();
+       return;
+     }
+
+     response.headers.set(HttpHeaders.LAST_MODIFIED, lastModified);
+     response.headers.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+
+     if (request.method == 'HEAD') {
+       response.close();
+       return;
+     }
+
+     return file.length().then((length) {
+       String range = request.headers.value("range");
+       if (range != null) {
+         // We only support one range, where the standard support several.
+         Match matches = new RegExp(r"^bytes=(\d*)\-(\d*)$").firstMatch(range);
+         // If the range header have the right format, handle it.
+         if (matches != null) {
+           // Serve sub-range.
+           int start;
+           int end;
+           if (matches[1].isEmpty) {
+             start = matches[2].isEmpty ?
+                 length :
+                 length - int.parse(matches[2]);
+             end = length;
+           } else {
+             start = int.parse(matches[1]);
+             end = matches[2].isEmpty ? length : int.parse(matches[2]) + 1;
+           }
+
+           // Override Content-Length with the actual bytes sent.
+           response.headers.set(HttpHeaders.CONTENT_LENGTH, end - start);
+
+           // Set 'Partial Content' status code.
+           response.statusCode = HttpStatus.PARTIAL_CONTENT;
+           response.headers.set(HttpHeaders.CONTENT_RANGE,
+                                "bytes $start-${end - 1}/$length");
+
+           // Pipe the 'range' of the file.
+           file.openRead(start, end)
+               .pipe(new _VirtualDirectoryFileStream(response, file.path))
+               .catchError((_) {});
+           return;
+         }
+       }
+
+       file.openRead()
+           .pipe(new _VirtualDirectoryFileStream(response, file.path))
+           .catchError((_) {});
+     });
+   }).catchError((_) {
+     response.statusCode = HttpStatus.NOT_FOUND;
+     response.close();
+   });
+ }
+
+ void _serveDirectory(Directory dir, HttpRequest request) {
+   if (_dirCallback != null) {
+     _dirCallback(dir, request);
+     return;
+   }
+   var response = request.response;
+   dir.stat().then((stats) {
+     if (request.headers.ifModifiedSince != null &amp;&amp;
+         !stats.modified.isAfter(request.headers.ifModifiedSince)) {
+       response.statusCode = HttpStatus.NOT_MODIFIED;
+       response.close();
+       return;
+     }
+
+     response.headers.set(HttpHeaders.LAST_MODIFIED, stats.modified);
+     var path = request.uri.path;
+     var header =
+'''&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"&gt;
+&lt;html xmlns="http://www.w3.org/1999/xhtml"&gt;
+&lt;head&gt;
+&lt;title&gt;Index of $path&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Index of $path&lt;/h1&gt;
+&lt;table&gt;
+ &lt;tr&gt;
+   &lt;td&gt;Name&lt;/td&gt;
+   &lt;td&gt;Last modified&lt;/td&gt;
+   &lt;td&gt;Size&lt;/td&gt;
+ &lt;/tr&gt;
+''';
+     var server = response.headers.value(HttpHeaders.SERVER);
+     if (server == null) server = "";
+     var footer =
+'''&lt;/table&gt;
+$server
+&lt;/body&gt;
+&lt;/html&gt;
+''';
+
+     response.write(header);
+
+     void add(String name, String modified, var size) {
+       if (size == null) size = "-";
+       if (modified == null) modified = "";
+       var p = normalize(join(path, name));
+       var entry =
+'''  &lt;tr&gt;
+   &lt;td&gt;&lt;a href="$p"&gt;$name&lt;/a&gt;&lt;/td&gt;
+   &lt;td&gt;$modified&lt;/td&gt;
+   &lt;td style="text-align: right"&gt;$size&lt;/td&gt;
+ &lt;/tr&gt;''';
+       response.write(entry);
+     }
+
+     if (path != '/') {
+       add('../', null, null);
+     }
+
+     dir.list(followLinks: true).listen((entity) {
+       // TODO(ajohnsen): Consider async dir listing.
+       if (entity is File) {
+         var stat = entity.statSync();
+         add(basename(entity.path),
+             stat.modified.toString(),
+             stat.size);
+       } else if (entity is Directory) {
+         add(basename(entity.path) + '/',
+             entity.statSync().modified.toString(),
+             null);
+       }
+     }, onError: (e) {
+     }, onDone: () {
+       response.write(footer);
+       response.close();
+     });
+   }, onError: (e) =&gt; response.close());
+ }
+
+ void _serveErrorPage(int error, HttpRequest request) {
+   var response = request.response;
+   response.statusCode = error;
+   if (_errorCallback != null) {
+     _errorCallback(request);
+     return;
+   }
+   // Default error page.
+   var path = request.uri.path;
+   var reason = response.reasonPhrase;
+
+   var server = response.headers.value(HttpHeaders.SERVER);
+   if (server == null) server = "";
+   var page =
+'''&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"&gt;
+&lt;html xmlns="http://www.w3.org/1999/xhtml"&gt;
+&lt;head&gt;
+&lt;title&gt;$reason: $path&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;h1&gt;Error $error at \'$path\': $reason&lt;/h1&gt;
+$server
+&lt;/body&gt;
+&lt;/html&gt;''';
+   response.write(page);
+   response.close();
+ }
+}
+</pre>
+</div>
+<div>
+<h3>Constructors</h3>
+<div class="method"><h4 id="">
+<button class="show-code">Code</button>
+new <strong>VirtualDirectory</strong>(<a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a> root) <a class="anchor-link" href="#"
+              title="Permalink to VirtualDirectory.VirtualDirectory">#</a></h4>
+<div class="doc">
+<div class="inherited">
+<p>Creates a new <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance.</p>
+<p><a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instances have no meaningful state, and are only useful
+through their identity. An <a class="crossref" href="http://api.dartlang.org/dart_core/Object.html">Object</a> instance is equal to itself
+only.</p>
+<div class="docs-inherited-from">docs inherited from <a href="http://api.dartlang.org/dart_core/Object.html" ref="external">Object</a> </div></div>
+<pre class="source">
+VirtualDirectory(this.root);
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Properties</h3>
+<div class="field"><h4 id="allowDirectoryListing">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>allowDirectoryListing</strong> <a class="anchor-link"
+            href="#allowDirectoryListing"
+            title="Permalink to VirtualDirectory.allowDirectoryListing">#</a>
+        </h4>
+        <div class="doc">
+<p>Set or get if the <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a> should list the content of
+directories.</p>
+<pre class="source">
+bool allowDirectoryListing = false
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="directoryHandler=">
+<button class="show-code">Code</button>
+void <strong>set directoryHandler</strong>(void callback(<a href="http://api.dartlang.org/dart_io/Directory.html" ref="external">Directory</a> dir, <a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> request)) <a class="anchor-link" href="#directoryHandler="
+              title="Permalink to VirtualDirectory.set directoryHandler">#</a></h4>
+<div class="doc">
+<p>Set the 
+<span class="param">callback</span> to override the default directory listing. The
+
+<span class="param">callback</span> will be called with the <a class="crossref" href="http://api.dartlang.org/dart_io/Directory.html">Directory</a> to be listed and the
+<a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>.</p>
+<pre class="source">
+void set directoryHandler(void callback(Directory dir, HttpRequest request)) {
+ _dirCallback = callback;
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="errorPageHandler=">
+<button class="show-code">Code</button>
+void <strong>set errorPageHandler</strong>(void callback(<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> request)) <a class="anchor-link" href="#errorPageHandler="
+              title="Permalink to VirtualDirectory.set errorPageHandler">#</a></h4>
+<div class="doc">
+<p>Set the 
+<span class="param">callback</span> to override the error page handler. When 
+<span class="param">callback</span> is
+invoked, the <code>statusCode</code> property of the response is set.</p>
+<pre class="source">
+void set errorPageHandler(void callback(HttpRequest request)) {
+ _errorCallback = callback;
+}
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="followLinks">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>followLinks</strong> <a class="anchor-link"
+            href="#followLinks"
+            title="Permalink to VirtualDirectory.followLinks">#</a>
+        </h4>
+        <div class="doc">
+<p>Set or get if the <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a> should follow links, that point
+to other resources within the <a class="crossref" href="../http_server/VirtualDirectory.html#root">root</a> directory.</p>
+<pre class="source">
+bool followLinks = true
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="jailRoot">
+<button class="show-code">Code</button>
+<a href="http://api.dartlang.org/dart_core/bool.html" ref="external">bool</a>         <strong>jailRoot</strong> <a class="anchor-link"
+            href="#jailRoot"
+            title="Permalink to VirtualDirectory.jailRoot">#</a>
+        </h4>
+        <div class="doc">
+<p>Set or get if the <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a> should jail the root. When the root is
+not jailed, links can be followed to outside the <a class="crossref" href="../http_server/VirtualDirectory.html#root">root</a> directory.</p>
+<pre class="source">
+bool jailRoot = true
+</pre>
+</div>
+</div>
+<div class="field"><h4 id="root">
+<button class="show-code">Code</button>
+final <a href="http://api.dartlang.org/dart_core/String.html" ref="external">String</a>         <strong>root</strong> <a class="anchor-link"
+            href="#root"
+            title="Permalink to VirtualDirectory.root">#</a>
+        </h4>
+        <div class="doc">
+<pre class="source">
+final String root
+</pre>
+</div>
+</div>
+</div>
+<div>
+<h3>Methods</h3>
+<div class="method"><h4 id="serve">
+<button class="show-code">Code</button>
+void <strong>serve</strong>(<a href="http://api.dartlang.org/dart_async/Stream.html" ref="external">Stream</a>&lt;<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a>&gt; requests) <a class="anchor-link" href="#serve"
+              title="Permalink to VirtualDirectory.serve">#</a></h4>
+<div class="doc">
+<p>Serve a <a class="crossref" href="http://api.dartlang.org/dart_async/Stream.html">Stream</a> of <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>s, in this <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a>.</p>
+<pre class="source">
+void serve(Stream&lt;HttpRequest&gt; requests) {
+ requests.listen(serveRequest);
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="serveFile">
+<button class="show-code">Code</button>
+void <strong>serveFile</strong>(<a href="http://api.dartlang.org/dart_io/File.html" ref="external">File</a> file, <a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> request) <a class="anchor-link" href="#serveFile"
+              title="Permalink to VirtualDirectory.serveFile">#</a></h4>
+<div class="doc">
+<p>Serve the content of 
+<span class="param">file</span> to 
+<span class="param">request</span>.</p>
+<p>This is usefull when e.g. overriding <a class="crossref" href="../http_server/VirtualDirectory.html#directoryHandler=">directoryHandler</a> to redirect to
+some index file.</p>
+<p>In the request contains the [HttpStatus.IF_MODIFIED_SINCE] header,
+<a class="crossref" href="../http_server/VirtualDirectory.html#serveFile">serveFile</a> will send a <code>HttpStatus.NOT_MODIFIED</code> response if the file
+was not changed.</p>
+<p>Note that if it was unabled to read from 
+<span class="param">file</span>, the 
+<span class="param">request</span>s response
+is closed with error-code <code>HttpStatus.NOT_FOUND</code>.</p>
+<pre class="source">
+void serveFile(File file, HttpRequest request) {
+ var response = request.response;
+ // TODO(ajohnsen): Set up Zone support for these errors.
+ file.lastModified().then((lastModified) {
+   if (request.headers.ifModifiedSince != null &amp;&amp;
+       !lastModified.isAfter(request.headers.ifModifiedSince)) {
+     response.statusCode = HttpStatus.NOT_MODIFIED;
+     response.close();
+     return;
+   }
+
+   response.headers.set(HttpHeaders.LAST_MODIFIED, lastModified);
+   response.headers.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+
+   if (request.method == 'HEAD') {
+     response.close();
+     return;
+   }
+
+   return file.length().then((length) {
+     String range = request.headers.value("range");
+     if (range != null) {
+       // We only support one range, where the standard support several.
+       Match matches = new RegExp(r"^bytes=(\d*)\-(\d*)$").firstMatch(range);
+       // If the range header have the right format, handle it.
+       if (matches != null) {
+         // Serve sub-range.
+         int start;
+         int end;
+         if (matches[1].isEmpty) {
+           start = matches[2].isEmpty ?
+               length :
+               length - int.parse(matches[2]);
+           end = length;
+         } else {
+           start = int.parse(matches[1]);
+           end = matches[2].isEmpty ? length : int.parse(matches[2]) + 1;
+         }
+
+         // Override Content-Length with the actual bytes sent.
+         response.headers.set(HttpHeaders.CONTENT_LENGTH, end - start);
+
+         // Set 'Partial Content' status code.
+         response.statusCode = HttpStatus.PARTIAL_CONTENT;
+         response.headers.set(HttpHeaders.CONTENT_RANGE,
+                              "bytes $start-${end - 1}/$length");
+
+         // Pipe the 'range' of the file.
+         file.openRead(start, end)
+             .pipe(new _VirtualDirectoryFileStream(response, file.path))
+             .catchError((_) {});
+         return;
+       }
+     }
+
+     file.openRead()
+         .pipe(new _VirtualDirectoryFileStream(response, file.path))
+         .catchError((_) {});
+   });
+ }).catchError((_) {
+   response.statusCode = HttpStatus.NOT_FOUND;
+   response.close();
+ });
+}
+</pre>
+</div>
+</div>
+<div class="method"><h4 id="serveRequest">
+<button class="show-code">Code</button>
+void <strong>serveRequest</strong>(<a href="http://api.dartlang.org/dart_io/HttpRequest.html" ref="external">HttpRequest</a> request) <a class="anchor-link" href="#serveRequest"
+              title="Permalink to VirtualDirectory.serveRequest">#</a></h4>
+<div class="doc">
+<p>Serve a single <a class="crossref" href="http://api.dartlang.org/dart_io/HttpRequest.html">HttpRequest</a>, in this <a class="crossref" href="../http_server/VirtualDirectory.html">VirtualDirectory</a>.</p>
+<pre class="source">
+void serveRequest(HttpRequest request) {
+ _locateResource('.', request.uri.pathSegments.iterator..moveNext())
+     .then((entity) {
+       if (entity == null) {
+         _serveErrorPage(HttpStatus.NOT_FOUND, request);
+         return;
+       }
+       if (entity is File) {
+         serveFile(entity, request);
+       } else if (entity is Directory) {
+         _serveDirectory(entity, request);
+       } else {
+         _serveErrorPage(HttpStatus.NOT_FOUND, request);
+       }
+     });
+}
+</pre>
+</div>
+</div>
+</div>
+        </div>
+        <div class="clear"></div>
+        </div>
+        <div class="footer">
+          
+        </div>
+        <script async src="../client-live-nav.js"></script>
+        </body></html>
+        
