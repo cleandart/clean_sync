@@ -6,13 +6,9 @@ library mongo_provider_test;
 
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
-import 'package:clean_sync/src/clone.dart';
+import "package:useful/useful.dart";
 import "dart:async";
 
-
-c(Map m){
-  return clone(m);
-}
 
 void handleDiff(List<Map> diff, List collection) {
   diff.forEach((Map change) {
@@ -140,8 +136,8 @@ void main() {
 
     test('find', () {
       // when
-      return ready.then((_) => months.addAll([c(january), c(february),
-                                  c(march), c(april)], 'John Doe'))
+      return ready.then((_) => months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe'))
         .then((_) => months.find({'days': 31}).data())
         .then((data){
           expect(data['data'], unorderedEquals([january, march]));
@@ -150,8 +146,8 @@ void main() {
 
     test('take_fields', () {
       // when
-      return ready.then((_) => months.addAll([c(january), c(february),
-                                  c(march), c(april)], 'John Doe'))
+      return ready.then((_) => months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe'))
         .then((_) => months.find({'days': 31}).fields(['days']).data())
         .then((data){
           expect(data['data'], unorderedEquals([{'days': 31, '_id': 'january'},
@@ -161,8 +157,8 @@ void main() {
 
     test('exclude_fields', () {
       // when
-      return ready.then((_) => months.addAll([c(january), c(february),
-                                              c(march), c(april)], 'John Doe'))
+      return ready.then((_) => months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe'))
       .then((_) => months.find({'days': 31}).excludeFields(['days', 'number', '_id']).data())
         .then((data){
           expect(data['data'], unorderedEquals([{'name': 'January'}, {'name': 'March'}]));
