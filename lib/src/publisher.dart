@@ -32,9 +32,8 @@ class Resource {
       if (action == 'add') value = data['data'];
       else if (action == 'change') value = data['change'];
       else if (action == 'remove') value = {};
-      beforeRequest = beforeRequestCallback(value, data['args']);
+      beforeRequest = beforeRequest.then((_) => beforeRequestCallback(value, data['args']));
     }
-
     DataProvider dp;
 
     return beforeRequest
