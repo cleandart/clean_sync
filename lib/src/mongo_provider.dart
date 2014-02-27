@@ -344,20 +344,20 @@ class MongoProvider implements DataProvider {
   }
 
   //TODO: change means new data, rename it
-  Future change(String _id, Map change, String author) {
+  Future change(String _id, Map newData, String author) {
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
           throw true;
-        } else if (change.containsKey('_id') && change['_id'] != _id) {
+        } else if (newData.containsKey('_id') && newData['_id'] != _id) {
           throw new MongoException(null,
-              'New document id ${change['_id']} should be same as old one $_id.');
+              'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
-            newRecord = change;
+            newRecord = newData;
             newRecord[VERSION_FIELD_NAME] = nextVersion;
             return collection.save(newRecord);
           }).then((_) =>
