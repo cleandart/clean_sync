@@ -251,6 +251,10 @@ class MongoProvider implements DataProvider {
     });
   }
 
+  /**
+   * Adds document [data] to database. If document with same [_id] alreay
+   * exists, nothing happens and [true] is returned.
+   */
   Future add(Map data, String author) {
     num nextVersion;
     return _get_locks().then((_) =>
@@ -343,7 +347,10 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  //TODO: change means new data, rename it
+  /**
+   * Changes document with id [_id] to [newData]. If such document does not
+   * exist, nothing happens and [true] is returned.
+   */
   Future change(String _id, Map newData, String author) {
     num nextVersion;
     Map newRecord;
@@ -377,10 +384,10 @@ class MongoProvider implements DataProvider {
           throw e;
         }
       }));
-
   }
 
-  Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+  Future update(selector, Map document, String author, {bool upsert: false,
+                bool multiUpdate: false, WriteConcern writeConcern}) {
     num nextVersion;
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
