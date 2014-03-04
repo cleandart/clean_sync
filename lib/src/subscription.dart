@@ -165,16 +165,15 @@ class Subscription {
   // and logging purposes
   String _author;
   IdGenerator _idGenerator;
-  IdGenerator _clientVersionGenerator;
   Function _handleData = handleData;
   Function _handleDiff = handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
   // requested periodically.
   bool _forceDataRequesting = false;
   Map args = {};
-  // Maps _id of a document to Future, that completes when server response
-  // to document's update is completed
-  Map<String, Future> _sentItems = {};
+  // Maps _id of a document to a structure holding the document at the time of sending
+  // along with client version of the change and failed flag
+  Map<String, Map<String, dynamic>> _sentItems = {};
   // reflects changes to this.collection, that were not already sent to the server
   ChangeSet _modifiedItems = new ChangeSet();
   // flag used to prevent subscription to have multiple get_diff requests 'pending'.
@@ -192,10 +191,7 @@ class Subscription {
   // all changes with version < _version MUST be already applied by this subscription.
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
-  Queue<Map> _requestQueue = new Queue<Map>();
-  num _ongoingRequests = 0;
   bool _connected = false;
-
 
   num _version = 0;
 
@@ -216,11 +212,11 @@ class Subscription {
   Future get initialSync => _initialSync.future;
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._author, this._idGenerator, this._clientVersionGenerator, this._handleData, this._handleDiff,
+      this._author, this._idGenerator, this._handleData, this._handleDiff,
       this._forceDataRequesting, [this.args]);
 
   Subscription(this.collectionName, this._connection, this._author,
-      this._idGenerator, this._clientVersionGenerator, [this.args]) {
+      this._idGenerator, [this.args]) {
     collection = new DataSet();
     collection.addIndex(['_id']);
     _errorStreamController = new StreamController.broadcast();
@@ -235,34 +231,25 @@ class Subscription {
     return Future.wait(
         subscriptions.map((subscription) => subscription.initialSync));
   }
-
+  
   void _resync() {
-    if (_ongoingRequests == 0) {      
-      _connection.send(_createMaxClientVersionRequest).then((maxClientVersion) {
-        List<Map> requests = [];
-        Map data;
-        
-        while (_requestQueue.isNotEmpty) {
-          data = _requestQueue.removeFirst();
-          if (data['clientVersion'] > maxClientVersion) {
-            requests.add(data);
-          }
-        }
-        
-        _connected = true;
-        
-        requests.forEach((data) => _send(data));
-        
-        _periodicDiffRequesting.resume();
-      }, onError: (e) {
-        if (e is ConnectionError) {
-          print("resync failed");
-        }
-        else throw e;
-      });
+    print("resync started");
+    
+    // resend all failed changes
+    _sentItems.forEach((id, item) {
+      if (item["failed"]) {
+        _sendRequest(item["data"]);
+      }
+    });
+    
+    for (var key in _modifiedItems.changedItems.keys) {
+      if (!_sentItems.containsKey(key['_id'])) {
+        _sendRequest(key);
+      }
     }
-    else {
-      print("resync cannot be called if there are some ongoing requests");
+    
+    if (_periodicDiffRequesting.isPaused) {
+      _periodicDiffRequesting.resume();
     }
   }
   
@@ -272,101 +259,94 @@ class Subscription {
     });
     
     _connection.onConnected.listen((_) {
+      _connected = true;
       _resync();
     });
   }
   
-  void _send(Map data) {
-    print("trying to send: ${data}");
-
-    _requestQueue.add(data);
+  void _sendRequest(DataMap elem) {
+    assert(_modifiedItems.changedItems.containsKey(elem));
     
     if (_connected) {
-      Future result = _connection.send(() {
-        _ongoingRequests++;
-        ClientRequest req = new ClientRequest("sync", data);
-        _modifiedItems.changedItems.remove(data['elem']);
-        return req;
-      }).then((result) {
-        if (result is Map && result['error'] != null) {
-          _errorStreamController.add(result['error']);
-        }
-        
-        return result;
-      }).then((response) {
-
-        _ongoingRequests--;
-        Map first = _requestQueue.removeFirst();
-        
-        if (first != data) {
-          // throw NukeTheUniverse exception, this must not happen
-        }
-        
-        return response;
-      }, onError: (e) {
-        if (e is ConnectionError) {
-          _ongoingRequests--;
-        }
-        else if (e is CancelError) { /* do nothing */ }
-        else throw e;
-      });
+      Map data;
+      String clientVersion;
       
-      var id = data['elem']['_id'];
-      _sentItems[id] = result;
-      result.then((nextVersion){
-        // if the request that already finished was last request modifying
-        // current field, mark the field as free
-        if (_sentItems[id] == result) {
-          _sentItems.remove(id);
+      if (_sentItems.containsKey(elem["_id"])) {
+        // when resending a change, we want to use the same client version
+        // that was generated initially
+        clientVersion = _sentItems[elem["_id"]]["clientVersion"];
+      }
+      else {
+        clientVersion = _idGenerator.next();
+      }
+      
+      if (_modifiedItems.addedItems.contains(elem)) {
+        data = {
+          "action" : "add",
+          "collection" : collectionName,
+          "data" : elem,
+          'args': args,
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      if (_modifiedItems.strictlyChanged.containsKey(elem)) {
+        data = {
+          "action" : "change",
+          "collection" : collectionName,
+          'args': args,
+          "_id" : elem["_id"],
+          "change" : new DataMap.from(elem),
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      if (_modifiedItems.removedItems.contains(elem)) {
+        data = {
+          "action" : "remove",
+          "collection" : collectionName,
+          'args': args,
+          "_id" : elem["_id"],
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      
+      Future result = _connection.send(() => new ClientRequest("sync", data))
+        .then((result) {
+          if (result is Map && result['error'] != null) {
+            _errorStreamController.add(result['error']);
+          }
+          
+          _sentItems.remove(elem["_id"]);
+          
           // if there are some more changes, sent them
-          if (_modifiedItems.changedItems.containsKey(data['elem'])){
-            _sendRequest(data['elem']);
+          if (_modifiedItems.changedItems.containsKey(elem)){
+            _sendRequest(elem);
           };
-        }
-      });
-    }
-  }
-  
-  void _sendRequest(dynamic elem) {
-    assert(_modifiedItems.changedItems.containsKey(elem));
-    Map data;
-    
-    if (_modifiedItems.addedItems.contains(elem)) {
-      data = {
-        "action" : "add",
-        "collection" : collectionName,
+          
+          return result;
+        }, onError: (e) {
+          if (e is ConnectionError) {
+            _sentItems[elem["_id"]]["failed"] = true;
+            
+            if (_connected) {
+              _resync();
+            }
+          }
+          else if (e is CancelError) { /* do nothing */ }
+          else throw e;
+        });
+      
+      _sentItems[elem["_id"]] = {
+        "clientVersion" : clientVersion,
         "data" : elem,
-        "elem" : elem,
-        'args': args,
-        "author" : _author,
-        "clientVersion" : _clientVersionGenerator.nextInt()
+        "failed" : false,
+        "result" : result
       };
+      
+      _modifiedItems.changedItems.remove(elem);
     }
-    if (_modifiedItems.strictlyChanged.containsKey(elem)) {
-      data = {
-        "action" : "change",
-        "collection" : collectionName,
-        'args': args,
-        "_id" : elem["_id"],
-        "elem" : elem,
-        "change" : new DataMap.from(elem),
-        "author" : _author,
-        "clientVersion" : _clientVersionGenerator.nextInt()
-      };
-    }
-    if (_modifiedItems.removedItems.contains(elem)) {
-      data = {
-        "action" : "remove",
-        "collection" : collectionName,
-        'args': args,
-        "_id" : elem["_id"],
-        "elem" : elem,
-        "author" : _author,
-        "clientVersion" : _clientVersionGenerator.nextInt()
-      };
-    }
-    
-    _send(data);
   }
   
   // TODO rename to something private-like
@@ -489,7 +469,7 @@ class Subscription {
   Future close() {
     return dispose()
       .then((_) =>
-        Future.wait(_sentItems.values))
+        Future.wait(_sentItems.values.map((item) => item["result"])))
       .then((_) =>
          new Future.delayed(new Duration(milliseconds: 100), (){
           collection.dispose();

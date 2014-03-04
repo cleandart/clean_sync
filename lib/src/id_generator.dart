@@ -18,9 +18,4 @@ class IdGenerator {
     return prefix + '-' + _counter.toRadixString(36);
 
   }
-  
-  num nextInt() {
-    _counter++;
-    return _counter;
-  }
 }

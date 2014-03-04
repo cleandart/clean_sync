@@ -5,8 +5,8 @@
 part of clean_sync.client;
 
 final _defaultSubscriptionFactory =
-    (collectionName, connection, author, idGenerator, clientVersionGenerator, args) =>
-        new Subscription(collectionName, connection, author, idGenerator, clientVersionGenerator, args);
+    (collectionName, connection, author, idGenerator, args) =>
+        new Subscription(collectionName, connection, author, idGenerator, args);
 
 /**
  * A control object responsible for managing subscription to server published
@@ -89,7 +89,7 @@ class Subscriber {
     }
     String author = _subscriptionIdGenerator.next();
     var subscription = _createSubscription(collectionName, _connection, author,
-      _dataIdGenerator, new IdGenerator(), args);
+      _dataIdGenerator, args);
     return subscription;
   }
 }

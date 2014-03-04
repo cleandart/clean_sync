@@ -5,7 +5,7 @@ import 'package:clean_ajax/server.dart';
 import 'package:crypto/crypto.dart';
 import 'package:clean_router/common.dart';
 
-void main() {
+void main() { 
   /**
    * Mongo daemon has to be running at its default port.
    * No authentification is used (/etc/mongodb.conf contains auth=false, which
