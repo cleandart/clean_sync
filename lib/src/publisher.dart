@@ -40,10 +40,7 @@ class Resource {
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {
         dp = _dp;
-        if (action == "get_max_client_version") {
-          return dp.maxClientVersion(data['author']);
-        }
-        else if (action == "get_data") {
+        if (action == "get_data") {
           return dp.data().then((result) {
             stopWatch(watchID);
             return result;
