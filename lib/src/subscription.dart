@@ -139,7 +139,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         }
       }
       else if (action == "remove" ) {
-        logger.finer('aplying changes (remove');
+        logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
       }
@@ -171,9 +171,9 @@ class Subscription {
   // requested periodically.
   bool _forceDataRequesting = false;
   Map args = {};
-  // Maps _id of a document to Future, that completes when server response
-  // to document's update is completed
-  Map<String, Future> _sentItems = {};
+  // Maps _id of a document to a structure holding the document at the time of sending
+  // along with client version of the change and failed flag
+  Map<String, Map<String, dynamic>> _sentItems = {};
   // reflects changes to this.collection, that were not already sent to the server
   ChangeSet _modifiedItems = new ChangeSet();
   // flag used to prevent subscription to have multiple get_diff requests 'pending'.
@@ -191,6 +191,8 @@ class Subscription {
   // all changes with version < _version MUST be already applied by this subscription.
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
+  bool _connected = false;
+
   num _version = 0;
 
   // version exposed only for testing and debugging
@@ -199,6 +201,7 @@ class Subscription {
   String toString() => 'Subscription(${_author}, ver: ${_version})';
   Completer _initialSync = new Completer();
   List<StreamSubscription> _subscriptions = [];
+  StreamSubscription _periodicDiffRequesting;
   StreamController _errorStreamController;
   Stream get errorStream {
     if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
@@ -228,7 +231,124 @@ class Subscription {
     return Future.wait(
         subscriptions.map((subscription) => subscription.initialSync));
   }
-
+  
+  void _resync() {
+    print("resync started");
+    
+    // resend all failed changes
+    _sentItems.forEach((id, item) {
+      if (item["failed"]) {
+        _sendRequest(item["data"]);
+      }
+    });
+    
+    for (var key in _modifiedItems.changedItems.keys) {
+      if (!_sentItems.containsKey(key['_id'])) {
+        _sendRequest(key);
+      }
+    }
+    
+    if (_periodicDiffRequesting.isPaused) {
+      _periodicDiffRequesting.resume();
+    }
+  }
+  
+  void setupConnectionRecovery() {
+    _connection.onDisconnected.listen((_) {
+      _connected = false;
+    });
+    
+    _connection.onConnected.listen((_) {
+      _connected = true;
+      _resync();
+    });
+  }
+  
+  void _sendRequest(DataMap elem) {
+    assert(_modifiedItems.changedItems.containsKey(elem));
+    
+    if (_connected) {
+      Map data;
+      String clientVersion;
+      
+      if (_sentItems.containsKey(elem["_id"])) {
+        // when resending a change, we want to use the same client version
+        // that was generated initially
+        clientVersion = _sentItems[elem["_id"]]["clientVersion"];
+      }
+      else {
+        clientVersion = _idGenerator.next();
+      }
+      
+      if (_modifiedItems.addedItems.contains(elem)) {
+        data = {
+          "action" : "add",
+          "collection" : collectionName,
+          "data" : elem,
+          'args': args,
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      if (_modifiedItems.strictlyChanged.containsKey(elem)) {
+        data = {
+          "action" : "change",
+          "collection" : collectionName,
+          'args': args,
+          "_id" : elem["_id"],
+          "change" : new DataMap.from(elem),
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      if (_modifiedItems.removedItems.contains(elem)) {
+        data = {
+          "action" : "remove",
+          "collection" : collectionName,
+          'args': args,
+          "_id" : elem["_id"],
+          "author" : _author,
+          "clientVersion" : clientVersion
+        };
+      }
+      
+      Future result = _connection.send(() => new ClientRequest("sync", data))
+        .then((result) {
+          if (result is Map && result['error'] != null) {
+            _errorStreamController.add(result['error']);
+          }
+          
+          _sentItems.remove(elem["_id"]);
+          
+          // if there are some more changes, sent them
+          if (_modifiedItems.changedItems.containsKey(elem)){
+            _sendRequest(elem);
+          };
+          
+          return result;
+        }, onError: (e) {
+          if (e is ConnectionError) {
+            _sentItems[elem["_id"]]["failed"] = true;
+            
+            if (_connected) {
+              _resync();
+            }
+          }
+          else if (e is CancelError) { /* do nothing */ }
+          else throw e;
+        });
+      
+      _sentItems[elem["_id"]] = {
+        "clientVersion" : clientVersion,
+        "data" : elem,
+        "failed" : false,
+        "result" : result
+      };
+      
+      _modifiedItems.changedItems.remove(elem);
+    }
+  }
+  
   // TODO rename to something private-like
   void setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
@@ -241,71 +361,13 @@ class Subscription {
 
     var change = new ChangeSet();
 
-    sendRequest(dynamic elem){
-        Future result = _connection.send((){
-          assert(_modifiedItems.changedItems.containsKey(elem));
-          var req;
-          if (_modifiedItems.addedItems.contains(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "add",
-              "collection" : collectionName,
-              "data" : elem,
-              'args': args,
-              "author" : _author
-            });
-          }
-          if (_modifiedItems.strictlyChanged.containsKey(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "change",
-              "collection" : collectionName,
-              'args': args,
-              "_id": elem["_id"],
-              "change" : elem,
-              "author" : _author
-            });
-          }
-          if (_modifiedItems.removedItems.contains(elem)) {
-            req = new ClientRequest("sync", {
-              "action" : "remove",
-              "collection" : collectionName,
-              'args': args,
-              "_id" : elem["_id"],
-              "author" : _author
-            });
-          }
-          _modifiedItems.changedItems.remove(elem);
-          return req;
-        }).then((result){
-          if (result is Map)
-            if (result['error'] != null)
-              _errorStreamController.add(result['error']);
-          return result;
-        }).catchError((e){
-          if(e is! CancelError) throw e;
-        });
-
-        var id = elem['_id'];
-        _sentItems[id] = result;
-        result.then((nextVersion){
-          // if the request that already finished was last request modifying
-          // current field, mark the field as free
-          if (_sentItems[id] == result) {
-            _sentItems.remove(id);
-            // if there are some more changes, sent them
-            if (_modifiedItems.changedItems.containsKey(elem)){
-              sendRequest(elem);
-            };
-          }
-        });
-    };
-
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
         _modifiedItems.mergeIn(change);
         for (var key in change.changedItems.keys) {
           if (!_sentItems.containsKey(key['_id'])) {
-            sendRequest(key);
+            _sendRequest(key);
           }
         }
       }
@@ -318,16 +380,23 @@ class Subscription {
     'args': args
   });
 
+  _createMaxClientVersionRequest() => new ClientRequest("sync", {
+    "action" : "get_max_client_version",
+    "collection" : collectionName,
+    "author" : _author
+  });
+  
   _createDiffRequest() {
     if (requestLock || _sentItems.isNotEmpty) {
       return null;
     } else {
       requestLock = true;
+
       return new ClientRequest("sync", {
-      "action" : "get_diff",
-      "collection" : collectionName,
-      'args': args,
-      "version" : _version
+        "action" : "get_diff",
+        "collection" : collectionName,
+        'args': args,
+        "version" : _version
       });
     }
   }
@@ -343,13 +412,19 @@ class Subscription {
       }
       _version = response['version'];
       _handleData(response['data'], this, _author);
-
+      _connected = true;
+      
       logger.info("Got initial data, synced to version ${_version}");
-
+      
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
 
-      var subscription = _connection
+      _setupPeriodicDiffRequesting();
+    });
+  }
+
+  void _setupPeriodicDiffRequesting() {
+    _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
@@ -370,13 +445,19 @@ class Subscription {
             }
           }
         }, onError: (e){
-          if (e is! CancelError)throw e;
+          if (e is CancelError) { /* do nothing */ }
+          else if (e is ConnectionError) {
+            // connection failed
+            _periodicDiffRequesting.pause();
+            requestLock = false;
+          }
+          else throw e;
         });
-      _subscriptions.add(subscription);
-    });
+    _subscriptions.add(_periodicDiffRequesting);
   }
-
+  
   void start() {
+    setupConnectionRecovery();
     setupListeners();
     setupDataRequesting();
   }
@@ -388,7 +469,7 @@ class Subscription {
   Future close() {
     return dispose()
       .then((_) =>
-        Future.wait(_sentItems.values))
+        Future.wait(_sentItems.values.map((item) => item["result"])))
       .then((_) =>
          new Future.delayed(new Duration(milliseconds: 100), (){
           collection.dispose();
