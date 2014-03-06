@@ -8,11 +8,18 @@ import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:useful/useful.dart';
 import 'dart:async';
+
 
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
-main() {
+main(){
+  setupDefaultLogHandler();
+  run();
+}
+
+run() {
   group('group ', () {
     MongoDatabase mongodb;
     Connection connection;
@@ -43,7 +50,7 @@ main() {
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
       sub = new Subscription('a', connection, 'author1', _idGenerator, {});
-      sub.initialSync.then((_){}, onError: callback);
+      return sub.initialSync.then((_){}, onError: callback);
     });
 
     test('Exception in beforeRequest is caught on client-side', () {
@@ -54,7 +61,7 @@ main() {
 
       var beforeRequest = (value, args) {
         testvalue(value);
-        return new Future.error(new ArgumentError("__TEST__ : No!"));
+        throw new ArgumentError("__TEST__ : No!");
       };
 
       pub.publish('b', (_) {
@@ -62,7 +69,7 @@ main() {
       }, beforeRequest: beforeRequest);
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
-      var sub = new Subscription('b', connection, 'author2', _idGenerator, {});
+      sub = new Subscription('b', connection, 'author2', _idGenerator, {});
 
       sub.initialSync.then((_) {
         sub.errorStream.listen(callback);
