@@ -251,6 +251,10 @@ class MongoProvider implements DataProvider {
     });
   }
 
+  /**
+   * Adds document [data] to database. If document with same [_id] alreay
+   * exists, nothing happens and [true] is returned.
+   */
   Future add(Map data, String author) {
     num nextVersion;
     return _get_locks().then((_) =>
@@ -343,21 +347,24 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  //TODO: change means new data, rename it
-  Future change(String _id, Map change, String author) {
+  /**
+   * Changes document with id [_id] to [newData]. If such document does not
+   * exist, nothing happens and [true] is returned.
+   */
+  Future change(String _id, Map newData, String author) {
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
           throw true;
-        } else if (change.containsKey('_id') && change['_id'] != _id) {
+        } else if (newData.containsKey('_id') && newData['_id'] != _id) {
           throw new MongoException(null,
-              'New document id ${change['_id']} should be same as old one $_id.');
+              'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
-            newRecord = change;
+            newRecord = newData;
             newRecord[VERSION_FIELD_NAME] = nextVersion;
             return collection.save(newRecord);
           }).then((_) =>
@@ -377,10 +384,10 @@ class MongoProvider implements DataProvider {
           throw e;
         }
       }));
-
   }
 
-  Future update(selector,Map document, String author, {bool upsert: false, bool multiUpdate: false, WriteConcern writeConcern}) {
+  Future update(selector, Map document, String author, {bool upsert: false,
+                bool multiUpdate: false, WriteConcern writeConcern}) {
     num nextVersion;
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
