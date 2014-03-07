@@ -100,7 +100,6 @@ void main() {
         });
     });
 
-
     test('add more data at once data. (T02.1)', () {
       // when
       return ready.then((_) => months.addAll([clone(january), clone(february)], 'John Doe'))
@@ -473,7 +472,6 @@ void main() {
             });
           });
     });
-
 
     test('findOne with exactly one entry in db. (T16)', () {
       // when
