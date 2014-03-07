@@ -47,7 +47,8 @@ class Cache {
   Future putIfAbsent(key, val()){
     clear();
     if (_entries.containsKey(key)) {
-      return new Future.delayed(new Duration(), () => _entries[key].value);
+      Entry value = _entries[key];
+      return new Future.delayed(new Duration(), () => value.value);
     } else {
         return new Future.sync(() => val())
           .then((value){
