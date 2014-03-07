@@ -214,6 +214,24 @@ class MongoProvider implements DataProvider {
     return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
   }
 
+  /**
+   * Returns key-value pairs according to the specified selectors.
+   * There should be exactly one entry with specified selectors, otherwise
+   * findOne throws an [Exception].
+   */
+  Future<Map> findOne() {
+    return data().then((Map result) {
+      List data = result["data"];
+
+      if (data.isEmpty) {
+        throw new Exception("There are no entries in database.");
+      } else if (data.length > 1) {
+        throw new Exception("There are multiple entries in database.");
+      }
+
+      return new Future.value(data[0]);
+    });
+  }
 
   Future<Map> data({stripVersion: true}) {
     return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
