@@ -332,9 +332,8 @@ class Subscription {
     }
   }
 
-  // TODO rename to something private-like
   void setupDataRequesting() {
-    // request initial data
+    // request initial data; this is also called when restarting subscription
     _connection.send(_createDataRequest).then((response) {
       if (response['error'] != null) {
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
@@ -377,6 +376,11 @@ class Subscription {
   }
 
   void start() {
+    _errorStreamController.stream.listen((error){
+      if(!error.toString().contains("__TEST__")) {
+        logger.shout('errorStreamController error: ${error}');
+      }
+    });
     setupListeners();
     setupDataRequesting();
   }

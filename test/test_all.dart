@@ -33,6 +33,6 @@ run(configuration) {
   publisher_test.run();
   client_test.main();
   id_generator_test.main();
-  exception_test.main();
+  exception_test.run();
   collection_modification_test.run();
 }
