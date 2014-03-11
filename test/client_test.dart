@@ -221,6 +221,21 @@ void main() {
       expect(months.collection.first.containsValue("February"), isTrue);
     });
 
+    test("initial sync.", () {
+      // given
+      connection = new ConnectionMock();
+      months = new Subscription.config('months',  collection,  connection,  'author',
+          idGenerator, mockHandleData, mockHandleDiff, false);
+
+      // when
+      months.dispose();
+
+      // then
+      //
+
+
+    });
+
     test("modifiedItems", () {
       var connection = new BareConnectionMock();
       var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
