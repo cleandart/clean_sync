@@ -4,6 +4,8 @@
 
 part of clean_sync.client;
 
+emptyStartup(_){}
+
 final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, Subscription subscription, String author) {
@@ -220,15 +222,11 @@ class Subscription {
     return collection;
   }
 
-  emptyStartup(){}
-
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args, startup]) {
+      this._forceDataRequesting, [this.args, startup = emptyStartup]) {
     _initialSync = new Completer();
-    if (startup != null) {
-      startup(this);
-    }
+    startup(this);
   }
 
   Subscription(collectionName, connection, author, idGenerator, [args])
