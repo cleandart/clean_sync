@@ -54,10 +54,11 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
+      mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest');
       ready = Future.wait(mongodb.init).then((_) => mongodb.dropCollection('months'))
                     .then((_) => mongodb.removeLocks())
                     .then((_) => months = mongodb.collection('months'));
+      return ready;
     });
 
     tearDown(() {
@@ -507,5 +508,25 @@ void main() {
         expect(error.message, equals("There are multiple entries in database."));
       });
     });
+
+    solo_test('cache should invalidate when changing the collection', () {
+      var _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest',
+          cache: new Cache(new Duration(seconds: 1), 1000));
+      ready = Future.wait(_mongodb.init)
+                    .then((_) => _mongodb.dropCollection('months'))
+                    .then((_) => _mongodb.removeLocks())
+                    .then((_) => months = _mongodb.collection('months'))
+                    ;
+      return ready.then((_){
+        months = _mongodb.collection('months');
+        return months.add({'a': 'aa'}, '')
+        .then((_) => months.data())
+        .then((_) => months.add({'b': 'bb'}, ''))
+        .then((_) => months.data())
+        .then((data) => expect(data.length, equals(2)));
+      });
+
+    });
+
   });
 }

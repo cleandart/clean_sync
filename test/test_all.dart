@@ -11,10 +11,10 @@ import 'exception_test.dart' as exception_test;
 import 'collection_modification_test.dart' as collection_modification_test;
 import 'subs_random_test.dart' as subs_random_test;
 import 'mongo_provider_random_test.dart' as mp_random_test;
-
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:logging/logging.dart';
+import 'package:useful/useful.dart';
 
 final Logger logger = new Logger('clean_sync');
 
@@ -25,11 +25,7 @@ main() {
 run(configuration) {
   unittestConfiguration = configuration;
   hierarchicalLoggingEnabled = true;
-  logger.level = Level.WARNING;
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.level.name}: ${rec.message} ${rec.error} ${rec.stackTrace}');
-  });
-  Logger.root.level = Level.WARNING;
+  setupDefaultLogHandler();
 
   mongo_provider_test.main();
   publisher_test.run();

@@ -37,24 +37,6 @@ const String LOCK_COLLECTION_NAME = '__clean_lock';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
-/**
- * TODO: this function should be tidied up to some utilities class
- * Creates a new Map out of the given [map] preserving only keys
- * specified in [keys]
- * [map] is the Map to be sliced
- * [keys] is a list of keys to be preserved
- */
-Map slice(Map map, List keys) {
-  Map result = {};
-
-  keys.forEach((key) {
-    if (map.containsKey(key)) {
-      result[key] = map[key];
-    }
-  });
-
-  return result;
-}
 
 class MongoDatabase {
   Db _db;
