@@ -472,5 +472,40 @@ void main() {
             });
           });
     });
+
+    test('findOne with exactly one entry in db. (T16)', () {
+      // when
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
+      .then((_) => months.findOne())
+      .then((data) {
+
+        // then
+        expect(data.length, equals(january.length));
+        expect(data, equals(january));
+      });
+
+    });
+
+    test('findOne with exactly zero entries in db. (T16.1)', () {
+      // when
+      return ready.then((_) => months.findOne())
+      .then((_) => _)
+      // then
+      .catchError((error) {
+        expect(error.message, equals("There are no entries in database."));
+      });
+    });
+
+    test('findOne with more entries in db. (T16.2)', () {
+      // when
+      return ready.then((_) => months.addAll(
+          [clone(january), clone(february), clone(march)], 'John Doe'))
+      .then((_) => months.findOne())
+      .then((_) => _)
+      // then
+      .catchError((error) {
+        expect(error.message, equals("There are multiple entries in database."));
+      });
+    });
   });
 }
