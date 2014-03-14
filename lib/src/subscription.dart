@@ -6,6 +6,18 @@ part of clean_sync.client;
 
 emptyStartup(_){}
 
+/**
+ * When subscription is disposed sooner than initialSync is completed, initialSync
+ * completes with error (with CancelError). Programmers
+ * very seldom want to react to this error, since in most cases, you can silently
+ * ignore it. Therefore, it's better to catch it by default.
+ */
+Completer createInitialSync(){
+  var res = new Completer();
+  res.future.catchError((e){});
+  return res;
+}
+
 final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, Subscription subscription, String author) {
@@ -225,7 +237,7 @@ class Subscription {
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
       this._forceDataRequesting, [this.args, startup = emptyStartup]) {
-    _initialSync = new Completer();
+    _initialSync = createInitialSync();
     startup(this);
   }
 
@@ -420,7 +432,7 @@ class Subscription {
 
   void restart([Map args]) {
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    _initialSync = new Completer();
+    _initialSync = createInitialSync();
     this.args = args;
     _closeSubs().then((_) {
       requestLock = false;

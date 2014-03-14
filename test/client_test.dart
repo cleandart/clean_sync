@@ -198,10 +198,8 @@ void run() {
       months.initialSync.catchError((e){});
 
       createSubscriptionStub = (collection){
-        Subscription res = new Subscription.config('months', collection, connection,
+        return new Subscription.config('months', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
-        res.initialSync.catchError((e){});
-        return res;
       };
 
     });
