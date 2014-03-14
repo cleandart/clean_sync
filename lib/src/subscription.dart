@@ -220,18 +220,20 @@ class Subscription {
     return collection;
   }
 
+  emptyStartup(){}
+
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args, supressStart = false]) {
+      this._forceDataRequesting, [this.args, startup]) {
     _initialSync = new Completer();
-    if (!supressStart){
-      start();
+    if (startup != null) {
+      startup(this);
     }
   }
 
   Subscription(collectionName, connection, author, idGenerator, [args])
       : this.config(collectionName, _createNewCollection(), connection, author,
-          idGenerator, handleData, handleDiff, false, args, false);
+          idGenerator, handleData, handleDiff, false, args, (self) => self.start());
 
 
   /**
@@ -405,18 +407,21 @@ class Subscription {
     setupDataRequesting();
   }
 
-  Future dispose() {
+
+  Future closeSubs() {
     return Future.forEach(_subscriptions, (sub){
-         sub.cancel();
-      }).then((_) => Future.wait(_sentItems.values));
+      sub.cancel();
+    }).then((_) => Future.wait(_sentItems.values));
   }
 
-  Future close() {
+  Future dispose() {
+    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+    return closeSubs();
+  }
+
+  Future close(){
     return dispose()
-      .then((_) =>
-         new Future.delayed(new Duration(milliseconds: 100), (){
-          collection.dispose();
-    }));
+      .then((_) => collection.dispose());
   }
 
   Future restart([Map args]) {
@@ -424,7 +429,7 @@ class Subscription {
     requestLock = false;
     _initialSync = new Completer();
     this.args = args;
-    return dispose().then((_) {
+    return closeSubs().then((_) {
       start();
     });
   }

@@ -39,6 +39,8 @@ class SubscriptionMock extends Mock implements Subscription {
 }
 
 void main(){
+  unittestConfiguration.timeout = new Duration(seconds: 5);
+
   setupDefaultLogHandler();
   run();
 }
@@ -195,12 +197,12 @@ void run() {
       collection.addIndex(['_id']);
       gotCancelError = false;
       months = new Subscription.config('months', collection, connection,
-        'author', idGenerator, mockHandleData, mockHandleDiff, false, null, true);
+        'author', idGenerator, mockHandleData, mockHandleDiff, false);
       months.initialSync.catchError((e){gotCancelError = true;});
 
       createStubbedSubscription = (collection){
         Subscription res = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false, null, true);
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
         res.initialSync.catchError((e){gotCancelError = true;});
         return res;
       };
@@ -278,7 +280,7 @@ void run() {
       collection.add(elem);
 
       Subscription subs = new Subscription.config('collection', collection, _connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false, {}, true);
+          'author', idGenerator, mockHandleData, mockHandleDiff, false, {});
 
       subs.setupListeners();
 
@@ -327,7 +329,7 @@ void run() {
         ];
 
       Subscription _months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false, {}, true);
+          'author', idGenerator, mockHandleData, mockHandleDiff, false, {});
       _months.initialSync.catchError((e){});
 
 

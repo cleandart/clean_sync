@@ -110,7 +110,8 @@ run() {
 
     return Future.forEach(itemsToClose, (item) {
       return item.close();
-    }).then((_) => mongodb.close());
+    }).then((_) => new Future.delayed(new Duration(milliseconds: 500)))
+      .then((_) => mongodb.close());
   });
 
   executeSubscriptionActions(List actions) {
@@ -333,6 +334,7 @@ run() {
       Future oldinitialSync = subArgs.initialSync;
       subArgs.restart(null).then((_){});
       expect(subArgs.initialSync == oldinitialSync, isFalse);
+      return subArgs.initialSync;
     });
   });
 
