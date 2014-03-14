@@ -10,6 +10,7 @@ import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:useful/useful.dart';
 import 'dart:async';
 
 class BareConnectionMock extends Mock implements Connection {}
@@ -37,7 +38,13 @@ class SubscriptionMock extends Mock implements Subscription {
   }
 }
 
-void main() {
+void main(){
+  setupDefaultLogHandler();
+  run();
+}
+
+
+void run() {
   group("Subscriber", () {
     Subscriber subscriber;
     ConnectionMock connection;
@@ -148,6 +155,8 @@ void main() {
     DataSet collection;
     FunctionMock mockHandleData;
     FunctionMock mockHandleDiff;
+    bool gotCancelError;
+    Function createStubbedSubscription;
 
     Function listenersAreOn = () {
       january = new DataMap.from({'name': 'January', 'order': 1});
@@ -184,6 +193,18 @@ void main() {
       mockHandleDiff = new FunctionMock();
       collection = new DataSet();
       collection.addIndex(['_id']);
+      gotCancelError = false;
+      months = new Subscription.config('months', collection, connection,
+        'author', idGenerator, mockHandleData, mockHandleDiff, false, null, true);
+      months.initialSync.catchError((e){gotCancelError = true;});
+
+      createStubbedSubscription = (collection){
+        Subscription res = new Subscription.config('months', collection, connection,
+          'author', idGenerator, mockHandleData, mockHandleDiff, false, null, true);
+        res.initialSync.catchError((e){gotCancelError = true;});
+        return res;
+      };
+
     });
 
     tearDown(() {
@@ -193,8 +214,6 @@ void main() {
     test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       january = new DataMap.from({'name': 'January', 'order': 1});
 
       // when
@@ -202,7 +221,7 @@ void main() {
       months.collection.add(january);
 
       // then
-//      expect(months.collection.first['_id'], equals('prefix-1'));
+      expect(months.collection.first['_id'], equals('prefix-1'));
     });
 
     test("handle data response.", () {
@@ -210,8 +229,6 @@ void main() {
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       List<Map> data = [{'_id': '21', 'name': 'February', 'order': 2}];
       connection = new ConnectionMock();
-      months = new Subscription.config('months', collection, connection,
-        'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       handleData(data, months, 'author');
@@ -224,22 +241,20 @@ void main() {
     test("initial sync.", () {
       // given
       connection = new ConnectionMock();
-      months = new Subscription.config('months',  collection,  connection,  'author',
-          idGenerator, mockHandleData, mockHandleDiff, false);
-
-      // when
-      months.dispose();
+      Subscription _months = createStubbedSubscription(collection);
 
       // then
-      //
+      _months.initialSync.catchError(expectAsync((e){}));
 
+      // when
+      return _months.dispose();
 
     });
 
     test("modifiedItems", () {
-      var connection = new BareConnectionMock();
+      var _connection = new BareConnectionMock();
       var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
-      connection.when(callsTo('send')).alwaysCall((requestFactory) {
+      _connection.when(callsTo('send')).alwaysCall((requestFactory) {
         var request = requestFactory();
         switch (request.args['action']) {
           case ('get_diff'): return new Future.delayed(
@@ -262,9 +277,8 @@ void main() {
 
       collection.add(elem);
 
-      Subscription subs  = new Subscription.config('collection', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
-
+      Subscription subs = new Subscription.config('collection', collection, _connection,
+          'author', idGenerator, mockHandleData, mockHandleDiff, false, {}, true);
 
       subs.setupListeners();
 
@@ -274,7 +288,7 @@ void main() {
         "version" : 0
       });
 
-      connection.send(_createDiffRequest).then((val){
+      _connection.send(_createDiffRequest).then((val){
         handleDiff(val['diff'], subs, 'author');
       });
 
@@ -305,8 +319,6 @@ void main() {
       february = new DataMap.from(marchMapBefore);
       collection.add(january);
       collection.add(february);
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       List<Map> diff = [
         {'action': 'add', 'data': aprilMap},
         {'action': 'change', '_id': '31',
@@ -314,19 +326,25 @@ void main() {
         {'action': 'remove', '_id': '11'},
         ];
 
+      Subscription _months = new Subscription.config('months', collection, connection,
+          'author', idGenerator, mockHandleData, mockHandleDiff, false, {}, true);
+      _months.initialSync.catchError((e){});
+
+
       // when
-      handleDiff(diff, months, 'author');
-      months.collection.addIndex(['_id']);
+      handleDiff(diff, _months, 'author');
+      _months.collection.addIndex(['_id']);
 
       // then
-      expect(months.collection.length, equals(2));
-      expect(months.collection.findBy('_id', '41').first.toString(),
+      expect(_months.collection.length, equals(2));
+      expect(_months.collection.findBy('_id', '41').first.toString(),
           equals(aprilMap.toString()));
-      expect(months.collection.findBy('_id', '31').first.toString(),
+      expect(_months.collection.findBy('_id', '31').first.toString(),
           equals(marchMapAfter.toString()));
+      return _months.dispose();
     });
 
-    test("handle diff response", (){
+    test("handle diff response complex", (){
       DataMap guybrush = new DataMap.from({'name' : 'Guybrush'});
       DataReference guybrushNameRef = guybrush.ref('name');
       DataMap lechuck = new DataMap.from({'name' : 'LeChuck'});
@@ -335,8 +353,8 @@ void main() {
       DataMap summary = new DataMap.from({'_id' : '2', 'characters': new DataList.from([new DataMap.from(guybrush)])});
       DataSet games = new DataSet.from([mi, summary, loom]);
       games.addIndex(['_id']);
-      Subscription gamesSubs  = new Subscription.config('games', games, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+
+      Subscription gamesSubs  = createStubbedSubscription(games);
       List<Map> diff = [
         {'action': 'change', '_id': '1',
           'data': {'_id' : '1',
@@ -356,7 +374,7 @@ void main() {
       ];
 
       handleDiff(diff, gamesSubs, 'author');
-      guybrush.onChange.listen(expectAsync1((change){
+      guybrush.onChange.listen(expectAsync((change){
         expect(guybrushNameRef, equals(guybrush.ref('name')));
         expect(change.equals(new ChangeSet(
             {'name': new Change('Guybrush', 'Guybrush Threepwood')}
@@ -365,7 +383,7 @@ void main() {
       lechuck.onChange.listen((change){
         expect(true, isFalse);
       });
-      summary.onChange.listen(expectAsync1((change){
+      summary.onChange.listen(expectAsync((change){
         var added = summary['characters'][1];
         expect(added is DataMap, isTrue);
         expect(change.equals(
@@ -374,7 +392,7 @@ void main() {
             })
         ), isTrue);
       }));
-      games.onChange.listen(expectAsync1((ChangeSet change){
+      games.onChange.listen(expectAsync((ChangeSet change){
         expect(change.addedItems.length, equals(1));
         expect(change.addedItems.first['game'], equals('grim fandango'));
         expect(change.removedItems.length, equals(1));
@@ -385,9 +403,6 @@ void main() {
 
     test("send add-request.", () {
       // given
-      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       january = new DataMap.from({'name': 'January', 'order': 1});
 
       // when
@@ -408,12 +423,11 @@ void main() {
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
       collection = new DataSet.from([january]);
-//      collection.add(january);
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+
+      Subscription _months = createStubbedSubscription(collection);
 
       // when
-      months.setupListeners();
+      _months.setupListeners();
       lastRequest = null;
       january.addAll({'length': 31});
 
@@ -432,13 +446,13 @@ void main() {
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       january = new DataMap.from({'_id': '12', 'name': 'January', 'order': 1});
       collection.add(january);
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
+
+      Subscription _months = createStubbedSubscription(collection);
 
       // when
-      months.setupListeners();
+      _months.setupListeners();
       lastRequest = null;
-      months.collection.remove(january);
+      _months.collection.remove(january);
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
@@ -449,9 +463,6 @@ void main() {
     });
 
     test("setupListeners", () {
-      // given
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       // when
       months.setupListeners();
@@ -465,10 +476,6 @@ void main() {
 
 
     test("dispose.", () {
-      // given
-      months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false);
-
       // when
       months.dispose();
 
@@ -489,5 +496,7 @@ void main() {
       });
 
     });
+
+
   });
 }

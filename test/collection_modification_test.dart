@@ -3,26 +3,21 @@ library collection_modification_test;
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
-import './mongo_provider_test.dart';
 import 'package:clean_sync/client.dart';
-import 'package:unittest/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
+import 'package:useful/useful.dart';
+import './client_test.dart';
 
-class BareConnectionMock extends Mock implements Connection {}
-class IdGeneratorMock extends Mock implements IdGenerator {}
 
 main(){
-  unittestConfiguration.timeout = null;
   hierarchicalLoggingEnabled = true;
-  Logger.root.level = Level.WARNING;
-  (new Logger('clean_sync')).level = Level.WARNING;
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.level} ${rec.message} ${rec.error} ${rec.stackTrace}');
-  });
+  unittestConfiguration.timeout = null;
+//  (new Logger('clean_sync')).level = Level.FINEST;
+  setupDefaultLogHandler();
   run();
 }
 
@@ -33,12 +28,14 @@ run() {
   DataSet colAll2;
   DataSet colA;
   DataSet colAa;
+  DataSet colArgs;
 
   Connection connection;
   Subscription subAll;
   Subscription subAll2;
   Subscription subA;
   Subscription subAa;
+  Subscription subArgs;
 
   DataMap data1;
   DataMap data2;
@@ -68,6 +65,10 @@ run() {
           return mongodb.collection("random").find({'a.a': 'hello'});
         });
 
+        pub.publish('withArgs', (args) {
+          return mongodb.collection("random").find({'a': args['name']});
+        });
+
         pub.publish('mapped_pos', (_) {
           return mongodb.collection("random").find({'b': 3}).fields(['a']);
         });
@@ -80,14 +81,17 @@ run() {
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
 
-        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
+        subAll = new Subscription('a', connection, 'author_sub_all', new IdGenerator('a'), {});
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
+        subAll2 = new Subscription('a', connection, 'author_sub_all2', new IdGenerator('b'), {});
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
+        subA = new Subscription('b', connection, 'author_sub_a', new IdGenerator('c'), {});
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
+        subAa = new Subscription('c', connection, 'author_sub_aa', new IdGenerator('d'), {});
         colAa = subAa.collection;
+        subArgs = new Subscription('withArgs', connection, 'author_sub_args', new IdGenerator('d'),
+            {'name': 'aa'});
+        colArgs = subArgs.collection;
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -101,6 +105,7 @@ run() {
       subAll2,
       subA,
       subAa,
+      subArgs,
     ];
 
     return Future.forEach(itemsToClose, (item) {
@@ -116,6 +121,7 @@ run() {
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
+    subArgs.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
@@ -281,7 +287,6 @@ run() {
 
 
   test('test data list manipulation', () {
-    Subscription newSub;
     DataMap morders = new DataMap();
     DataList orders = new DataList();
     colAll2.onChangeSync.listen((event){
@@ -299,7 +304,6 @@ run() {
   });
 
   test('add-remove-add', () {
-    Subscription newSub;
     List actions = [
       () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
@@ -311,6 +315,67 @@ run() {
 
   });
 
+
+  test('add-remove-add', () {
+    List actions = [
+      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
+      () => expect(colAll, unorderedEquals([data1])),
+      () {colAll.remove(data1); colAll.add(data1);},
+      () => expect(colAll, unorderedEquals([data1])),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
+  test("restart immediately renews initialSync", (){
+    return subArgs.initialSync.then((_){
+      Future oldinitialSync = subArgs.initialSync;
+      subArgs.restart(null).then((_){});
+      expect(subArgs.initialSync == oldinitialSync, isFalse);
+    });
+  });
+
+  test('restart', () {
+    List actions = [
+      // close unneeded subscriptions to have nicer log
+      (){
+        subAll2.close();
+        subA.close();
+        subAa.close();
+      },
+      () {colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]);},
+      () => expect(colArgs, unorderedEquals([{'a': 'aa', '_id': 'a-1'}])),
+      () => subArgs.restart({'name': 'bb'}),
+      () => expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}])),
+      () => colAll.add({'a': 'bb'}),
+      () => colAll.add({'a': 'aa'}),
+      () => expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}, {'a': 'bb', '_id': 'a-3'}])),
+    ];
+    return executeSubscriptionActions(actions);
+  });
+
+  test('changes immediately between restart are still saved correctly', () {
+    List actions = [
+      () {colArgs.add({'a': 'aa'}); subArgs.restart({'name': 'bb'});},
+      () => expect(colAll, unorderedEquals([{'a': 'aa', '_id': 'd-1'}])),
+      () => expect(colArgs.isEmpty, isTrue),
+    ];
+    return executeSubscriptionActions(actions);
+  });
+
+  test('new data are present immediately after initial_sync completes', () {
+    List actions = [
+      () => colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]),
+      () {
+        subArgs.restart({'name': 'bb'});
+        subArgs.initialSync.then((_){
+          expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}]));
+        });
+      },
+    ];
+    return executeSubscriptionActions(actions);
+  });
 
 
 

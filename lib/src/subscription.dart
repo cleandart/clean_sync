@@ -222,13 +222,16 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args]) {
-    start();
+      this._forceDataRequesting, [this.args, supressStart = false]) {
+    _initialSync = new Completer();
+    if (!supressStart){
+      start();
+    }
   }
 
   Subscription(collectionName, connection, author, idGenerator, [args])
       : this.config(collectionName, _createNewCollection(), connection, author,
-          idGenerator, handleData, handleDiff, false, args);
+          idGenerator, handleData, handleDiff, false, args, false);
 
 
   /**
@@ -322,16 +325,22 @@ class Subscription {
     }));
   }
 
-  _createDataRequest() => new ClientRequest("sync", {
-    "action" : "get_data",
-    "collection" : collectionName,
-    'args': args
-  });
+  _createDataRequest(){
+    logger.finer("${this} sending data request with args ${args}");
+
+    return new ClientRequest("sync", {
+      "action" : "get_data",
+      "collection" : collectionName,
+      'args': args
+    });
+  }
 
   _createDiffRequest() {
+    logger.finest("${this} entering createDiffRequest");
     if (requestLock || _sentItems.isNotEmpty) {
       return null;
     } else {
+      logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
       return new ClientRequest("sync", {
       "action" : "get_diff",
@@ -386,7 +395,7 @@ class Subscription {
   }
 
   void start() {
-    _initialSync = new Completer();
+    logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
         logger.shout('errorStreamController error: ${error}');
@@ -397,9 +406,9 @@ class Subscription {
   }
 
   Future dispose() {
-    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    return Future.forEach(_subscriptions, (sub) => sub.cancel())
-        .then((_) => Future.wait(_sentItems.values));
+    return Future.forEach(_subscriptions, (sub){
+         sub.cancel();
+      }).then((_) => Future.wait(_sentItems.values));
   }
 
   Future close() {
@@ -411,6 +420,9 @@ class Subscription {
   }
 
   Future restart([Map args]) {
+    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+    requestLock = false;
+    _initialSync = new Completer();
     this.args = args;
     return dispose().then((_) {
       start();
