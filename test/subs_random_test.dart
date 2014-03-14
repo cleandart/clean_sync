@@ -262,7 +262,7 @@ main() {
           .then((_) =>
               newSub.initialSync)
           .then((_){
-            return newSub.close();
+            return newSub.dispose();
           }).then((_) {
             expect(newSub.collection, unorderedEquals(sub.collection));
           });

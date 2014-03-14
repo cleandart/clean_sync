@@ -4,6 +4,8 @@
 
 part of clean_sync.client;
 
+emptyStartup(_){}
+
 final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, Subscription subscription, String author) {
@@ -156,6 +158,12 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
   return res;
 }
 
+class CanceledException implements Exception {
+  String toString() {
+    return "CancelException";
+  }
+}
+
 class Subscription {
   // constructor arguments:
   String collectionName;
@@ -165,8 +173,8 @@ class Subscription {
   // and logging purposes
   String _author;
   IdGenerator _idGenerator;
-  Function _handleData = handleData;
-  Function _handleDiff = handleDiff;
+  final Function _handleData;
+  final Function _handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
   // requested periodically.
   bool _forceDataRequesting = false;
@@ -197,9 +205,9 @@ class Subscription {
   get version => _version;
 
   String toString() => 'Subscription(${_author}, ver: ${_version})';
-  Completer _initialSync = new Completer();
+  Completer _initialSync;
   List<StreamSubscription> _subscriptions = [];
-  StreamController _errorStreamController;
+  StreamController _errorStreamController = new StreamController.broadcast();
   Stream get errorStream {
     if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
     return _errorStreamController.stream;
@@ -208,17 +216,22 @@ class Subscription {
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
 
+  static _createNewCollection() {
+    var collection = new DataSet();
+    collection.addIndex(['_id']);
+    return collection;
+  }
+
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args]);
-
-  Subscription(this.collectionName, this._connection, this._author,
-      this._idGenerator, [this.args]) {
-    collection = new DataSet();
-    collection.addIndex(['_id']);
-    _errorStreamController = new StreamController.broadcast();
-    start();
+      this._forceDataRequesting, [this.args, startup = emptyStartup]) {
+    _initialSync = new Completer();
+    startup(this);
   }
+
+  Subscription(collectionName, connection, author, idGenerator, [args])
+      : this.config(collectionName, _createNewCollection(), connection, author,
+          idGenerator, handleData, handleDiff, false, args, (self) => self.start());
 
 
   /**
@@ -312,16 +325,22 @@ class Subscription {
     }));
   }
 
-  _createDataRequest() => new ClientRequest("sync", {
-    "action" : "get_data",
-    "collection" : collectionName,
-    'args': args
-  });
+  _createDataRequest(){
+    logger.finer("${this} sending data request with args ${args}");
+
+    return new ClientRequest("sync", {
+      "action" : "get_data",
+      "collection" : collectionName,
+      'args': args
+    });
+  }
 
   _createDiffRequest() {
+    logger.finest("${this} entering createDiffRequest");
     if (requestLock || _sentItems.isNotEmpty) {
       return null;
     } else {
+      logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
       return new ClientRequest("sync", {
       "action" : "get_diff",
@@ -376,6 +395,7 @@ class Subscription {
   }
 
   void start() {
+    logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
         logger.shout('errorStreamController error: ${error}');
@@ -385,23 +405,25 @@ class Subscription {
     setupDataRequesting();
   }
 
-  Future dispose() {
-    return Future.forEach(_subscriptions, (sub) => sub.cancel());
+
+  Future _closeSubs() {
+    return Future.forEach(_subscriptions, (sub){
+      sub.cancel();
+    }).then((_) => Future.wait(_sentItems.values));
   }
 
-  Future close() {
-    return dispose()
-      .then((_) =>
-        Future.wait(_sentItems.values))
-      .then((_) =>
-         new Future.delayed(new Duration(milliseconds: 100), (){
-          collection.dispose();
-    }));
+  Future dispose(){
+    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+    return _closeSubs()
+      .then((_) => collection.dispose());
   }
 
-  Future restart([Map args]) {
+  void restart([Map args]) {
+    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+    _initialSync = new Completer();
     this.args = args;
-    return dispose().then((_) {
+    _closeSubs().then((_) {
+      requestLock = false;
       start();
     });
   }

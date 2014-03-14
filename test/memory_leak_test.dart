@@ -76,7 +76,7 @@ run() {
 //            print(data);
             data['${i%1000}']['key']='changed $i';
             return new Future.delayed(new Duration(milliseconds: 3));
-          })).then((_) => subAll.close());
+          })).then((_) => subAll.dispose());
       }));
   });
 
