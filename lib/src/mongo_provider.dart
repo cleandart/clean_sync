@@ -358,7 +358,7 @@ class MongoProvider implements DataProvider {
       .then((Map record) {
         if(record == null) {
           throw true;
-        } else if (newData.containsKey('_id') && newData['_id'] != _id) {
+        } else if (newData['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
