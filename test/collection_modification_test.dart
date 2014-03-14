@@ -109,7 +109,7 @@ run() {
     ];
 
     return Future.forEach(itemsToClose, (item) {
-      return item.close();
+      return item.dispose();
     }).then((_) => new Future.delayed(new Duration(milliseconds: 500)))
       .then((_) => mongodb.close());
   });
@@ -261,7 +261,7 @@ run() {
       () => expect(colMapped, equals([{'a': 1, '_id': 'a-1'}])),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
-      () {subMapped.close(); newSub.close();}
+      () {subMapped.dispose(); newSub.dispose();}
     ];
 
     return executeSubscriptionActions(actions);
@@ -279,7 +279,7 @@ run() {
       () => expect(colMapped, equals([{'b': 3, 'c': 2, '_id': 'a-1'}])),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
-      () {subMapped.close(); newSub.close();}
+      () {subMapped.dispose(); newSub.dispose();}
     ];
 
     return executeSubscriptionActions(actions);
@@ -332,7 +332,7 @@ run() {
   test("restart immediately renews initialSync", (){
     return subArgs.initialSync.then((_){
       Future oldinitialSync = subArgs.initialSync;
-      subArgs.restart(null).then((_){});
+      subArgs.restart(null);
       expect(subArgs.initialSync == oldinitialSync, isFalse);
       return subArgs.initialSync;
     });
@@ -342,9 +342,9 @@ run() {
     List actions = [
       // close unneeded subscriptions to have nicer log
       (){
-        subAll2.close();
-        subA.close();
-        subAa.close();
+        subAll2.dispose();
+        subA.dispose();
+        subAa.dispose();
       },
       () {colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]);},
       () => expect(colArgs, unorderedEquals([{'a': 'aa', '_id': 'a-1'}])),

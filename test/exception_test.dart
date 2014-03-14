@@ -43,7 +43,7 @@ run() {
     });
 
     tearDown(() {
-      return sub.close().then((_) => mongodb.close());
+      return sub.dispose().then((_) => mongodb.close());
     });
 
     test('Exception in initial sync is caught on client-side', () {

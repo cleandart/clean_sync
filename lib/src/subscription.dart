@@ -406,28 +406,24 @@ class Subscription {
   }
 
 
-  Future closeSubs() {
+  Future _closeSubs() {
     return Future.forEach(_subscriptions, (sub){
       sub.cancel();
     }).then((_) => Future.wait(_sentItems.values));
   }
 
-  Future dispose() {
+  Future dispose(){
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    return closeSubs();
-  }
-
-  Future close(){
-    return dispose()
+    return _closeSubs()
       .then((_) => collection.dispose());
   }
 
-  Future restart([Map args]) {
+  void restart([Map args]) {
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    requestLock = false;
     _initialSync = new Completer();
     this.args = args;
-    return closeSubs().then((_) {
+    _closeSubs().then((_) {
+      requestLock = false;
       start();
     });
   }

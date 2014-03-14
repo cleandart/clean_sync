@@ -40,7 +40,6 @@ class SubscriptionMock extends Mock implements Subscription {
 
 void main(){
   unittestConfiguration.timeout = new Duration(seconds: 5);
-
   setupDefaultLogHandler();
   run();
 }
@@ -157,8 +156,7 @@ void run() {
     DataSet collection;
     FunctionMock mockHandleData;
     FunctionMock mockHandleDiff;
-    bool gotCancelError;
-    Function createStubbedSubscription;
+    Function createSubscriptionStub;
 
     Function listenersAreOn = () {
       january = new DataMap.from({'name': 'January', 'order': 1});
@@ -195,15 +193,14 @@ void run() {
       mockHandleDiff = new FunctionMock();
       collection = new DataSet();
       collection.addIndex(['_id']);
-      gotCancelError = false;
       months = new Subscription.config('months', collection, connection,
         'author', idGenerator, mockHandleData, mockHandleDiff, false);
-      months.initialSync.catchError((e){gotCancelError = true;});
+      months.initialSync.catchError((e){});
 
-      createStubbedSubscription = (collection){
+      createSubscriptionStub = (collection){
         Subscription res = new Subscription.config('months', collection, connection,
           'author', idGenerator, mockHandleData, mockHandleDiff, false);
-        res.initialSync.catchError((e){gotCancelError = true;});
+        res.initialSync.catchError((e){});
         return res;
       };
 
@@ -243,7 +240,7 @@ void run() {
     test("initial sync.", () {
       // given
       connection = new ConnectionMock();
-      Subscription _months = createStubbedSubscription(collection);
+      Subscription _months = createSubscriptionStub(collection);
 
       // then
       _months.initialSync.catchError(expectAsync((e){}));
@@ -356,7 +353,7 @@ void run() {
       DataSet games = new DataSet.from([mi, summary, loom]);
       games.addIndex(['_id']);
 
-      Subscription gamesSubs  = createStubbedSubscription(games);
+      Subscription gamesSubs  = createSubscriptionStub(games);
       List<Map> diff = [
         {'action': 'change', '_id': '1',
           'data': {'_id' : '1',
@@ -426,7 +423,7 @@ void run() {
       january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
       collection = new DataSet.from([january]);
 
-      Subscription _months = createStubbedSubscription(collection);
+      Subscription _months = createSubscriptionStub(collection);
 
       // when
       _months.setupListeners();
@@ -449,7 +446,7 @@ void run() {
       january = new DataMap.from({'_id': '12', 'name': 'January', 'order': 1});
       collection.add(january);
 
-      Subscription _months = createStubbedSubscription(collection);
+      Subscription _months = createSubscriptionStub(collection);
 
       // when
       _months.setupListeners();
