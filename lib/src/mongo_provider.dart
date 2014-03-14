@@ -386,27 +386,16 @@ class MongoProvider implements DataProvider {
       }));
   }
 
-  Future update(selector, Map document, String author, {bool upsert: false,
-                bool multiUpdate: false, WriteConcern writeConcern}) {
+  Future update(selector, Map modifier(Map document), String author, {WriteConcern writeConcern}) {
     num nextVersion;
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
         num versionUpdate = nextVersion;
-        var prepare;
-        if(document.keys.any((K) => K.startsWith('\$'))) {
-          prepare = (doc) {
-            doc[SET][VERSION_FIELD_NAME] =  versionUpdate++;
-            return doc;
-          };
-          if(!document.containsKey(SET))
-            document[SET] = {};
-        }
-        else {
-          prepare = (doc) {
-            doc[VERSION_FIELD_NAME] =  versionUpdate++;
-            return doc;
-          };
+
+        Map prepare(Map document) {
+          document[VERSION_FIELD_NAME] = versionUpdate++;
+          return document;
         }
 
         var col = collection.find(selector);
@@ -414,8 +403,7 @@ class MongoProvider implements DataProvider {
           oldData = data;
           return Future.forEach(data,
               (item) => collection.update({'_id': item['_id']},
-                  prepare(document), upsert: upsert, multiUpdate: multiUpdate,
-                  writeConcern: writeConcern));
+                  prepare(modifier(item)), writeConcern: writeConcern));
         });
       }).then((_) {
         return Future.forEach(oldData,
