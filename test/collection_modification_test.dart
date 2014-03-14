@@ -10,7 +10,7 @@ import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
-import './client_test.dart';
+import './subscription_test.dart';
 
 
 main(){

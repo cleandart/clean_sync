@@ -5,10 +5,12 @@
 
 import 'publisher_test.dart' as publisher_test;
 import 'mongo_provider_test.dart' as mongo_provider_test;
-import 'client_test.dart' as client_test;
+import 'subscription_test.dart' as subscription_test;
 import 'id_generator_test.dart' as id_generator_test;
 import 'exception_test.dart' as exception_test;
 import 'collection_modification_test.dart' as collection_modification_test;
+import 'subs_random_test.dart' as subs_random_test;
+import 'mongo_provider_random_test.dart' as mp_random_test;
 
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
@@ -31,8 +33,10 @@ run(configuration) {
 
   mongo_provider_test.main();
   publisher_test.run();
-  client_test.main();
+  subscription_test.run();
   id_generator_test.main();
   exception_test.run();
   collection_modification_test.run();
+  subs_random_test.run(100);
+  mp_random_test.run(30);
 }
