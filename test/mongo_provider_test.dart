@@ -392,7 +392,14 @@ void main() {
       //when
       return ready
           .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
-          .then((_) => months.update({'days': 28}, {'days': 29, 'number': 2, 'name': 'February'}, 'John Doe'))
+          .then((_) => months.update({'days': 28},
+            (Map document) {
+              document["days"] = 29;
+              document["number"] = 2;
+              document["name"] = "February";
+
+              return document;
+            }, 'John Doe'))
           .then((_) => months.data())
           .then((dataInfo) {
             expect(dataInfo['version'], equals(13));
@@ -413,11 +420,15 @@ void main() {
           });
     });
 
-    test('update data with set. (T14)', () {
+    test('update data with only one changed field. (T14)', () {
       //when
       return ready
           .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
-          .then((_) => months.update({'days': 31}, {SET: {'number': 47}}, 'John Doe', multiUpdate: true))
+          .then((_) => months.update({'days': 31},
+            (Map document) {
+              document["number"] = 47;
+              return document;
+            }, 'John Doe'))
           .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
             expect(dataInfo['version'], equals(19));
@@ -438,11 +449,16 @@ void main() {
           });
     });
 
-    test('update data with unset. (T15)', () {
+    test('update data and remove one field. (T15)', () {
       //when
       return ready
           .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
-          .then((_) => months.update({'days': 31}, {UNSET: {'number': 47}}, 'John Doe', multiUpdate: true))
+          .then((_) => months.update({'days': 31},
+            (Map document) {
+              document.remove("number");
+              return document;
+
+            }, 'John Doe'))
           .then((_) => months.data(stripVersion: false))
           .then((dataInfo) {
             expect(dataInfo['version'], equals(19));
