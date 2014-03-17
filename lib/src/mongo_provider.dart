@@ -123,6 +123,7 @@ MongoProvider mpClone(MongoProvider source){
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
   m._limit = source._limit;
+  m._skip = source._skip;
   m._fields = new List.from(source._fields);
   m._excludeFields = new List.from(source._excludeFields);
   return m;
@@ -182,7 +183,7 @@ class MongoProvider implements DataProvider {
 
   MongoProvider limit(num value) {
     var res = mpClone(this);
-    this._limit = value;
+    res._limit = value;
     return res;
   }
 
@@ -267,9 +268,11 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) {
-        if (clientVersion != null && _clientVersionExists(clientVersion)) {
-          print("skipping add of ${data}, this add has already been performed");
-          throw true;
+        if (clientVersion != null) {
+          return _clientVersionExists(clientVersion).then((exists) {
+            if (exists) throw true;
+          });
+
         }
       })
       .then((_) => collection.findOne({"_id" : data['_id']}))
@@ -377,10 +380,12 @@ class MongoProvider implements DataProvider {
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) {
-        if (clientVersion != null && _clientVersionExists(clientVersion)) {
-          print("skipping change of ${data}, this change has already been performed");
-          throw true;
-        }
+      if (clientVersion != null) {
+        return _clientVersionExists(clientVersion).then((exists) {
+          if (exists) throw true;
+        });
+
+      }
       })
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
@@ -464,10 +469,12 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) {
-        if (clientVersion != null && _clientVersionExists(clientVersion)) {
-          print("skipping remove of ${data}, this remove has already been performed");
-          throw true;
-        }
+      if (clientVersion != null) {
+        return _clientVersionExists(clientVersion).then((exists) {
+          if (exists) throw true;
+        });
+
+      }
       })
       .then((_) => _maxVersion)
       .then((version) {

@@ -68,7 +68,7 @@ void main() {
 
   // initialization of these Subscriptions
   Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
-      new Duration(milliseconds: 100));
+      new Duration(milliseconds: 1000));
   String authorData = 'dataAll';
   String authorData24 = 'data24';
   DataSet personsDataCol = new DataSet();

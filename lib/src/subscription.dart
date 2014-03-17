@@ -212,7 +212,13 @@ class Subscription {
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
   bool _connected = false;
-
+  
+  StreamController _onResyncFinishedController = new StreamController.broadcast();
+  StreamController _onFullSyncController = new StreamController.broadcast();
+  
+  Stream get onResyncFinished => _onResyncFinishedController.stream;
+  Stream get onFullSync => _onFullSyncController.stream;
+  
   num _version = 0;
 
   // version exposed only for testing and debugging
@@ -258,24 +264,30 @@ class Subscription {
   }
   
   void _resync() {
-    print("resync started");
+    List<Future> actions = [];
     
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
-        _sendRequest(item["data"]);
+        actions.add(_send(id, item["data"]));
       }
     });
     
-    for (var key in _modifiedItems.changedItems.keys) {
-      if (!_sentItems.containsKey(key['_id'])) {
-        _sendRequest(key);
+    if (!this.updateLock) {
+      for (var key in _modifiedItems.changedItems.keys) {
+        if (!_sentItems.containsKey(key['_id'])) {
+          _sendRequest(key);
+        }
       }
     }
     
     if (_periodicDiffRequesting.isPaused) {
       _periodicDiffRequesting.resume();
     }
+    
+    Future.wait(actions).then((_) {
+      _onResyncFinishedController.add(null);
+    });
   }
   
   void setupConnectionRecovery() {
@@ -294,22 +306,13 @@ class Subscription {
     
     if (_connected) {
       Map data;
-      String clientVersion;
-      
-      if (_sentItems.containsKey(elem["_id"])) {
-        // when resending a change, we want to use the same client version
-        // that was generated initially
-        clientVersion = _sentItems[elem["_id"]]["clientVersion"];
-      }
-      else {
-        clientVersion = _idGenerator.next();
-      }
+      String clientVersion = _idGenerator.next();
       
       if (_modifiedItems.addedItems.contains(elem)) {
         data = {
           "action" : "add",
           "collection" : collectionName,
-          "data" : elem,
+          "data" : new DataMap.from(elem),
           'args': args,
           "author" : _author,
           "clientVersion" : clientVersion
@@ -337,41 +340,52 @@ class Subscription {
         };
       }
       
-      Future result = _connection.send(() => new ClientRequest("sync", data))
-        .then((result) {
-          if (result is Map && result['error'] != null) {
-            _errorStreamController.add(result['error']);
-          }
-          
-          _sentItems.remove(elem["_id"]);
-          
-          // if there are some more changes, sent them
-          if (_modifiedItems.changedItems.containsKey(elem)){
-            _sendRequest(elem);
-          };
-          
-          return result;
-        }, onError: (e) {
-          if (e is ConnectionError) {
-            _sentItems[elem["_id"]]["failed"] = true;
-            
-            if (_connected) {
-              _resync();
-            }
-          }
-          else if (e is CancelError) { /* do nothing */ }
-          else throw e;
-        });
-      
-      _sentItems[elem["_id"]] = {
-        "clientVersion" : clientVersion,
-        "data" : elem,
-        "failed" : false,
-        "result" : result
-      };
+      _send(elem["_id"], data);
       
       _modifiedItems.changedItems.remove(elem);
     }
+  }
+  
+  Future _send(String id, Map data) {
+    logger.finer('Sending #${id}, ${data}');
+    
+    Future result = _connection.send(() => new ClientRequest("sync", data))
+      .then((result) {
+        if (result is Map && result['error'] != null) {
+          _errorStreamController.add(result['error']);
+        }
+        
+        logger.finer('Sent #${id}, ${data}');
+        
+        _sentItems.remove(id);
+        
+        DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
+        
+        // if there are some more changes, sent them
+        if (elem != null){
+          _sendRequest(elem);
+        };
+        
+        if (_sentItems.isEmpty && _modifiedItems.changedItems.isEmpty) {
+          _onFullSyncController.add(null);
+        }
+        
+        return result;
+      }, onError: (e) {
+        if (e is ConnectionError) {
+          _sentItems[id]["failed"] = true;
+        }
+        else if (e is CancelError) { /* do nothing */ }
+        else throw e;
+      });
+    
+    _sentItems[id] = {
+      "data" : data,
+      "failed" : false,
+      "result" : result
+    };
+    
+    return result;
   }
   
   // TODO rename to something private-like
@@ -398,10 +412,10 @@ class Subscription {
       }
     }));
   }
-
+  
   _createDataRequest(){
     logger.finer("${this} sending data request with args ${args}");
-
+    
     return new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : collectionName,

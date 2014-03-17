@@ -32,7 +32,7 @@ void main() {
       //return mongodb.collection("persons").find({"age" : null});
     });
 
-    Backend.bind([], new SHA256()).then((backend) {
+    Backend.bind('0.0.0.0', 8080, []).then((backend) {
       backend.router.addRoute("static", new Route('/static/*'));
       backend.router.addRoute("resources", new Route('/resources/'));
       MultiRequestHandler requestHandler = new MultiRequestHandler();
