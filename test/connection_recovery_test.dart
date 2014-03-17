@@ -110,11 +110,11 @@ run() {
         DataMap b = new DataMap.from(dataB);
         DataMap c = new DataMap.from(dataC);
         
+        transport.fail(0.6, new Duration(milliseconds: 500));
         colRandom.add(a);
         colRandom.add(b);
         colRandom.add(c);
         a["name"] = "aa";
-        transport.fail(1.0, new Duration(milliseconds: 1000));
         a["name"] = "aaa";
         b["age"] = 44;
         colRandom.remove(c);
