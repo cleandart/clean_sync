@@ -5,14 +5,17 @@
 
 import 'publisher_test.dart' as publisher_test;
 import 'mongo_provider_test.dart' as mongo_provider_test;
-import 'client_test.dart' as client_test;
+import 'subscription_test.dart' as subscription_test;
 import 'id_generator_test.dart' as id_generator_test;
 import 'exception_test.dart' as exception_test;
 import 'collection_modification_test.dart' as collection_modification_test;
-
+import 'subs_random_test.dart' as subs_random_test;
+import 'mongo_provider_random_test.dart' as mp_random_test;
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:logging/logging.dart';
+import 'package:useful/useful.dart';
+import 'package:clean_sync/server.dart';
 
 final Logger logger = new Logger('clean_sync');
 
@@ -23,16 +26,15 @@ main() {
 run(configuration) {
   unittestConfiguration = configuration;
   hierarchicalLoggingEnabled = true;
-  logger.level = Level.WARNING;
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.level.name}: ${rec.message} ${rec.error} ${rec.stackTrace}');
-  });
-  Logger.root.level = Level.WARNING;
+  setupDefaultLogHandler();
 
   mongo_provider_test.main();
   publisher_test.run();
-  client_test.main();
+  subscription_test.run();
   id_generator_test.main();
   exception_test.run();
   collection_modification_test.run();
+  subs_random_test.run(100, new DummyCache());
+  subs_random_test.run(100, new Cache(new Duration(milliseconds: 100), 10000));
+  mp_random_test.run(30);
 }

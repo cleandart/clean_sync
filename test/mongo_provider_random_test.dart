@@ -1,10 +1,12 @@
-library mongo_provider_test;
+library mongo_provider_random_test;
 
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';
+import 'package:useful/useful.dart';
+import 'package:logging/logging.dart';
 
 
 Random rng = new Random();
@@ -16,19 +18,31 @@ prob(p) {
   return p > rng.nextDouble();
 }
 
+
+Logger testLogger = new Logger('clean_sync.subs_random_test');
+
 main() {
+  var config = new SimpleConfiguration();
+  config.timeout = null;
+  unittestConfiguration = config;
+  hierarchicalLoggingEnabled = true;
+  testLogger.level = Level.INFO;
+  setupDefaultLogHandler();
+  run(1000);
+}
+
+run(count) {
   MongoProvider currCollection;
   MongoProvider wholeCollection;
   MongoDatabase mongodb;
 
   setup(selector) {
-    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
+    mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest');
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks())
     .then((_){
       wholeCollection = mongodb.collection('random');
-//      currCollection = mongodb.collection('random').find(selector);
       currCollection = selector(mongodb.collection('random'));
     });
   }
@@ -137,7 +151,7 @@ main() {
     ids = new Set();
     var lastVersion = 0;
 
-    return Future.forEach(new List.filled(1000, 0) , (_) {
+    return Future.forEach(new List.filled(count, 0) , (_) {
       return currCollection.data().then(
         (data) {
           dataStart = data['data'];
@@ -150,7 +164,7 @@ main() {
           .then((currCollection) {
             currCollection['diff'].forEach((e) => lastVersion = max(lastVersion, e['version']));
             handleDiff(currCollection['diff'], dataStart);
-            print(toStringOrdered(dataEnd));
+            testLogger.info('${toStringOrdered(dataEnd)}');
             expect(toStringOrdered(dataStart), equals(toStringOrdered(dataEnd)));
           });
     });
