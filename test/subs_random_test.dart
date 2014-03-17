@@ -44,10 +44,10 @@ main() {
   testLogger.level = Level.INFO;
 
   setupDefaultLogHandler();
-  run(1000000);
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000));
 }
 
-run(count) {
+run(count, cache) {
   DataSet currCollection;
   DataSet wholeCollection;
   MongoDatabase mongodb;
@@ -69,7 +69,6 @@ run(count) {
 
   Publisher pub;
 
-  Cache cache = new Cache(new Duration(milliseconds: 100), 10000);
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
 
   setUp((){

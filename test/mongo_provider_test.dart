@@ -509,7 +509,7 @@ void main() {
       });
     });
 
-    solo_test('cache should invalidate when changing the collection', () {
+    test('cache should invalidate when changing the collection', () {
       var _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest',
           cache: new Cache(new Duration(seconds: 1), 1000));
       ready = Future.wait(_mongodb.init)
@@ -523,7 +523,8 @@ void main() {
         .then((_) => months.data())
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
-        .then((data) => expect(data.length, equals(2)));
+        .then((data) => expect(data['data'].length, equals(2)))
+        ;
       });
 
     });

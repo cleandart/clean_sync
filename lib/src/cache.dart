@@ -21,6 +21,8 @@ class Cache {
     _entries.remove(_entries.keys.first);
   }
 
+  invalidate() => _entries.clear();
+
   clear(){
     var toRemove = [];
     for(var k in _entries.keys){
@@ -81,6 +83,7 @@ class DummyCache implements Cache {
   getEntry(key) => null;
   get(key) => null;
   clear(){}
+  invalidate(){}
 }
 
 const dummyCache = const DummyCache();

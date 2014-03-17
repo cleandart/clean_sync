@@ -192,6 +192,10 @@ class MongoProvider implements DataProvider {
     return res;
   }
 
+//  dynamic repr(String operation) {
+//    return Tpl();
+//  }
+
   String get repr{
     return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
   }
@@ -256,6 +260,7 @@ class MongoProvider implements DataProvider {
    * exists, nothing happens and [true] is returned.
    */
   Future add(Map data, String author) {
+    cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) =>
          collection.findOne({"_id" : data['_id']}))
@@ -285,6 +290,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future addAll(List<Map> data, String author) {
+    cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
@@ -310,6 +316,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future deprecatedChange(String _id, Map change, String author) {
+    cache.invalidate();
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
@@ -352,6 +359,7 @@ class MongoProvider implements DataProvider {
    * exist, nothing happens and [true] is returned.
    */
   Future change(String _id, Map newData, String author) {
+    cache.invalidate();
     num nextVersion;
     Map newRecord;
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
@@ -388,6 +396,7 @@ class MongoProvider implements DataProvider {
 
   Future update(selector, Map document, String author, {bool upsert: false,
                 bool multiUpdate: false, WriteConcern writeConcern}) {
+    cache.invalidate();
     num nextVersion;
     List oldData;
     return _get_locks().then((_) => _maxVersion).then((version) {
@@ -440,6 +449,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future remove(String _id, String author) {
+    cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
@@ -469,6 +479,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future removeAll(query, String author) {
+    cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;

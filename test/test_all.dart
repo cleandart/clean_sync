@@ -15,6 +15,7 @@ import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
+import 'package:clean_sync/server.dart';
 
 final Logger logger = new Logger('clean_sync');
 
@@ -33,6 +34,7 @@ run(configuration) {
   id_generator_test.main();
   exception_test.run();
   collection_modification_test.run();
-  subs_random_test.run(100);
+  subs_random_test.run(100, new DummyCache());
+  subs_random_test.run(100, new Cache(new Duration(milliseconds: 100), 10000));
   mp_random_test.run(30);
 }
