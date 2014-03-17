@@ -220,6 +220,8 @@ class Subscription {
   Stream get onFullSync => _onFullSyncController.stream;
   
   num _version = 0;
+  
+  Store _store;
 
   // version exposed only for testing and debugging
   get version => _version;
@@ -245,14 +247,14 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args, startup = emptyStartup]) {
+      this._forceDataRequesting, [this.args, startup = emptyStartup, this._store]) {
     _initialSync = createInitialSync();
     startup(this);
   }
 
-  Subscription(collectionName, connection, author, idGenerator, [args])
+  Subscription(collectionName, connection, author, idGenerator, [args, store])
       : this.config(collectionName, _createNewCollection(), connection, author,
-          idGenerator, handleData, handleDiff, false, args, (self) => self.start());
+          idGenerator, handleData, handleDiff, false, args, (self) => self.start(), store);
 
 
   /**
@@ -288,6 +290,34 @@ class Subscription {
     Future.wait(actions).then((_) {
       _onResyncFinishedController.add(null);
     });
+  }
+  
+  Future _storeSentItems() {
+    if (_store != null) {
+      return _store.open().then((_) => _store.save(_sentItems, "sentItems"));
+    }
+    
+    return new Future.value(null);
+  }
+  
+  Future _loadState() {
+    if (_store != null) {
+      return _store.open()
+        .then((_) => _store.getByKey("sentItems"))
+        .then((items) => _sentItems = items)
+        .then((_) => _store.getByKey("modifiedItems"))
+        .then((items) => _modifiedItems = items);
+    }
+    
+    return new Future.value(null);
+  }
+  
+  Future _storeModifiedItems() {
+    if (_store != null) {
+      return _store.open().then((_) => _store.save(_modifiedItems, "modifiedItems"));
+    }
+    
+    return new Future.value(null);
   }
   
   void setupConnectionRecovery() {
@@ -342,6 +372,14 @@ class Subscription {
       
       _send(elem["_id"], data);
       
+      if (!_sentItems.isEmpty) {
+        Map mi = new Map.from(_sentItems);
+        _store.open()
+          //.then((_) => _store.save(mi, "meh"))
+          .then((_) => _store.getByKey("meh"))
+          .then((value) => print(value["hsui4jdxoej0-3"]['data']['change'].runtimeType.toString()));
+      }
+      
       _modifiedItems.changedItems.remove(elem);
     }
   }
@@ -382,7 +420,7 @@ class Subscription {
     _sentItems[id] = {
       "data" : data,
       "failed" : false,
-      "result" : result
+      //"result" : result
     };
     
     return result;

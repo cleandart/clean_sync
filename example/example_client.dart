@@ -90,8 +90,8 @@ void main() {
 
   Subscriber subscriber = new Subscriber(connection);
   subscriber.init().then((_) {
-    personsDiff = subscriber.subscribe("persons");
-    personsDiff24 = subscriber.subscribe("personsOlderThan24Desc");
+    personsDiff = subscriber.subscribe("persons", {}, true);
+    personsDiff24 = subscriber.subscribe("personsOlderThan24Desc", {}, true);
 //    personsData.start();
 //    personsData24.start();
 

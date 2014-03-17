@@ -5,8 +5,8 @@
 part of clean_sync.client;
 
 final _defaultSubscriptionFactory =
-    (collectionName, connection, author, idGenerator, args) =>
-        new Subscription(collectionName, connection, author, idGenerator, args);
+    (collectionName, connection, author, idGenerator, args, store) =>
+        new Subscription(collectionName, connection, author, idGenerator, args, store);
 
 /**
  * A control object responsible for managing subscription to server published
@@ -82,14 +82,17 @@ class Subscriber {
    * really big collection and want to request only a portion of data specified
    * by [args].
    */
-  Subscription subscribe(String collectionName, [Map args]) {
+  Subscription subscribe(String collectionName, [Map args, bool saveToStorage = false]) {
     if(_idPrefix == null) {
       throw new StateError("Subscriber can not be used before the Future"
           " returned by 'init' method has completed.");
     }
+    
     String author = _subscriptionIdGenerator.next();
+    Store store = saveToStorage ? new Store('__clean', collectionName) : null;
     var subscription = _createSubscription(collectionName, _connection, author,
-      _dataIdGenerator, args);
+      _dataIdGenerator, args, store);
+    
     return subscription;
   }
 }
