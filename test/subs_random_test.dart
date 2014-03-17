@@ -12,6 +12,7 @@ import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
+import 'package:useful/useful.dart';
 
 
 Random rng = new Random();
@@ -28,26 +29,25 @@ prob(p) {
   return p > rng.nextDouble();
 }
 
-final Logger logger = new Logger('clean_sync');
 
 
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
 
-main() {
+Logger testLogger = new Logger('clean_sync.subs_random_test');
 
+main() {
   var config = new SimpleConfiguration();
   config.timeout = null;
   unittestConfiguration = config;
-
   hierarchicalLoggingEnabled = true;
-  logger.level = Level.WARNING;
-  Logger.root.level = Level.WARNING;
-  Logger.root.onRecord.listen((LogRecord rec) {
-    print('${rec.loggerName} ${rec.message} ${rec.error} ${rec.stackTrace}');
-  });
+  testLogger.level = Level.INFO;
 
+  setupDefaultLogHandler();
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000));
+}
 
+run(count, cache) {
   DataSet currCollection;
   DataSet wholeCollection;
   MongoDatabase mongodb;
@@ -69,7 +69,6 @@ main() {
 
   Publisher pub;
 
-  Cache cache = new Cache(new Duration(milliseconds: 100), 10000);
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
 
   setUp((){
@@ -170,7 +169,7 @@ main() {
 
     if (!prob(coll.length/maxLength)) {
       // add
-        logger.finer('before add \n $coll');
+        testLogger.finer('before add \n $coll');
         if (probMap == 1 || prob(probMap)) {
           coll.add({});
         } else
@@ -179,15 +178,15 @@ main() {
         } else {
           coll.add([]);
         }
-        logger.finer('after add');
+        testLogger.finer('after add');
         return true;
     } else
     if(!prob(probChange)){
       // remove
         if (coll.length == 0) return false;
-        logger.finer('before remo \n $coll');
+        testLogger.finer('before remo \n $coll');
         coll.remove(randomChoice(coll));
-        logger.finer('before remo');
+        testLogger.finer('before remo');
         return true;
     }
     else {
@@ -196,7 +195,7 @@ main() {
       var index = rng.nextInt(coll.length);
       var data = new List.from(coll)[index];
 
-      logger.finer('before change \n $coll');
+      testLogger.finer('before change \n $coll');
       if (data is Map) {
         randomChangeMap(data);
       } else
@@ -205,14 +204,14 @@ main() {
       } else {
         coll[index] = randomChoice(allValues);
       }
-      logger.finer('after change: $data');
+      testLogger.finer('after change: $data');
       return true;
     }
   };
 
   randomChangeCollection = _randomChangeCollection;
 
-  test('test random', () {
+  test('test random subscription modification', () {
 
   var action = (){
     for (int i=0; i<rng.nextInt(10); i++) {
@@ -262,7 +261,7 @@ main() {
           .then((_) =>
               newSub.initialSync)
           .then((_){
-            return newSub.close();
+            return newSub.dispose();
           }).then((_) {
             expect(newSub.collection, unorderedEquals(sub.collection));
           });
@@ -290,7 +289,7 @@ main() {
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
-    Future.forEach(new List.filled(100000, null), (_) {
+    Future.forEach(new List.filled(count, null), (_) {
         i++;
         var val = watch.elapsedMilliseconds;
         watch.reset();
@@ -298,10 +297,9 @@ main() {
         watchElems = watchElems*0.99 + 1;
         var watchAverage = watchTime / watchElems;
 
-        print('$i (${watchAverage.round()} ms per modif)');
+        testLogger.info('$i (${watchAverage.round()} ms per modif)');
         action();
-
-        print(colAll);
+        testLogger.info('$colAll');
         bool end = false;
         return Future.forEach(times, (time){
           bool checkGetData = prob(0.1);
