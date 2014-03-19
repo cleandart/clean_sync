@@ -212,13 +212,13 @@ class Subscription {
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
   bool _connected = false;
-  
+
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
-  
+
   Stream get onResyncFinished => _onResyncFinishedController.stream;
   Stream get onFullSync => _onFullSyncController.stream;
-  
+
   num _version = 0;
 
   // version exposed only for testing and debugging
@@ -262,52 +262,52 @@ class Subscription {
     return Future.wait(
         subscriptions.map((subscription) => subscription.initialSync));
   }
-  
+
   void _resync() {
     List<Future> actions = [];
-    
+
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
         actions.add(_send(id, item["data"]));
       }
     });
-    
+
     if (!this.updateLock) {
-      for (var key in _modifiedItems.changedItems.keys) {
+      for (var key in new List.from(_modifiedItems.changedItems.keys)) {
         if (!_sentItems.containsKey(key['_id'])) {
           _sendRequest(key);
         }
       }
     }
-    
+
     if (_periodicDiffRequesting.isPaused) {
       _periodicDiffRequesting.resume();
     }
-    
+
     Future.wait(actions).then((_) {
       _onResyncFinishedController.add(null);
     });
   }
-  
+
   void setupConnectionRecovery() {
     _connection.onDisconnected.listen((_) {
       _connected = false;
     });
-    
+
     _connection.onConnected.listen((_) {
       _connected = true;
       _resync();
     });
   }
-  
+
   void _sendRequest(DataMap elem) {
     assert(_modifiedItems.changedItems.containsKey(elem));
-    
+
     if (_connected) {
       Map data;
       String clientVersion = _idGenerator.next();
-      
+
       if (_modifiedItems.addedItems.contains(elem)) {
         data = {
           "action" : "add",
@@ -339,37 +339,37 @@ class Subscription {
           "clientVersion" : clientVersion
         };
       }
-      
+
       _send(elem["_id"], data);
-      
+
       _modifiedItems.changedItems.remove(elem);
     }
   }
-  
+
   Future _send(String id, Map data) {
     logger.finer('Sending #${id}, ${data}');
-    
+
     Future result = _connection.send(() => new ClientRequest("sync", data))
       .then((result) {
         if (result is Map && result['error'] != null) {
           _errorStreamController.add(result['error']);
         }
-        
+
         logger.finer('Sent #${id}, ${data}');
-        
+
         _sentItems.remove(id);
-        
+
         DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
-        
+
         // if there are some more changes, sent them
         if (elem != null){
           _sendRequest(elem);
         };
-        
+
         if (_sentItems.isEmpty && _modifiedItems.changedItems.isEmpty) {
           _onFullSyncController.add(null);
         }
-        
+
         return result;
       }, onError: (e) {
         if (e is ConnectionError) {
@@ -378,16 +378,16 @@ class Subscription {
         else if (e is CancelError) { /* do nothing */ }
         else throw e;
       });
-    
+
     _sentItems[id] = {
       "data" : data,
       "failed" : false,
       "result" : result
     };
-    
+
     return result;
   }
-  
+
   // TODO rename to something private-like
   void setupListeners() {
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
@@ -412,10 +412,10 @@ class Subscription {
       }
     }));
   }
-  
+
   _createDataRequest(){
     logger.finer("${this} sending data request with args ${args}");
-    
+
     return new ClientRequest("sync", {
       "action" : "get_data",
       "collection" : collectionName,
@@ -428,7 +428,7 @@ class Subscription {
     "collection" : collectionName,
     "author" : _author
   });
-  
+
   _createDiffRequest() {
     logger.finest("${this} entering createDiffRequest");
     if (requestLock || _sentItems.isNotEmpty) {
@@ -457,9 +457,9 @@ class Subscription {
       _version = response['version'];
       _handleData(response['data'], this, _author);
       _connected = true;
-      
+
       logger.info("Got initial data, synced to version ${_version}");
-      
+
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
 
@@ -499,7 +499,7 @@ class Subscription {
         });
     _subscriptions.add(_periodicDiffRequesting);
   }
-  
+
   void start() {
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
