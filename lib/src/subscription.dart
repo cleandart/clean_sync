@@ -211,7 +211,9 @@ class Subscription {
   // all changes with version < _version MUST be already applied by this subscription.
   // Some of the later changes may also be applied; this happens, when collection
   // applies user change, but is not synced to the very last version at that moment.
-  bool _connected = false;
+  num _version = 0;
+
+  bool _connected = true;
 
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
@@ -219,7 +221,6 @@ class Subscription {
   Stream get onResyncFinished => _onResyncFinishedController.stream;
   Stream get onFullSync => _onFullSyncController.stream;
 
-  num _version = 0;
 
   // version exposed only for testing and debugging
   get version => _version;

@@ -225,7 +225,7 @@ run() {
   });
 
 
-  test('test remove from filtered collection by changing element', () {
+  solo_test('test remove from filtered collection by changing element', () {
     List actions = [
       () => colA.add({'_id': '1', 'a': 'hello', 'b': 'world'}),
       () => colA.first['a'] = 'chello',
