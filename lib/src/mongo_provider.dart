@@ -238,7 +238,7 @@ class MongoProvider implements DataProvider {
   Future<bool> _clientVersionExists(String clientVersion) =>
       _collectionHistory.find(where.eq('clientVersion', clientVersion).limit(1)).toList()
       .then((data) => !data.isEmpty);
-  
+
   /**
    * Returns data and version of this data.
    */
@@ -264,7 +264,7 @@ class MongoProvider implements DataProvider {
    * Adds document [data] to database. If document with same [_id] alreay
    * exists, nothing happens and [true] is returned.
    */
-  Future add(Map data, String author, {String clientVersion: null}) {
+  Future __add(Map data, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) {
@@ -371,11 +371,93 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
+  Future writeOperation(String _id, String author, String action, Map newData,
+                        {String clientVersion: null, upsert: false}) {
+    cache.invalidate();
+    num nextVersion;
+    return _get_locks()
+      .then((_){
+          if (clientVersion != null) {
+            return _clientVersionExists(clientVersion).then((exists) {
+              if (exists) throw true;
+            });
+          }
+      })
+      .then((_) => collection.findOne({"_id" : _id}))
+      .then((Map oldData) {
+
+        if (oldData == null) oldData = {};
+        // check that current db state is consistent with required action
+        var inferredAction;
+        if (oldData.isNotEmpty && newData.isEmpty) inferredAction = 'remove';
+        else if (oldData.isEmpty && newData.isNotEmpty) inferredAction = 'add';
+        else if (oldData.isNotEmpty && newData.isNotEmpty) inferredAction = 'change';
+        else throw true;
+
+        if (action != inferredAction) {
+          if (!(action == 'change' &&
+                inferredAction == 'add' &&
+                upsert == true))
+            throw true;
+        }
+
+        if (!newData.isEmpty && newData['_id'] != _id) {
+          throw new MongoException(null,
+              'New document id ${newData['_id']} should be same as old one $_id.');
+        } else {
+          return _maxVersion.then((version) {
+            nextVersion = version + 1;
+            if (inferredAction == 'remove' ){
+              return collection.remove({'_id': _id});
+            } else {
+              newData[VERSION_FIELD_NAME] = nextVersion;
+              if (inferredAction == 'add') {
+                return collection.insert(newData);
+              } else {
+                return collection.save(newData);
+              }
+            }
+          }).then((_) =>
+            _collectionHistory.insert({
+              "before" : oldData,
+              "after" : newData,
+              "action" : inferredAction,
+              "author" : author,
+              "version" : nextVersion
+            }));
+        }
+      }).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
+  }
+
+  Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
+    return writeOperation(_id, author, 'change', newData,
+        clientVersion: clientVersion, upsert: upsert);
+  }
+
+  Future add(Map data, String author, {clientVersion: null}) {
+    return writeOperation(data['_id'], author, 'add', data,
+        clientVersion: clientVersion);
+  }
+
+  Future remove(String _id, String author, {clientVersion: null}) {
+    return writeOperation(_id, author, 'remove', {}, clientVersion: null);
+  }
+
+  //TODO:
+  //findOne, depr_change, map
+
   /**
    * Changes document with id [_id] to [newData]. If such document does not
    * exist, nothing happens and [true] is returned.
    */
-  Future change(String _id, Map newData, String author, {String clientVersion: null}) {
+  Future __change(String _id, Map newData, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
     Map newRecord;
@@ -465,7 +547,7 @@ class MongoProvider implements DataProvider {
         });
   }
 
-  Future remove(String _id, String author, {String clientVersion: null}) {
+  Future __remove(String _id, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) {
@@ -532,8 +614,6 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  num diffCount = 0;
-
   Future<Map> diffFromVersion(num version) {
     return cache.putIfAbsent('version ${collection.collectionName}', () => _maxVersion)
       .then((maxVer) {
@@ -565,7 +645,7 @@ class MongoProvider implements DataProvider {
     }
   }
 
-  List pretify(List diff){
+  List _prettify(List diff){
     Set seen = new Set();
     var res = [];
     for (Map change in diff.reversed) {
@@ -687,7 +767,7 @@ class MongoProvider implements DataProvider {
               return _limitedDiffFromVersion(diff);
             }
 
-            return pretify(diff);
+            return _prettify(diff);
     }).catchError((e){
      if (e is List) {
        return e;
