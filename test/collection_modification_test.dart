@@ -12,11 +12,12 @@ import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import './subscription_test.dart';
 
+stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id'));
 
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
-//  (new Logger('clean_sync')).level = Level.FINEST;
+  (new Logger('clean_sync')).level = Level.FINE;
   setupDefaultLogHandler();
   run();
 }
@@ -110,7 +111,7 @@ run() {
 
     return Future.forEach(itemsToClose, (item) {
       return item.dispose();
-    }).then((_) => new Future.delayed(new Duration(milliseconds: 500)))
+    }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
       .then((_) => mongodb.close());
   });
 
@@ -157,8 +158,8 @@ run() {
     List actions = [
       () => colAll.add(data1),
       () => colAll2.first['colAll'] = 'changed from colAll2',
-      () => expect(colAll, unorderedEquals([
-        {'_id' : '0', 'colAll' : 'changed from colAll2'}
+      () => expect(stripIds(colAll), unorderedEquals([
+        {'colAll' : 'changed from colAll2'}
       ])),
     ];
 
@@ -225,7 +226,7 @@ run() {
   });
 
 
-  solo_test('test remove from filtered collection by changing element', () {
+  test('test remove from filtered collection by changing element', () {
     List actions = [
       () => colA.add({'_id': '1', 'a': 'hello', 'b': 'world'}),
       () => colA.first['a'] = 'chello',
@@ -258,7 +259,7 @@ run() {
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
-      () => expect(colMapped, equals([{'a': 1, '_id': 'a-1'}])),
+      () => expect(stripIds(colMapped), equals([{'a': 1}])),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
@@ -276,7 +277,7 @@ run() {
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
-      () => expect(colMapped, equals([{'b': 3, 'c': 2, '_id': 'a-1'}])),
+      () => expect(stripIds(colMapped), equals([{'b': 3, 'c': 2}])),
       () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
@@ -347,12 +348,12 @@ run() {
         subAa.dispose();
       },
       () {colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]);},
-      () => expect(colArgs, unorderedEquals([{'a': 'aa', '_id': 'a-1'}])),
+      () => expect(stripIds(colArgs), unorderedEquals([{'a': 'aa'}])),
       () => subArgs.restart({'name': 'bb'}),
-      () => expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}])),
+      () => expect(stripIds(colArgs), unorderedEquals([{'a': 'bb'}])),
       () => colAll.add({'a': 'bb'}),
       () => colAll.add({'a': 'aa'}),
-      () => expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}, {'a': 'bb', '_id': 'a-3'}])),
+      () => expect(stripIds(colArgs), unorderedEquals([{'a': 'bb'}, {'a': 'bb'}])),
     ];
     return executeSubscriptionActions(actions);
   });
@@ -360,7 +361,7 @@ run() {
   test('changes immediately between restart are still saved correctly', () {
     List actions = [
       () {colArgs.add({'a': 'aa'}); subArgs.restart({'name': 'bb'});},
-      () => expect(colAll, unorderedEquals([{'a': 'aa', '_id': 'd-1'}])),
+      () => expect(stripIds(colAll), unorderedEquals([{'a': 'aa'}])),
       () => expect(colArgs.isEmpty, isTrue),
     ];
     return executeSubscriptionActions(actions);
@@ -372,7 +373,7 @@ run() {
       () {
         subArgs.restart({'name': 'bb'});
         subArgs.initialSync.then((_){
-          expect(colArgs, unorderedEquals([{'a': 'bb', '_id': 'a-2'}]));
+          expect(stripIds(colArgs), unorderedEquals([{'a': 'bb'}]));
         });
       },
     ];

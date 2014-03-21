@@ -192,7 +192,9 @@ class Subscription {
   bool _forceDataRequesting = false;
   Map args = {};
   // Maps _id of a document to a structure holding the document at the time of sending
-  // along with client version of the change and failed flag
+  // along with client version of the change and failed flag. The structure of an
+  // inner map is as: 'data' (DataMap), 'failed' (bool), 'result' (Future that completes
+  // when request completes)
   Map<String, Map<String, dynamic>> _sentItems = {};
   // reflects changes to this.collection, that were not already sent to the server
   ChangeSet _modifiedItems = new ChangeSet();
@@ -309,6 +311,7 @@ class Subscription {
       Map data;
       String clientVersion = _idGenerator.next();
 
+
       if (_modifiedItems.addedItems.contains(elem)) {
         data = {
           "action" : "add",
@@ -340,9 +343,8 @@ class Subscription {
           "clientVersion" : clientVersion
         };
       }
-
+      assert(data!=null);
       _send(elem["_id"], data);
-
       _modifiedItems.changedItems.remove(elem);
     }
   }
@@ -357,9 +359,7 @@ class Subscription {
         }
 
         logger.finer('Sent #${id}, ${data}');
-
         _sentItems.remove(id);
-
         DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
 
         // if there are some more changes, sent them

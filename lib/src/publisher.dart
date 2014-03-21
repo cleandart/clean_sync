@@ -95,8 +95,8 @@ class Publisher {
   }
 
   Future handleSyncRequest(ServerRequest request) {
-    print(request.type);
-    print(request.args);
+//    print(request.type);
+//    print(request.args);
     Map data = request.args;
     logger.finest("REQUEST:  ${data}");
 
