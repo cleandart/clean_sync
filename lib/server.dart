@@ -17,6 +17,7 @@ import "package:logging/logging.dart";
 import 'dart:collection';
 import 'dart:convert';
 import 'package:useful/useful.dart';
+import "dart:io";
 
 part 'src/publisher.dart';
 part 'src/data_provider.dart';

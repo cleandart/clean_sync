@@ -409,9 +409,10 @@ void run() {
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
+        expect(lastRequest, isNotNull);
         expect(lastRequest.type, equals("sync"));
         expect(lastRequest.args, equals({"action": "add", "collection": "months",
-                                    "data": january, "author": "author", "args": null}));
+                     "data": january, "author": "author", "args": null, "clientVersion": null}));
       });
     });
 
@@ -432,9 +433,9 @@ void run() {
       return new Future.delayed(new Duration(milliseconds: 100), (){
 //        var request = connection.getLogs().last.args[0]();
         expect(lastRequest.type, equals("sync"));
-        expect(lastRequest.args, equals({"action": "change", "collection": "months",
-                                     "_id": "11", "change": january,
-                                     "author": "author", "args": null}));
+        expect(slice(lastRequest.args, ['action', 'collection', 'author', 'change']),
+            equals({"action": "change", "collection": "months",
+                   "change": january, "author": "author"}));
       });
     });
 
@@ -454,8 +455,8 @@ void run() {
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest.type, equals("sync"));
-        expect(lastRequest.args, equals({"action": "remove", "collection": "months",
-                                     "_id": "12", "author": "author", "args": null}));
+        expect(slice(lastRequest.args, ['action', 'collection', 'author']),
+            equals({"action": "remove", "collection": "months", "author": "author"}));
       });
     });
 

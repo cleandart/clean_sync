@@ -42,12 +42,13 @@ main() {
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
   testLogger.level = Level.INFO;
+  (new Logger('clean_ajax')).level = Level.FINE;
 
   setupDefaultLogHandler();
-  run(1000000, new Cache(new Duration(milliseconds: 100), 10000));
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
 }
 
-run(count, cache) {
+run(count, cache, {failProb: 0}) {
   DataSet currCollection;
   DataSet wholeCollection;
   MongoDatabase mongodb;
@@ -56,6 +57,7 @@ run(count, cache) {
   DataSet colA;
   DataSet colAa;
   Connection connection;
+  LoopBackTransportStub transport;
   Subscription subAll;
   Subscription subAll2;
   Subscription subA;
@@ -96,7 +98,9 @@ run(count, cache) {
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
-        connection = createLoopBackConnection(requestHandler);
+        transport = new LoopBackTransportStub(
+            requestHandler.handleLoopBackRequest, null);
+        connection = new Connection.config(transport);
 
         subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
         colAll = subAll.collection;
@@ -218,6 +222,9 @@ run(count, cache) {
       Subscription toChangeSub = randomChoice(
           [subAll, subAll2]);
       randomChangeCollection(toChangeSub.collection);
+    }
+    if (prob(failProb)){
+      transport.fail(1, new Duration(seconds: 3));
     }
   };
 

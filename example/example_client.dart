@@ -1,5 +1,4 @@
 import 'dart:html';
-import 'dart:async';
 import "package:clean_data/clean_data.dart";
 import "package:clean_sync/client.dart";
 import "package:clean_ajax/client_browser.dart";
@@ -21,6 +20,7 @@ LIElement createListElement(person, persons) {
 
   ButtonElement save = new ButtonElement()
   ..text = "save"
+  ..className = "save-button"
   ..dataset["_id"] = person["_id"]
   ..onClick.listen((MouseEvent event) {
     ButtonElement e = event.toElement;
@@ -31,7 +31,7 @@ LIElement createListElement(person, persons) {
     InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
 
     if (pers != null) {
-      pers["name"] = name.value;
+      //pers["name"] = name.value;
       pers["age"] = int.parse(age.value);
     }
   });
@@ -64,11 +64,11 @@ LIElement createListElement(person, persons) {
 }
 
 void main() {
-  Subscription personsDiff, personsDiff24, personsData, personsData24;
+  Subscription personsDiff, personsDiff24, personsData, personsData24;  
 
   // initialization of these Subscriptions
   Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
-      new Duration(milliseconds: 100));
+      new Duration(milliseconds: 1000));
   String authorData = 'dataAll';
   String authorData24 = 'data24';
   DataSet personsDataCol = new DataSet();
@@ -111,7 +111,9 @@ void main() {
         event.strictlyChanged.forEach((DataMap person, ChangeSet changes) {
           changes.changedItems.forEach((String key, Change value) {
             InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
-            e.value = value.newValue.toString();
+            if (e != null) {
+              e.value = value.newValue.toString();
+            }
           });
         });
         event.removedItems.forEach((person) {
@@ -131,6 +133,17 @@ void main() {
 
       name.value = '';
       age.value = '';
+    });
+   
+//    querySelector('#resync').onClick.listen((_) {
+//      Connection connection = createHttpConnection("http://0.0.0.0:8080/resources/",
+//          new Duration(milliseconds: 100));
+//      personsDiff.resync();
+//      personsDiff24.resync();
+//    });
+   
+    querySelector('#saveAll').onClick.listen((_) {
+      querySelectorAll(".save-button").forEach((n) => n.click()); 
     });
   });
 }

@@ -123,6 +123,7 @@ MongoProvider mpClone(MongoProvider source){
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
   m._limit = source._limit;
+  m._skip = source._skip;
   m._fields = new List.from(source._fields);
   m._excludeFields = new List.from(source._excludeFields);
   return m;
@@ -182,7 +183,7 @@ class MongoProvider implements DataProvider {
 
   MongoProvider limit(num value) {
     var res = mpClone(this);
-    this._limit = value;
+    res._limit = value;
     return res;
   }
 
@@ -234,6 +235,10 @@ class MongoProvider implements DataProvider {
     return sel;
   }
 
+  Future<bool> _clientVersionExists(String clientVersion) =>
+      _collectionHistory.find(where.eq('clientVersion', clientVersion).limit(1)).toList()
+      .then((data) => !data.isEmpty);
+
   /**
    * Returns data and version of this data.
    */
@@ -259,27 +264,39 @@ class MongoProvider implements DataProvider {
    * Adds document [data] to database. If document with same [_id] alreay
    * exists, nothing happens and [true] is returned.
    */
-  Future __add(Map data, String author) {
+  Future __add(Map data, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks().then((_) =>
-         collection.findOne({"_id" : data['_id']}))
-        .then((Map record) {
-          if(record != null) throw true;
-          }).
-        then((_) => _maxVersion).then((version) {
+    return _get_locks().then((_) {
+        if (clientVersion != null) {
+          return _clientVersionExists(clientVersion).then((exists) {
+            if (exists) throw true;
+          });
+
+        }
+      })
+      .then((_) => collection.findOne({"_id" : data['_id']}))
+      .then((Map record) {
+        if (record != null) throw true;
+      })
+      .then((_) => _maxVersion)
+      .then((version) {
         nextVersion = version + 1;
         data[VERSION_FIELD_NAME] = nextVersion;
         return collection.insert(data);
-      }).then((_) =>
+      })
+      .then((_) =>
         _collectionHistory.insert({
           "before" : {},
           "after" : data,
           "action" : "add",
           "author" : author,
-          "version" : nextVersion
+          "version" : nextVersion,
+          "clientVersion" : clientVersion
         })
-      ).then((_) => _release_locks()).then((_) => nextVersion)
+      )
+      .then((_) => _release_locks())
+      .then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
@@ -303,7 +320,7 @@ class MongoProvider implements DataProvider {
               "after" : elem,
               "action" : "add",
               "author" : author,
-              "version" : elem[VERSION_FIELD_NAME]
+              "version" : elem[VERSION_FIELD_NAME],
             }).toList(growable: false)),
       onError: (e) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -355,10 +372,18 @@ class MongoProvider implements DataProvider {
   }
 
   Future writeOperation(String _id, String author, String action, Map newData,
-                        {upsert: false}) {
+                        {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks().then((_) => collection.findOne({"_id" : _id}))
+    return _get_locks()
+      .then((_){
+          if (clientVersion != null) {
+            return _clientVersionExists(clientVersion).then((exists) {
+              if (exists) throw true;
+            });
+          }
+      })
+      .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
 
         if (oldData == null) oldData = {};
@@ -411,16 +436,18 @@ class MongoProvider implements DataProvider {
       }));
   }
 
-  Future change(String _id, Map newData, String author, {upsert: false}) {
-    return writeOperation(_id, author, 'change', newData, upsert: upsert);
+  Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
+    return writeOperation(_id, author, 'change', newData,
+        clientVersion: clientVersion, upsert: upsert);
   }
 
-  Future add(Map data, String author) {
-    return writeOperation(data['_id'], author, 'add', data);
+  Future add(Map data, String author, {clientVersion: null}) {
+    return writeOperation(data['_id'], author, 'add', data,
+        clientVersion: clientVersion);
   }
 
-  Future remove(String _id, String author) {
-    return writeOperation(_id, author, 'remove', {});
+  Future remove(String _id, String author, {clientVersion: null}) {
+    return writeOperation(_id, author, 'remove', {}, clientVersion: null);
   }
 
   //TODO:
@@ -430,11 +457,19 @@ class MongoProvider implements DataProvider {
    * Changes document with id [_id] to [newData]. If such document does not
    * exist, nothing happens and [true] is returned.
    */
-  Future __change(String _id, Map newData, String author) {
+  Future __change(String _id, Map newData, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
     Map newRecord;
-    return _get_locks().then((_) => collection.findOne({"_id" : _id}))
+    return _get_locks().then((_) {
+      if (clientVersion != null) {
+        return _clientVersionExists(clientVersion).then((exists) {
+          if (exists) throw true;
+        });
+
+      }
+      })
+      .then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
           throw true;
@@ -453,10 +488,13 @@ class MongoProvider implements DataProvider {
               "after" : newRecord,
               "action" : "change",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "clientVersion" : clientVersion
             }));
         }
-      }).then((_) => _release_locks()).then((_) => nextVersion)
+      })
+      .then((_) => _release_locks())
+      .then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
@@ -509,13 +547,23 @@ class MongoProvider implements DataProvider {
         });
   }
 
-  Future __remove(String _id, String author) {
+  Future __remove(String _id, String author, {String clientVersion: null}) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks().then((_) => _maxVersion).then((version) {
+    return _get_locks().then((_) {
+      if (clientVersion != null) {
+        return _clientVersionExists(clientVersion).then((exists) {
+          if (exists) throw true;
+        });
+
+      }
+      })
+      .then((_) => _maxVersion)
+      .then((version) {
         nextVersion = version + 1;
         return collection.findOne({'_id': _id});
-      }).then((record) {
+      })
+      .then((record) {
         if (record == null) {
           throw true;
         } else {
@@ -525,11 +573,12 @@ class MongoProvider implements DataProvider {
               "after" : {},
               "action" : "remove",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "clientVersion" : clientVersion
           }));
         }
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion)
+      })
+      .then((_) => _release_locks()).then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
         if (e is! Exception){
           return e;
@@ -714,7 +763,7 @@ class MongoProvider implements DataProvider {
             });
 
             if (_limit > NOLIMIT || _skip > NOSKIP) {
-              throw new Exception('not correctly implemented');
+              //throw new Exception('not correctly implemented');
               return _limitedDiffFromVersion(diff);
             }
 
