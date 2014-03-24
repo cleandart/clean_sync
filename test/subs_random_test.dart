@@ -41,11 +41,14 @@ main() {
   config.timeout = null;
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
-  testLogger.level = Level.INFO;
+  testLogger.level = Level.FINE;
   (new Logger('clean_ajax')).level = Level.FINE;
+//  (new Logger('clean_sync')).level = Level.FINER;
+
 
   setupDefaultLogHandler();
-  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
+//  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
+  run(1000000, new DummyCache(), failProb: 0.051);
 }
 
 run(count, cache, {failProb: 0}) {
@@ -224,7 +227,7 @@ run(count, cache, {failProb: 0}) {
       randomChangeCollection(toChangeSub.collection);
     }
     if (prob(failProb)){
-      transport.fail(1, new Duration(seconds: 3));
+      transport.fail(1, new Duration(seconds: 1));
     }
   };
 
