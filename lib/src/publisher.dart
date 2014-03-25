@@ -36,6 +36,7 @@ class Resource {
     }
     DataProvider dp;
 
+    if(action == "jsonChange") print(data);
     return beforeRequest
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {
@@ -69,6 +70,12 @@ class Resource {
         }
         else if (action == "remove") {
           return dp.remove(data['_id'], data['author'], clientVersion: data['clientVersion'])
+              .then((result) {
+                stopWatch(watchID);
+                return result;
+              });
+        } else if(action == "jsonChange") {
+          return dp.change(data['_id'], data['jsonData'], data['author'], clientVersion: data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;

@@ -436,7 +436,7 @@ class MongoProvider implements DataProvider {
       }));
   }
 
-  Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
+  /*Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
     return writeOperation(_id, author, 'change', newData,
         clientVersion: clientVersion, upsert: upsert);
   }
@@ -448,6 +448,92 @@ class MongoProvider implements DataProvider {
 
   Future remove(String _id, String author, {clientVersion: null}) {
     return writeOperation(_id, author, 'remove', {}, clientVersion: null);
+  }*/
+
+  Future change(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
+    cache.invalidate();
+    num nextVersion;
+    return _get_locks()
+      .then((_){
+          if (clientVersion != null) {
+            return _clientVersionExists(clientVersion).then((exists) {
+              if (exists) throw true;
+            });
+          }
+      })
+      .then((_) => collection.findOne({"_id" : _id}))
+      .then((Map oldData) {
+        if (oldData == null) oldData = {};
+        var newData = oldData;
+
+        var action;
+        if(jsonData is List) {
+          if(jsonData[0] == CLEAN_UNDEFINED){
+            action = 'add';
+          }
+          else if(jsonData[1] == CLEAN_UNDEFINED){
+            action = 'remove';
+            newData = {};
+          }
+          else action = 'change';
+
+          if(jsonData[1] != CLEAN_UNDEFINED) {
+            newData = jsonData[1];
+          }
+        }
+        else  {
+          applyJSON(jsonData, newData);
+          action = 'change';
+        }
+
+        // check that current db state is consistent with required action
+        var inferredAction;
+        if (oldData.isNotEmpty && newData.isEmpty) inferredAction = 'remove';
+        else if (oldData.isEmpty && newData.isNotEmpty) inferredAction = 'add';
+        else if (oldData.isNotEmpty && newData.isNotEmpty) inferredAction = 'change';
+        else throw true;
+
+        if (action != inferredAction) {
+          if (!(action == 'change' &&
+                inferredAction == 'add' &&
+                upsert == true))
+            throw true;
+        }
+
+        print("oldData: $oldData newData: $newData && $inferredAction");
+        if (!newData.isEmpty && newData['_id'] != _id) {
+          throw new MongoException(null,
+              'New document id ${newData['_id']} should be same as old one $_id.');
+        } else {
+          return _maxVersion.then((version) {
+            nextVersion = version + 1;
+            if (inferredAction == 'remove' ){
+              return collection.remove({'_id': _id});
+            } else {
+              newData[VERSION_FIELD_NAME] = nextVersion;
+              if (inferredAction == 'add') {
+                return collection.insert(newData);
+              } else {
+                return collection.save(newData);
+              }
+            }
+          }).then((_) =>
+            _collectionHistory.insert({
+              "before" : oldData,
+              "after" : newData,
+              "action" : inferredAction,
+              "author" : author,
+              "version" : nextVersion
+            }));
+        }
+      }).then((_) => _release_locks()).then((_) => nextVersion)
+      .catchError((e) => _release_locks().then((_) {
+        if (e is! Exception){
+          return e;
+        } else {
+          throw e;
+        }
+      }));
   }
 
   //TODO:

@@ -312,7 +312,7 @@ class Subscription {
         Map data;
         String clientVersion = _idGenerator.next();
 
-        if (_modifiedItems.addedItems.contains(elem)) {
+        /*if (_modifiedItems.addedItems.contains(elem)) {
           data = {
             "action" : "add",
             "collection" : collectionName,
@@ -332,11 +332,15 @@ class Subscription {
             "author" : _author,
             "clientVersion" : clientVersion
           };
-        }
+        }*/
         if (_modifiedItems.removedItems.contains(elem)) {
+          print('Reemove: ${elem['_id']}');
+        }
+        if (_modifiedItems.changedItems.containsKey(elem)) {
           data = {
-            "action" : "remove",
+            "action" : "jsonChange",
             "collection" : collectionName,
+            "jsonData": _modifiedItems.changedItems[elem].toJson(),
             'args': args,
             "_id" : elem["_id"],
             "author" : _author,
@@ -345,6 +349,8 @@ class Subscription {
         }
         assert(data!=null);
         _modifiedItems.changedItems.remove(elem);
+        print("Data: $data");
+        JSON.encode(data);
         return data;
       }
       _send(elem["_id"], reqFactory);

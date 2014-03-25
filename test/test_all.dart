@@ -19,6 +19,7 @@ import 'package:clean_sync/server.dart';
 
 final Logger logger = new Logger('clean_sync');
 
+
 main() {
   run(new VMConfiguration());
 }
