@@ -173,8 +173,9 @@ void run() {
           changeWasSent = false;
         } else {
           LogEntry log = connection.getLogs().last;
+          print(lastRequest.args);
           changeWasSent = log.methodName == 'send' &&
-              lastRequest.args['data']['_id'] == 'prefix-123';
+              lastRequest.args['jsonData'][1]['_id'] == 'prefix-123';
         }
         if(idWasGenerated && changeWasSent) {
           return true;
@@ -264,7 +265,7 @@ void run() {
               'name': 'ford'
             }
           }]});
-          case ('change'): {
+          case ('jsonChange'): {
             return new Future.delayed(new Duration(milliseconds: 200),
                () => new Future.value(1));
           }
@@ -411,8 +412,8 @@ void run() {
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest, isNotNull);
         expect(lastRequest.type, equals("sync"));
-        expect(lastRequest.args, equals({"action": "add", "collection": "months",
-                     "data": january, "author": "author", "args": null, "clientVersion": null}));
+        expect(lastRequest.args, equals({"action": "jsonChange", "collection": "months",
+                     "jsonData": [CLEAN_UNDEFINED, january], "author": "author", '_id': null, "args": null, "clientVersion": null}));
       });
     });
 
@@ -433,9 +434,9 @@ void run() {
       return new Future.delayed(new Duration(milliseconds: 100), (){
 //        var request = connection.getLogs().last.args[0]();
         expect(lastRequest.type, equals("sync"));
-        expect(slice(lastRequest.args, ['action', 'collection', 'author', 'change']),
-            equals({"action": "change", "collection": "months",
-                   "change": january, "author": "author"}));
+        expect(slice(lastRequest.args, ['action', 'collection', 'author', 'jsonData']),
+            equals({"action": "jsonChange", "collection": "months",
+                   "jsonData": {'length': [CLEAN_UNDEFINED, 31]}, "author": "author"}));
       });
     });
 
@@ -455,8 +456,9 @@ void run() {
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest.type, equals("sync"));
-        expect(slice(lastRequest.args, ['action', 'collection', 'author']),
-            equals({"action": "remove", "collection": "months", "author": "author"}));
+        expect(slice(lastRequest.args, ['action', 'collection', 'author', 'jsonData']),
+            equals({"action": "jsonChange", "collection": "months", "author": "author",
+              'jsonData': [january, CLEAN_UNDEFINED]}));
       });
     });
 

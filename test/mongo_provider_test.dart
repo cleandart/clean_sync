@@ -8,6 +8,7 @@ import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "package:useful/useful.dart";
 import "dart:async";
+import 'package:clean_data/clean_data.dart';
 
 
 void handleDiff(List<Map> diff, List collection) {
@@ -211,7 +212,7 @@ void main() {
       return ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', clone(january2), 'Michael Smith'))
+        .then((_) => months.change('january', [january, clone(january2)], 'Michael Smith'))
         .then((_) => months.data())
         .then((data){
 
@@ -238,7 +239,7 @@ void main() {
       Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', clone(february), 'Michael Smith'));
+        .then((_) => months.change('january', [february, clone(february)], 'Michael Smith'));
 
       // then
         expect(shouldThrow, throws);

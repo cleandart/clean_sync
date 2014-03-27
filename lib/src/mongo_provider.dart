@@ -439,7 +439,7 @@ class MongoProvider implements DataProvider {
   /*Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
     return writeOperation(_id, author, 'change', newData,
         clientVersion: clientVersion, upsert: upsert);
-  }
+  }*/
 
   Future add(Map data, String author, {clientVersion: null}) {
     return writeOperation(data['_id'], author, 'add', data,
@@ -448,7 +448,7 @@ class MongoProvider implements DataProvider {
 
   Future remove(String _id, String author, {clientVersion: null}) {
     return writeOperation(_id, author, 'remove', {}, clientVersion: null);
-  }*/
+  }
 
   Future change(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
     cache.invalidate();
@@ -491,7 +491,6 @@ class MongoProvider implements DataProvider {
         if (oldData.isNotEmpty && newData.isEmpty) inferredAction = 'remove';
         else if (oldData.isEmpty && newData.isNotEmpty) inferredAction = 'add';
         else if (oldData.isNotEmpty && newData.isNotEmpty) inferredAction = 'change';
-        else throw true;
 
         if (action != inferredAction) {
           if (!(action == 'change' &&

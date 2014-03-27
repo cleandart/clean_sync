@@ -24,7 +24,8 @@ main() {
   run(new VMConfiguration());
 }
 
-run(configuration) {
+run(SimpleConfiguration configuration) {
+  configuration.timeout = new Duration(seconds: 7);
   unittestConfiguration = configuration;
   hierarchicalLoggingEnabled = true;
   setupDefaultLogHandler();

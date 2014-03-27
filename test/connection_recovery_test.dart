@@ -44,7 +44,7 @@ run() {
     .then((_) => mongodb.removeLocks()).then((_){
 
         pub = new Publisher();
-        
+
         pub.publish('random', (_) {
           return mongodb.collection("random").find({});
         });
@@ -56,7 +56,7 @@ run() {
 
         subRandom = new Subscription('random', connection, 'author_random', new IdGenerator('random'));
         colRandom = subRandom.collection;
-        
+
         dataA = {'name' : 'a', 'age' : 46};
         dataB = {'name' : 'b', 'age' : 57};
         dataC = {'name' : 'c', 'age' : 68};
@@ -82,34 +82,34 @@ run() {
   }
 
   test("test subscription's connection recovery", () {
-    
+
     connection.onDisconnected.listen((_) {
       logger.finer("Connection down");
     });
-    
+
     connection.onConnected.listen((_) {
       logger.finer("Connection restored");
     });
-    
+
     return executeSubscriptionActions([]).then((_) {
       return Future.forEach(new List.filled(1000, 0) , (_) {
         Completer resyncFinished = new Completer();
         Completer fullSyncFinished = new Completer();
-        
+
         StreamSubscription resyncSub = subRandom.onResyncFinished.listen((_) {
           logger.finer("Resync finished");
           resyncFinished.complete();
         });
-        
+
         StreamSubscription fullSyncSub = subRandom.onFullSync.listen((_) {
           logger.finer("Full sync finished");
           fullSyncFinished.complete();
         });
-        
+
         DataMap a = new DataMap.from(dataA);
         DataMap b = new DataMap.from(dataB);
         DataMap c = new DataMap.from(dataC);
-        
+
         transport.fail(0.6, new Duration(milliseconds: 500));
         colRandom.add(a);
         colRandom.add(b);
