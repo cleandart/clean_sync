@@ -114,6 +114,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       DataMap record = _records.isNotEmpty? _records.first : null;
       String action = change["action"];
 
+
       logger.finer('handling change $change');
   //     it can happen, that we get too old changes
       if (!change.containsKey('version')){
@@ -312,30 +313,6 @@ class Subscription {
         Map data;
         String clientVersion = _idGenerator.next();
 
-        /*if (_modifiedItems.addedItems.contains(elem)) {
-          data = {
-            "action" : "add",
-            "collection" : collectionName,
-            "data" : new DataMap.from(elem),
-            'args': args,
-            "author" : _author,
-            "clientVersion" : clientVersion
-          };
-        }
-        if (_modifiedItems.strictlyChanged.containsKey(elem)) {
-          data = {
-            "action" : "change",
-            "collection" : collectionName,
-            'args': args,
-            "_id" : elem["_id"],
-            "change" : new DataMap.from(elem),
-            "author" : _author,
-            "clientVersion" : clientVersion
-          };
-        }*/
-        if (_modifiedItems.removedItems.contains(elem)) {
-          print('Reemove: ${elem['_id']}');
-        }
         if (_modifiedItems.changedItems.containsKey(elem)) {
           data = {
             "action" : "jsonChange",
@@ -349,8 +326,7 @@ class Subscription {
         }
         assert(data!=null);
         _modifiedItems.changedItems.remove(elem);
-        print("Data: $data");
-        JSON.encode(data);
+
         return data;
       }
       _send(elem["_id"], reqFactory);

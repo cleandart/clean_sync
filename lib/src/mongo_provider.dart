@@ -464,7 +464,7 @@ class MongoProvider implements DataProvider {
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
         if (oldData == null) oldData = {};
-        var newData = oldData;
+        var newData = useful.clone(oldData);
 
         var action;
         if(jsonData is List) {
@@ -500,7 +500,6 @@ class MongoProvider implements DataProvider {
             throw true;
         }
 
-        print("oldData: $oldData newData: $newData && $inferredAction");
         if (!newData.isEmpty && newData['_id'] != _id) {
           throw new MongoException(null,
               'New document id ${newData['_id']} should be same as old one $_id.');

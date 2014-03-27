@@ -36,7 +36,6 @@ class Resource {
     }
     DataProvider dp;
 
-    if(action == "jsonChange") print(data);
     return beforeRequest
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {

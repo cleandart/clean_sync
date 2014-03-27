@@ -41,14 +41,14 @@ main() {
   config.timeout = null;
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
-  testLogger.level = Level.FINE;
+  testLogger.level = Level.FINER;
   (new Logger('clean_ajax')).level = Level.FINE;
 //  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
 //  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
-  run(1000000, new DummyCache(), failProb: 0.051);
+  run(1000000, new DummyCache(), failProb: 0);
 }
 
 run(count, cache, {failProb: 0}) {
@@ -191,9 +191,9 @@ run(count, cache, {failProb: 0}) {
     if(!prob(probChange)){
       // remove
         if (coll.length == 0) return false;
-        testLogger.finer('before remo \n $coll');
+        testLogger.finer('before remove \n $coll');
         coll.remove(randomChoice(coll));
-        testLogger.finer('before remo');
+        testLogger.finer('after remove');
         return true;
     }
     else {
@@ -222,8 +222,8 @@ run(count, cache, {failProb: 0}) {
 
   var action = (){
     for (int i=0; i<rng.nextInt(10); i++) {
-      Subscription toChangeSub = randomChoice(
-          [subAll, subAll2]);
+      Subscription toChangeSub = randomChoice([subAll, subAll2]);
+      testLogger.finer('collection to change: ${toChangeSub}');
       randomChangeCollection(toChangeSub.collection);
     }
     if (prob(failProb)){
@@ -262,7 +262,7 @@ run(count, cache, {failProb: 0}) {
       expect(subNoMatch.version == subAll.version, isTrue);
 
     });
-    if (checkGetData) {
+    if (checkGetData && false) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res
@@ -280,7 +280,7 @@ run(count, cache, {failProb: 0}) {
     return res;
   };
 
-    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400, 10000];
+    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400];
     var i=0;
 
     var watch = new Stopwatch()..start();
