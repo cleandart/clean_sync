@@ -27,6 +27,7 @@ class Resource {
     List<String> modifications = ['add', 'change', 'remove', 'jsonChange'];
 
     Future beforeRequest = new Future.value(null);
+
     if (beforeRequestCallback != null && modifications.contains(action)) {
       var value;
       if (action == 'add') value = data['data'];
@@ -40,10 +41,11 @@ class Resource {
           else value = value[1];
         }
         else {
-          beforeRequest = generator(data['args']).then((dp) => dp.collection.findOne({'_id': value['_id']}))
+          beforeRequest = beforeRequest.then((_) => generator(data['args']))
+              .then((dp) => dp.collection.findOne({'_id': data['_id']}))
               .then((Map data) {
                 applyJSON(value, data);
-                return data;
+                value = data;
               }, onError: (_){return null;});
         }
       }
@@ -88,7 +90,7 @@ class Resource {
                 return result;
               });
         } else if(action == "jsonChange") {
-          return dp.change(data['_id'], data['jsonData'], data['author'], clientVersion: data['clientVersion'])
+          return dp.changeJson(data['_id'], data['jsonData'], data['author'], clientVersion: data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;

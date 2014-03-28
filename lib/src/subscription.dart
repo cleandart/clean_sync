@@ -326,7 +326,6 @@ class Subscription {
         }
         assert(data!=null);
         _modifiedItems.changedItems.remove(elem);
-
         return data;
       }
       _send(elem["_id"], reqFactory);

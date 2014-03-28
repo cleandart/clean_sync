@@ -450,8 +450,9 @@ class MongoProvider implements DataProvider {
     return writeOperation(_id, author, 'remove', {}, clientVersion: null);
   }
 
-  Future change(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
+  Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
     cache.invalidate();
+
     num nextVersion;
     return _get_locks()
       .then((_){
