@@ -32,7 +32,21 @@ class Resource {
       if (action == 'add') value = data['data'];
       else if (action == 'change') value = data['change'];
       else if (action == 'remove') value = {};
-      else if (action == 'jsonChange') value = data['jsonData'];
+      else if (action == 'jsonChange') {
+        value = data['jsonData'];
+        MongoProvider dpa;
+        if(value is List) {
+          if(value[1] == CLEAN_UNDEFINED) value = {};
+          else value = value[1];
+        }
+        else {
+          beforeRequest = generator(data['args']).then((dp) => dp.collection.findOne({'_id': value['_id']}))
+              .then((Map data) {
+                applyJSON(value, data);
+                return data;
+              }, onError: (_){return null;});
+        }
+      }
       beforeRequest = beforeRequest.then((_) => beforeRequestCallback(value, data['args']));
     }
     DataProvider dp;

@@ -56,7 +56,7 @@ run() {
     test('Exception in beforeRequest is caught on client-side', () {
       var newdata = new DataMap.from({"_id": "id"});
       var testvalue = expectAsync1((value) {
-        expect(value, equals([CLEAN_UNDEFINED, {'_id': 'id'}]));
+        expect(value, equals(newdata));
       });
 
       var beforeRequest = (value, args) {
