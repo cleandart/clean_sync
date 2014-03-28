@@ -173,7 +173,6 @@ void run() {
           changeWasSent = false;
         } else {
           LogEntry log = connection.getLogs().last;
-          print(lastRequest.args);
           changeWasSent = log.methodName == 'send' &&
               lastRequest.args['jsonData'][1]['_id'] == 'prefix-123';
         }
