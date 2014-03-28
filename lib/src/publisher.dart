@@ -24,7 +24,7 @@ class Resource {
 
     var action = data["action"];
     var reqVersion = data['version'];
-    List<String> modifications = ['add', 'change', 'remove'];
+    List<String> modifications = ['add', 'change', 'remove', 'jsonChange'];
 
     Future beforeRequest = new Future.value(null);
     if (beforeRequestCallback != null && modifications.contains(action)) {
@@ -32,10 +32,10 @@ class Resource {
       if (action == 'add') value = data['data'];
       else if (action == 'change') value = data['change'];
       else if (action == 'remove') value = {};
+      else if (action == 'jsonChange') value = data['jsonData'];
       beforeRequest = beforeRequest.then((_) => beforeRequestCallback(value, data['args']));
     }
     DataProvider dp;
-
     return beforeRequest
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {

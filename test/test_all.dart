@@ -25,7 +25,7 @@ main() {
 }
 
 run(SimpleConfiguration configuration) {
-  configuration.timeout = new Duration(seconds: 7);
+  configuration.timeout = new Duration(seconds: 47);
   unittestConfiguration = configuration;
   hierarchicalLoggingEnabled = true;
   setupDefaultLogHandler();
