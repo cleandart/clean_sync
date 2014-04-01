@@ -262,7 +262,7 @@ run(count, cache, {failProb: 0}) {
       expect(subNoMatch.version == subAll.version, isTrue);
 
     });
-    if (checkGetData && false) {
+    if (checkGetData) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res

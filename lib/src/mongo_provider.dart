@@ -436,10 +436,10 @@ class MongoProvider implements DataProvider {
       }));
   }
 
-  /*Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
+  Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
     return writeOperation(_id, author, 'change', newData,
         clientVersion: clientVersion, upsert: upsert);
-  }*/
+  }
 
   Future add(Map data, String author, {clientVersion: null}) {
     return writeOperation(data['_id'], author, 'add', data,

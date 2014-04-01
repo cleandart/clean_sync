@@ -212,7 +212,35 @@ void main() {
       return ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', [january, clone(january2)], 'Michael Smith'))
+        .then((_) => months.change('january', clone(january2), 'Michael Smith'))
+        .then((_) => months.data())
+        .then((data){
+
+      // then
+          expect(data['data'].length, equals(1));
+          Map strippedData = data['data'][0];
+          expect(strippedData, equals(january2));
+          expect(data['version'], equals(2));
+      }).then((_) => months.diffFromVersion(1))
+        .then((dataDiff) {
+          List diffList = dataDiff['diff'];
+          expect(diffList.length, equals(1));
+          Map diff = diffList[0];
+          expect(diff['action'], equals('change'));
+          expect(diff['_id'], equals('january'));
+          Map strippedData = diff['data'];
+          expect(strippedData, equals(january2));
+          expect(diff['author'], equals('Michael Smith'));
+        });
+    });
+
+    test('change data with jsonChange. (T04)', () {
+      // given
+      Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
+
+      // when
+        .then((_) => months.changeJson('january', [january, clone(january2)], 'Michael Smith'))
         .then((_) => months.data())
         .then((data){
 
