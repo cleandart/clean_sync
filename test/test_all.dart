@@ -19,11 +19,13 @@ import 'package:clean_sync/server.dart';
 
 final Logger logger = new Logger('clean_sync');
 
+
 main() {
   run(new VMConfiguration());
 }
 
-run(configuration) {
+run(SimpleConfiguration configuration) {
+  configuration.timeout = new Duration(seconds: 47);
   unittestConfiguration = configuration;
   hierarchicalLoggingEnabled = true;
   setupDefaultLogHandler();

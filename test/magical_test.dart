@@ -44,7 +44,7 @@ test1(){
 
 //  magicalTick();
   var m = {};
-  enhance(m, 7);
+  enhance(m, 8);
   print(m.toString().length);
   var s = new Stopwatch()..start();
   var a = cleanify(m);

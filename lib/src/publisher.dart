@@ -24,18 +24,34 @@ class Resource {
 
     var action = data["action"];
     var reqVersion = data['version'];
-    List<String> modifications = ['add', 'change', 'remove'];
+    List<String> modifications = ['add', 'change', 'remove', 'jsonChange'];
 
     Future beforeRequest = new Future.value(null);
+
     if (beforeRequestCallback != null && modifications.contains(action)) {
       var value;
       if (action == 'add') value = data['data'];
       else if (action == 'change') value = data['change'];
       else if (action == 'remove') value = {};
+      else if (action == 'jsonChange') {
+        value = data['jsonData'];
+        MongoProvider dpa;
+        if(value is List) {
+          if(value[1] == CLEAN_UNDEFINED) value = {};
+          else value = value[1];
+        }
+        else {
+          beforeRequest = beforeRequest.then((_) => generator(data['args']))
+              .then((dp) => dp.collection.findOne({'_id': data['_id']}))
+              .then((Map data) {
+                applyJSON(value, data);
+                value = data;
+              }, onError: (_){return null;});
+        }
+      }
       beforeRequest = beforeRequest.then((_) => beforeRequestCallback(value, data['args']));
     }
     DataProvider dp;
-
     return beforeRequest
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {
@@ -69,6 +85,12 @@ class Resource {
         }
         else if (action == "remove") {
           return dp.remove(data['_id'], data['author'], clientVersion: data['clientVersion'])
+              .then((result) {
+                stopWatch(watchID);
+                return result;
+              });
+        } else if(action == "jsonChange") {
+          return dp.changeJson(data['_id'], data['jsonData'], data['author'], clientVersion: data['clientVersion'])
               .then((result) {
                 stopWatch(watchID);
                 return result;

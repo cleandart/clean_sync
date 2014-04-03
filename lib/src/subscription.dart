@@ -114,6 +114,7 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       DataMap record = _records.isNotEmpty? _records.first : null;
       String action = change["action"];
 
+
       logger.finer('handling change $change');
   //     it can happen, that we get too old changes
       if (!change.containsKey('version')){
@@ -268,11 +269,11 @@ class Subscription {
 
   void _resync() {
     List<Future> actions = [];
-
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
-        actions.add(_send(id, item["data"]));
+        print('action ${id}');
+        actions.add(_send(id, () => item["data"]));
       }
     });
 
@@ -308,57 +309,49 @@ class Subscription {
     assert(_modifiedItems.changedItems.containsKey(elem));
 
     if (_connected) {
-      Map data;
-      String clientVersion = _idGenerator.next();
+      reqFactory() {
+        Map data;
+        String clientVersion = _idGenerator.next();
 
-
-      if (_modifiedItems.addedItems.contains(elem)) {
-        data = {
-          "action" : "add",
-          "collection" : collectionName,
-          "data" : new DataMap.from(elem),
-          'args': args,
-          "author" : _author,
-          "clientVersion" : clientVersion
-        };
+        if (_modifiedItems.changedItems.containsKey(elem)) {
+          data = {
+            "action" : "jsonChange",
+            "collection" : collectionName,
+            "jsonData": _modifiedItems.changedItems[elem].toJson(),
+            'args': args,
+            "_id" : elem["_id"],
+            "author" : _author,
+            "clientVersion" : clientVersion
+          };
+        }
+        assert(data!=null);
+        _modifiedItems.changedItems.remove(elem);
+        return data;
       }
-      if (_modifiedItems.strictlyChanged.containsKey(elem)) {
-        data = {
-          "action" : "change",
-          "collection" : collectionName,
-          'args': args,
-          "_id" : elem["_id"],
-          "change" : new DataMap.from(elem),
-          "author" : _author,
-          "clientVersion" : clientVersion
-        };
-      }
-      if (_modifiedItems.removedItems.contains(elem)) {
-        data = {
-          "action" : "remove",
-          "collection" : collectionName,
-          'args': args,
-          "_id" : elem["_id"],
-          "author" : _author,
-          "clientVersion" : clientVersion
-        };
-      }
-      assert(data!=null);
-      _send(elem["_id"], data);
-      _modifiedItems.changedItems.remove(elem);
+      _send(elem["_id"], reqFactory);
     }
   }
 
-  Future _send(String id, Map data) {
-    logger.finer('Sending #${id}, ${data}');
+  Future _send(String id, Map reqFactory()) {
 
-    Future result = _connection.send(() => new ClientRequest("sync", data))
+    logger.finer('_send entered');
+    _sentItems[id] = {};
+
+    Future result = _connection.send((){
+      var _data = reqFactory();
+      logger.finer('Sending #${id}, ${_data}');
+      _sentItems[id].addAll({
+          "data" : _data,
+          "failed" : false,
+      });
+      return new ClientRequest("sync", _data);
+    })
       .then((result) {
         if (result is Map && result['error'] != null) {
           _errorStreamController.add(result['error']);
         }
 
-        logger.finer('Sent #${id}, ${data}');
+        logger.finer('sent #${id}');
         _sentItems.remove(id);
         DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
 
@@ -380,12 +373,7 @@ class Subscription {
         else throw e;
       });
 
-    _sentItems[id] = {
-      "data" : data,
-      "failed" : false,
-      "result" : result
-    };
-
+    _sentItems[id].addAll({'result': result});
     return result;
   }
 

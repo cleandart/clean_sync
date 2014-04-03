@@ -8,6 +8,7 @@ import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "package:useful/useful.dart";
 import "dart:async";
+import 'package:clean_data/clean_data.dart';
 
 
 void handleDiff(List<Map> diff, List collection) {
@@ -233,12 +234,40 @@ void main() {
         });
     });
 
+    test('change data with jsonChange. (T04)', () {
+      // given
+      Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
+      return ready.then((_) => months.add(clone(january), 'John Doe'))
+
+      // when
+        .then((_) => months.changeJson('january', [january, clone(january2)], 'Michael Smith'))
+        .then((_) => months.data())
+        .then((data){
+
+      // then
+          expect(data['data'].length, equals(1));
+          Map strippedData = data['data'][0];
+          expect(strippedData, equals(january2));
+          expect(data['version'], equals(2));
+      }).then((_) => months.diffFromVersion(1))
+        .then((dataDiff) {
+          List diffList = dataDiff['diff'];
+          expect(diffList.length, equals(1));
+          Map diff = diffList[0];
+          expect(diff['action'], equals('change'));
+          expect(diff['_id'], equals('january'));
+          Map strippedData = diff['data'];
+          expect(strippedData, equals(january2));
+          expect(diff['author'], equals('Michael Smith'));
+        });
+    });
+
     test('change data with bad _id. (T06)', () {
       // given
       Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', clone(february), 'Michael Smith'));
+        .then((_) => months.change('january', february, 'Michael Smith'));
 
       // then
         expect(shouldThrow, throws);
