@@ -4,6 +4,13 @@
 
 part of clean_sync.server;
 
+class ModifierException implements Exception {
+  final String error;
+  final String stackTrace;
+  ModifierException(this.error, this.stackTrace);
+  String toString() => "Modifier Error: $error \n Stack trace: $stackTrace";
+}
+
 class DiffNotPossibleException implements Exception {
    final String msg;
    const DiffNotPossibleException([this.msg]);
@@ -13,9 +20,10 @@ class DiffNotPossibleException implements Exception {
 class MongoException implements Exception {
    final Map mongoError;
    final String msg;
-   const MongoException(this.mongoError, [this.msg]);
+   final String stackTrace;
+   const MongoException(this.mongoError, this.stackTrace, [this.msg]);
    String toString() =>
-       msg == null ? 'MongoError: $mongoError' : '$msg MongoError: $mongoError';
+       msg == null ? 'MongoError: $mongoError \n Stack trace: $stackTrace' : '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
 }
 
 const String QUERY = "\$query";
@@ -322,11 +330,11 @@ class MongoProvider implements DataProvider {
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
             }).toList(growable: false)),
-      onError: (e) {
+      onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
-          throw new MongoException(e);
+          throw new MongoException(e,s);
         });
       }
       ).then((_) => _release_locks()).then((_) => nextVersion);
@@ -339,10 +347,10 @@ class MongoProvider implements DataProvider {
     return _get_locks().then((_) => collection.findOne({"_id" : _id}))
       .then((Map record) {
         if(record == null) {
-          throw new MongoException(null,
+          throw new MongoException(null,null,
               'Change was not applied, document with id $_id does not exist.');
         } else if (change.containsKey('_id') && change['_id'] != _id) {
-          throw new MongoException(null,
+          throw new MongoException(null,null,
               'New document id ${change['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
@@ -361,11 +369,11 @@ class MongoProvider implements DataProvider {
             }));
         }
       },
-      onError: (e) {
+      onError: (e, s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
-          throw new MongoException(e);
+          throw new MongoException(e, s);
         });
       }
       ).then((_) => _release_locks()).then((_) => nextVersion);
@@ -402,7 +410,7 @@ class MongoProvider implements DataProvider {
         }
 
         if (!newData.isEmpty && newData['_id'] != _id) {
-          throw new MongoException(null,
+          throw new MongoException(null,null,
               'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
@@ -501,7 +509,7 @@ class MongoProvider implements DataProvider {
         }
 
         if (!newData.isEmpty && newData['_id'] != _id) {
-          throw new MongoException(null,
+          throw new MongoException(null,null,
               'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
@@ -559,7 +567,7 @@ class MongoProvider implements DataProvider {
         if(record == null) {
           throw true;
         } else if (newData['_id'] != _id) {
-          throw new MongoException(null,
+          throw new MongoException(null,null,
               'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
@@ -598,6 +606,11 @@ class MongoProvider implements DataProvider {
         num versionUpdate = nextVersion;
 
         Map prepare(Map document) {
+          try {
+            modifier(document);
+          } catch(e,s) {
+            throw new ModifierException(e,s);
+          }
           document[VERSION_FIELD_NAME] = versionUpdate++;
           return document;
         }
@@ -607,7 +620,7 @@ class MongoProvider implements DataProvider {
           oldData = data;
           return Future.forEach(data,
               (item) => collection.update({'_id': item['_id']},
-                  prepare(modifier(item)))
+                  prepare(item))
               );
         });
       }).then((_) {
@@ -623,11 +636,13 @@ class MongoProvider implements DataProvider {
             }));
           });
         }).then((_) => _release_locks()).then((_) => nextVersion)
-        .catchError( (e) {
+        .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
           // ...
           return _release_locks().then((_) {
-            throw new MongoException(e);
+            if (e is ModifierException) {
+              throw e;
+            } else throw new MongoException(e,s);
           });
         });
   }
@@ -689,11 +704,11 @@ class MongoProvider implements DataProvider {
             "version" : nextVersion++
         }).toList(growable: false)));
       },
-      onError: (e) {
+      onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
         return _release_locks().then((_) {
-          throw new MongoException(e);
+          throw new MongoException(e,s);
         });
       }
       ).then((_) => _release_locks()).then((_) => nextVersion);
