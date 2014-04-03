@@ -105,16 +105,16 @@ run(count, cache, {failProb: 0}) {
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
 
-        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
+        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'))..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
+        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'))..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
+        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'))..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
+        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'))..restart();
         colAa = subAa.collection;
         subNoMatch = new Subscription('d', connection, 'author5',
-            new IdGenerator('e'), {});
+            new IdGenerator('e'))..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -267,7 +267,7 @@ run(count, cache, {failProb: 0}) {
         Subscription newSub;
         res = res
           .then((_) =>
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()))
+            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart())
           .then((_) =>
               newSub.initialSync)
           .then((_){

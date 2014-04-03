@@ -5,8 +5,8 @@
 part of clean_sync.client;
 
 final _defaultSubscriptionFactory =
-    (collectionName, connection, author, idGenerator, args) =>
-        new Subscription(collectionName, connection, author, idGenerator, args);
+    (collectionName, connection, author, idGenerator) =>
+        new Subscription(collectionName, connection, author, idGenerator);
 
 /**
  * A control object responsible for managing subscription to server published
@@ -73,23 +73,25 @@ class Subscriber {
    * properly initialized with [init] method before calling [subscribe].
    *
    * Create new [Subscription] to published collection using its
-   * [collectionName] and optionally [args]. Data in subscribed collection is
-   * keeped in sync between the server and the client with no interaction
+   * [collectionName]. Data in subscribed collection is
+   * kept in sync between the server and the client with no interaction
    * needed from the user.
    *
+   * In order to start this subscription, restart(args) has to be called on it
+   *
    * It is also possible to create multiple independend subscriptions with same
-   * [collectionName] and/or [args]. This can be useful when subscribing to
+   * [collectionName]. This can be useful when subscribing to
    * really big collection and want to request only a portion of data specified
-   * by [args].
+   * by args in restart method.
    */
-  Subscription subscribe(String collectionName, [Map args]) {
+  Subscription subscribe(String collectionName) {
     if(_idPrefix == null) {
       throw new StateError("Subscriber can not be used before the Future"
           " returned by 'init' method has completed.");
     }
     String author = _subscriptionIdGenerator.next();
     var subscription = _createSubscription(collectionName, _connection, author,
-      _dataIdGenerator, args);
+      _dataIdGenerator);
     return subscription;
   }
 }

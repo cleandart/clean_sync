@@ -122,12 +122,12 @@ void run() {
 
       // when
       var future = subscriber.init().then((_) {
-        subscriber.subscribe("months", args);
+        subscriber.subscribe("months");
       });
 
       return future.then((_) {
         expect(subscriptionFactory.getLogs().first.args,
-            equals(['months', connection, 'prefix-1', dataIdGenerator, args]));
+            equals(['months', connection, 'prefix-1', dataIdGenerator]));
       });
     });
 
@@ -275,7 +275,7 @@ void run() {
       collection.add(elem);
 
       Subscription subs = new Subscription.config('collection', collection, _connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false, {});
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
 
       subs.setupListeners();
 
@@ -324,7 +324,7 @@ void run() {
         ];
 
       Subscription _months = new Subscription.config('months', collection, connection,
-          'author', idGenerator, mockHandleData, mockHandleDiff, false, {});
+          'author', idGenerator, mockHandleData, mockHandleDiff, false);
       _months.initialSync.catchError((e){});
 
 
@@ -412,7 +412,7 @@ void run() {
         expect(lastRequest, isNotNull);
         expect(lastRequest.type, equals("sync"));
         expect(lastRequest.args, equals({"action": "jsonChange", "collection": "months",
-                     "jsonData": [CLEAN_UNDEFINED, january], "author": "author", '_id': null, "args": null, "clientVersion": null}));
+                     "jsonData": [CLEAN_UNDEFINED, january], "author": "author", '_id': null, "args": {}, "clientVersion": null}));
       });
     });
 

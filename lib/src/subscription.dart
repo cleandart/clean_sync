@@ -218,6 +218,8 @@ class Subscription {
 
   bool _connected = true;
 
+  bool _started = false;
+
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
 
@@ -249,14 +251,13 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args, startup = emptyStartup]) {
+      this._forceDataRequesting) {
     _initialSync = createInitialSync();
-    startup(this);
   }
 
-  Subscription(collectionName, connection, author, idGenerator, [args])
+  Subscription(collectionName, connection, author, idGenerator)
       : this.config(collectionName, _createNewCollection(), connection, author,
-          idGenerator, handleData, handleDiff, false, args, (self) => self.start());
+          idGenerator, handleData, handleDiff, false);
 
 
   /**
@@ -489,7 +490,7 @@ class Subscription {
     _subscriptions.add(_periodicDiffRequesting);
   }
 
-  void start() {
+  void _start() {
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
@@ -514,14 +515,19 @@ class Subscription {
       .then((_) => collection.dispose());
   }
 
-  void restart([Map args]) {
-    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    _initialSync = createInitialSync();
+  void restart([Map args = const {}]) {
     this.args = args;
-    _closeSubs().then((_) {
-      requestLock = false;
-      start();
-    });
+    if (!_started) {
+      _started = true;
+      _start();
+    } else {
+      if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+      _initialSync = createInitialSync();
+      _closeSubs().then((_) {
+        requestLock = false;
+        _start();
+      });
+    }
   }
 
   Stream onClose() {
