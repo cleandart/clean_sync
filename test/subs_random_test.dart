@@ -42,7 +42,7 @@ main() {
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
   testLogger.level = Level.FINER;
-  (new Logger('clean_ajax')).level = Level.FINE;
+  (new Logger('clean_ajax')).level = Level.INFO;
 //  (new Logger('clean_sync')).level = Level.FINER;
 
 

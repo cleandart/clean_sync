@@ -267,7 +267,7 @@ void main() {
       Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
 
       // when
-        .then((_) => months.change('january', [february, clone(february)], 'Michael Smith'));
+        .then((_) => months.change('january', february, 'Michael Smith'));
 
       // then
         expect(shouldThrow, throws);
