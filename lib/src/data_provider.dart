@@ -33,6 +33,6 @@ abstract class DataProvider {
    */
   Future<Map> diffFromVersion(num version);
   Future add(Map data, String author, {String clientVersion : null});
-  Future change(String_id, Map change, String author, {String clientVersion : null});
+  Future change(String id, Map change, String author, {String clientVersion : null});
   Future remove(String id, String author, {String clientVersion : null});
 }
