@@ -287,6 +287,21 @@ run() {
 
   });
 
+  test('test subscription restart & dispose', () {
+
+      var sub = new Subscription('a', connection, 'author', new IdGenerator('aaa'))..restart();
+      sub.initialSync.then((_){
+        sub.collection.add({'price':'value'});
+      });
+
+      new Future.delayed(new Duration(milliseconds: 200), () {
+        sub.restart();
+        sub.dispose();
+      });
+
+      return new Future.delayed(new Duration(milliseconds: 500), () {});
+
+  });
 
   test('test data list manipulation', () {
     DataMap morders = new DataMap();

@@ -23,10 +23,12 @@ final Logger logger = new Logger('clean_sync.subscription');
 void handleData(List<Map> data, Subscription subscription, String author) {
   logger.fine('handleData: ${data}');
   var collection = subscription.collection;
-  subscription.updateLock = true;
-  collection.clear();
-  collection.addAll(data);
-  subscription.updateLock = false;
+  if (collection != null) {
+    subscription.updateLock = true;
+    collection.clear();
+    collection.addAll(data);
+    subscription.updateLock = false;
+  }
 }
 
 void _applyChangeList (List source, DataList target) {
@@ -515,10 +517,17 @@ class Subscription {
   Future dispose(){
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
-      .then((_) => collection.dispose());
+      .then((_) {
+        print('disposing collection: $collection');
+        // check to make multiple disposes safe
+        if (collection != null)
+          collection.dispose();
+        collection = null;
+      });
   }
 
   void restart([Map args = const {}]) {
+    print('restart ${this._author}');
     this.args = args;
     if (!_started) {
       _start();
