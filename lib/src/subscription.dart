@@ -269,11 +269,14 @@ class Subscription {
   }
 
   void _resync() {
+    if (!_initialSync.isCompleted) {
+      restart();
+      return;
+    }
     List<Future> actions = [];
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
-        print('action ${id}');
         actions.add(_send(id, () => item["data"]));
       }
     });
@@ -296,14 +299,14 @@ class Subscription {
   }
 
   void setupConnectionRecovery() {
-    _connection.onDisconnected.listen((_) {
+    _subscriptions.add(_connection.onDisconnected.listen((_) {
       _connected = false;
-    });
+    }));
 
-    _connection.onConnected.listen((_) {
+    _subscriptions.add(_connection.onConnected.listen((_) {
       _connected = true;
       _resync();
-    });
+    }));
   }
 
   void _sendRequest(DataMap elem) {
@@ -436,9 +439,9 @@ class Subscription {
     }
   }
 
-  void setupDataRequesting() {
+  Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
-    _connection.send(_createDataRequest).then((response) {
+    return _connection.send(_createDataRequest).then((response) {
       if (response['error'] != null) {
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
@@ -499,13 +502,13 @@ class Subscription {
     });
     setupConnectionRecovery();
     setupListeners();
-    setupDataRequesting();
+    setupDataRequesting().then((_) => _started = true);
   }
 
 
   Future _closeSubs() {
     return Future.forEach(_subscriptions, (sub){
-      sub.cancel();
+      return sub.cancel();
     }).then((_) => Future.wait(_sentItems.values.map((item) => item["result"])));
   }
 
@@ -518,7 +521,6 @@ class Subscription {
   void restart([Map args = const {}]) {
     this.args = args;
     if (!_started) {
-      _started = true;
       _start();
     } else {
       if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());

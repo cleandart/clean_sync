@@ -42,13 +42,13 @@ main() {
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
   testLogger.level = Level.FINER;
-  (new Logger('clean_ajax')).level = Level.INFO;
+  (new Logger('clean_ajax')).level = Level.FINE;
 //  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
-//  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
-  run(1000000, new DummyCache(), failProb: 0);
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
+//  run(1000000, new DummyCache(), failProb: 0.05);
 }
 
 run(count, cache, {failProb: 0}) {
@@ -266,13 +266,14 @@ run(count, cache, {failProb: 0}) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res
+          .then((_) {
+            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart();
+           })
           .then((_) =>
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart())
+            newSub.initialSync)
           .then((_) =>
-              newSub.initialSync)
-          .then((_){
-            return newSub.dispose();
-          }).then((_) {
+            newSub.dispose()
+          ).then((_) {
             expect(newSub.collection, unorderedEquals(sub.collection));
           });
       }
@@ -280,7 +281,7 @@ run(count, cache, {failProb: 0}) {
     return res;
   };
 
-    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400];
+    var times=[0, 30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400];
     var i=0;
 
     var watch = new Stopwatch()..start();
