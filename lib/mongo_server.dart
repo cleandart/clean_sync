@@ -11,11 +11,11 @@ Logger logger = new Logger('mongo_wrapper_logger');
 emptyFun(){}
 
 class ServerOperation {
-  Function before;
-  Function after;
-  Function operation;
-  List docsCollections;
   String name;
+  Function before;
+  Function operation;
+  Function after;
+  List docsCollections;
   bool docsCollectionListed;
 
   ServerOperation(this.name, {this.operation, this.before,
@@ -76,8 +76,6 @@ class MongoServer{
   MongoDatabase db;
   String userColName;
   List<OperationCall> queue;
-  Map<String, Completer> reqToResp;
-
 
   MongoServer(this.port, this.mongoUrl);
 
