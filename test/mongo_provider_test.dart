@@ -449,6 +449,26 @@ void main() {
           });
     });
 
+    test('update data. (T13)', () {
+      //when
+      return ready
+          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
+          .then((_) => months.update({'days': 28},
+            (Map document) {
+              document["days"] = 29;
+              document["number"] = 2;
+              document["name"] = "February";
+
+              return document;
+            }, 'John Doe')).then((_) {
+              return mongodb.rawDb.collection("__clean_months_history").find()
+                .toList().then((data) {
+                  Map oldData = data.where((m) => m['before']['name'] == 'February').first['before'];
+                  expect(oldData['days'], equals(28));
+              });
+            });
+    });
+
     test('update data with only one changed field. (T14)', () {
       //when
       return ready

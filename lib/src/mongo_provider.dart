@@ -5,8 +5,8 @@
 part of clean_sync.server;
 
 class ModifierException implements Exception {
-  final String error;
-  final String stackTrace;
+  final error;
+  final stackTrace;
   ModifierException(this.error, this.stackTrace);
   String toString() => "Modifier Error: $error \n Stack trace: $stackTrace";
 }
@@ -52,6 +52,8 @@ class MongoDatabase {
   List<Future> init = [];
   DbCollection _lock;
   Cache cache;
+
+  Db get rawDb => _db;
 
   MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -518,7 +520,7 @@ class MongoProvider implements DataProvider {
 
         var col = collection.find(selector);
         return col.toList().then((data) {
-          oldData = data;
+          oldData = clone(data);
           return Future.forEach(data,
               (item) => collection.update({'_id': item['_id']},
                   prepare(item))
@@ -540,7 +542,7 @@ class MongoProvider implements DataProvider {
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
           // ...
-          logger.shout(e, s);
+          logger.shout('error:', e, s);
           return _release_locks().then((_) {
             if (e is ModifierException) {
               throw e;
