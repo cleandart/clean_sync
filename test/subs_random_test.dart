@@ -42,13 +42,13 @@ main() {
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
   testLogger.level = Level.FINER;
-  (new Logger('clean_ajax')).level = Level.INFO;
+  (new Logger('clean_ajax')).level = Level.FINE;
 //  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
-//  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
-  run(1000000, new DummyCache(), failProb: 0);
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
+//  run(1000000, new DummyCache(), failProb: 0.05);
 }
 
 run(count, cache, {failProb: 0}) {
@@ -105,16 +105,16 @@ run(count, cache, {failProb: 0}) {
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
 
-        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'), {});
+        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'))..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'), {});
+        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'))..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'), {});
+        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'))..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'), {});
+        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'))..restart();
         colAa = subAa.collection;
         subNoMatch = new Subscription('d', connection, 'author5',
-            new IdGenerator('e'), {});
+            new IdGenerator('e'))..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -218,6 +218,7 @@ run(count, cache, {failProb: 0}) {
 
   randomChangeCollection = _randomChangeCollection;
 
+
   test('test random subscription modification', () {
 
   var action = (){
@@ -266,13 +267,14 @@ run(count, cache, {failProb: 0}) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res
+          .then((_) {
+            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart();
+           })
           .then((_) =>
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()))
+            newSub.initialSync)
           .then((_) =>
-              newSub.initialSync)
-          .then((_){
-            return newSub.dispose();
-          }).then((_) {
+            newSub.dispose()
+          ).then((_) {
             expect(newSub.collection, unorderedEquals(sub.collection));
           });
       }
@@ -280,7 +282,7 @@ run(count, cache, {failProb: 0}) {
     return res;
   };
 
-    var times=[30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400];
+    var times=[0, 30, 40, 50, 100, 200, 400, 800, 1600, 3200, 6400];
     var i=0;
 
     var watch = new Stopwatch()..start();

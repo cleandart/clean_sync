@@ -49,7 +49,7 @@ run() {
     test('Exception in initial sync is caught on client-side', () {
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
-      sub = new Subscription('a', connection, 'author1', _idGenerator, {});
+      sub = new Subscription('a', connection, 'author1', _idGenerator)..restart();
       return sub.initialSync.then((_){}, onError: callback);
     });
 
@@ -69,7 +69,7 @@ run() {
       }, beforeRequest: beforeRequest);
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
-      sub = new Subscription('b', connection, 'author2', _idGenerator, {});
+      sub = new Subscription('b', connection, 'author2', _idGenerator)..restart();
 
       sub.initialSync.then((_) {
         sub.errorStream.listen(callback);

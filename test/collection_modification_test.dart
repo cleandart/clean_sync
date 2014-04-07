@@ -17,7 +17,7 @@ stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id'))
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
-  (new Logger('clean_sync')).level = Level.FINE;
+  (new Logger('clean_sync')).level = Level.WARNING;
   setupDefaultLogHandler();
   run();
 }
@@ -82,16 +82,16 @@ run() {
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
 
-        subAll = new Subscription('a', connection, 'author_sub_all', new IdGenerator('a'), {});
+        subAll = new Subscription('a', connection, 'author_sub_all', new IdGenerator('a'))..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author_sub_all2', new IdGenerator('b'), {});
+        subAll2 = new Subscription('a', connection, 'author_sub_all2', new IdGenerator('b'))..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author_sub_a', new IdGenerator('c'), {});
+        subA = new Subscription('b', connection, 'author_sub_a', new IdGenerator('c'))..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author_sub_aa', new IdGenerator('d'), {});
+        subAa = new Subscription('c', connection, 'author_sub_aa', new IdGenerator('d'))..restart();
         colAa = subAa.collection;
-        subArgs = new Subscription('withArgs', connection, 'author_sub_args', new IdGenerator('d'),
-            {'name': 'aa'});
+        subArgs = new Subscription('withArgs', connection, 'author_sub_args', new IdGenerator('d'))
+                        ..restart({'name': 'aa'});
         colArgs = subArgs.collection;
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
@@ -253,14 +253,14 @@ run() {
 
   test('test collection fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_pos', connection, 'author5', new IdGenerator('e'), {});
+    Subscription subMapped = new Subscription('mapped_pos', connection, 'author5', new IdGenerator('e'))..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'a': 1}])),
-      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
@@ -271,14 +271,14 @@ run() {
 
   test('test collection excluded fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_neg', connection, 'author5', new IdGenerator('e'), {});
+    Subscription subMapped = new Subscription('mapped_neg', connection, 'author5', new IdGenerator('e'))..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'b': 3, 'c': 2}])),
-      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock()),
+      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
@@ -287,6 +287,23 @@ run() {
 
   });
 
+  test('test subscription restart & dispose', () {
+
+      var sub = new Subscription('a', connection, 'author', new IdGenerator('aaa'))..restart();
+      sub.initialSync.then((_){
+        sub.collection.add({'price':'value'});
+      });
+
+      new Future.delayed(new Duration(milliseconds: 200), () {
+        sub.restart();
+        sub.dispose();
+      });
+
+      return new Future.delayed(new Duration(milliseconds: 5000), () {});
+
+  });
+
+  test('cosi', (){});
 
   test('test data list manipulation', () {
     DataMap morders = new DataMap();

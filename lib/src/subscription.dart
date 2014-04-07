@@ -23,10 +23,12 @@ final Logger logger = new Logger('clean_sync.subscription');
 void handleData(List<Map> data, Subscription subscription, String author) {
   logger.fine('handleData: ${data}');
   var collection = subscription.collection;
-  subscription.updateLock = true;
-  collection.clear();
-  collection.addAll(data);
-  subscription.updateLock = false;
+  if (collection != null) {
+    subscription.updateLock = true;
+    collection.clear();
+    collection.addAll(data);
+    subscription.updateLock = false;
+  }
 }
 
 void _applyChangeList (List source, DataList target) {
@@ -218,6 +220,8 @@ class Subscription {
 
   bool _connected = true;
 
+  bool _started = false;
+
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
 
@@ -249,14 +253,13 @@ class Subscription {
 
   Subscription.config(this.collectionName, this.collection, this._connection,
       this._author, this._idGenerator, this._handleData, this._handleDiff,
-      this._forceDataRequesting, [this.args, startup = emptyStartup]) {
+      this._forceDataRequesting) {
     _initialSync = createInitialSync();
-    startup(this);
   }
 
-  Subscription(collectionName, connection, author, idGenerator, [args])
+  Subscription(collectionName, connection, author, idGenerator)
       : this.config(collectionName, _createNewCollection(), connection, author,
-          idGenerator, handleData, handleDiff, false, args, (self) => self.start());
+          idGenerator, handleData, handleDiff, false);
 
 
   /**
@@ -268,11 +271,14 @@ class Subscription {
   }
 
   void _resync() {
+    if (!_initialSync.isCompleted) {
+      restart();
+      return;
+    }
     List<Future> actions = [];
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
-        print('action ${id}');
         actions.add(_send(id, () => item["data"]));
       }
     });
@@ -295,14 +301,14 @@ class Subscription {
   }
 
   void setupConnectionRecovery() {
-    _connection.onDisconnected.listen((_) {
+    _subscriptions.add(_connection.onDisconnected.listen((_) {
       _connected = false;
-    });
+    }));
 
-    _connection.onConnected.listen((_) {
+    _subscriptions.add(_connection.onConnected.listen((_) {
       _connected = true;
       _resync();
-    });
+    }));
   }
 
   void _sendRequest(DataMap elem) {
@@ -435,9 +441,12 @@ class Subscription {
     }
   }
 
-  void setupDataRequesting() {
+  Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
-    _connection.send(_createDataRequest).then((response) {
+    return _connection.send(_createDataRequest).then((response) {
+      if (_initialSync.isCompleted) {
+        return;
+      }
       if (response['error'] != null) {
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
@@ -489,7 +498,7 @@ class Subscription {
     _subscriptions.add(_periodicDiffRequesting);
   }
 
-  void start() {
+  void _start() {
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
@@ -498,30 +507,39 @@ class Subscription {
     });
     setupConnectionRecovery();
     setupListeners();
-    setupDataRequesting();
+    setupDataRequesting().then((_) => _started = true);
   }
 
 
   Future _closeSubs() {
     return Future.forEach(_subscriptions, (sub){
-      sub.cancel();
+      return sub.cancel();
     }).then((_) => Future.wait(_sentItems.values.map((item) => item["result"])));
   }
 
   Future dispose(){
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
-      .then((_) => collection.dispose());
+      .then((_) {
+        // check to make multiple disposes safe
+        if (collection != null)
+          collection.dispose();
+        collection = null;
+      });
   }
 
-  void restart([Map args]) {
-    if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
-    _initialSync = createInitialSync();
+  void restart([Map args = const {}]) {
     this.args = args;
-    _closeSubs().then((_) {
-      requestLock = false;
-      start();
-    });
+    if (!_started) {
+      _start();
+    } else {
+      if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
+      _initialSync = createInitialSync();
+      _closeSubs().then((_) {
+        requestLock = false;
+        _start();
+      });
+    }
   }
 
   Stream onClose() {
