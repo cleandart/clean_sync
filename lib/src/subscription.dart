@@ -227,6 +227,7 @@ class Subscription {
 
   Stream get onResyncFinished => _onResyncFinishedController.stream;
   Stream get onFullSync => _onFullSyncController.stream;
+  bool get disposed => collection == null;
 
 
   // version exposed only for testing and debugging
@@ -244,6 +245,7 @@ class Subscription {
 
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
+  get initialSyncCompleted => _initialSync.isCompleted;
 
   static _createNewCollection() {
     var collection = new DataSet();
@@ -271,7 +273,9 @@ class Subscription {
   }
 
   void _resync() {
+    logger.info("Resyncing subscription ${this}");
     if (!_initialSync.isCompleted) {
+      logger.finer("Initial sync is not completed, restarting");
       restart();
       return;
     }
@@ -279,6 +283,7 @@ class Subscription {
     // resend all failed changes
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
+        logger.finest("Resending: id:${id}, data:${item["data"]}");
         actions.add(_send(id, () => item["data"]));
       }
     });
@@ -292,6 +297,7 @@ class Subscription {
     }
 
     if (_periodicDiffRequesting.isPaused) {
+      logger.fine("Resuming periodic diff requesting");
       _periodicDiffRequesting.resume();
     }
 
@@ -301,6 +307,7 @@ class Subscription {
   }
 
   void setupConnectionRecovery() {
+    logger.info("Setting up connection recovery for ${this}");
     _subscriptions.add(_connection.onDisconnected.listen((_) {
       _connected = false;
     }));
@@ -385,6 +392,7 @@ class Subscription {
 
   // TODO rename to something private-like
   void setupListeners() {
+    logger.info("Setting up listeners for ${this}");
     _subscriptions.add(collection.onBeforeAdd.listen((data) {
       // if data["_id"] is null, it was added by this client and _id should be
       // assigned
@@ -443,11 +451,13 @@ class Subscription {
 
   Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
+    logger.info("Setting up data requesting for ${this}");
     return _connection.send(_createDataRequest).then((response) {
       if (_initialSync.isCompleted) {
         return;
       }
       if (response['error'] != null) {
+        logger.warning("Response to 'send' completed with error ${response['error']}");
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
         return;
@@ -466,6 +476,7 @@ class Subscription {
   }
 
   void _setupPeriodicDiffRequesting() {
+    logger.info("Setting up periodic diff requesting for ${this}");
     _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
@@ -512,12 +523,14 @@ class Subscription {
 
 
   Future _closeSubs() {
+    logger.info("Closing all stream subscriptions of ${this}");
     return Future.forEach(_subscriptions, (sub){
       return sub.cancel();
     }).then((_) => Future.wait(_sentItems.values.map((item) => item["result"])));
   }
 
   Future dispose(){
+    logger.info("Disposing of ${this}");
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
       .then((_) {
@@ -529,8 +542,10 @@ class Subscription {
   }
 
   void restart([Map args = const {}]) {
+    logger.info("Restarting ${this} with args: ${args}");
     this.args = args;
     if (!_started) {
+      logger.fine("First restart of subscription");
       _start();
     } else {
       if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
