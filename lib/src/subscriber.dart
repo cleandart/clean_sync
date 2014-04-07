@@ -27,6 +27,7 @@ class Subscriber {
   String _idPrefix = null;
   final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
   final _createSubscription;
+  final List<Subscription> subscriptions = [];
 
   /**
    * Dependency injection constructor used mainly in tests.
@@ -92,6 +93,27 @@ class Subscriber {
     String author = _subscriptionIdGenerator.next();
     var subscription = _createSubscription(collectionName, _connection, author,
       _dataIdGenerator);
+    subscriptions.add(subscription);
     return subscription;
+  }
+
+  _pruneSubscriptions() {
+    subscriptions.removeWhere((sub) => sub.disposed);
+  }
+
+  String dump([bool data = false]) {
+    _pruneSubscriptions();
+    String res = "";
+    for (var i = 0; i < subscriptions.length; i++) {
+      res += subscriptions[i].toString()+"\n";
+      res += "Collection name: ${subscriptions[i].collectionName} \n";
+      res += "Args: ${subscriptions[i].args} \n";
+      res += "Initial sync completed? ${subscriptions[i].initialSyncCompleted}\n";
+      if (data) {
+        res += "Data: ${subscriptions[i].collection} \n";
+      }
+      res += "\n";
+    }
+    return res;
   }
 }

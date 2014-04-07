@@ -1,5 +1,5 @@
 name: clean_sync
-version: 0.4.0
+version: 0.4.1
 author: Clean Team <clean@vacuumlabs.com>
 description: Library for automatic client server synchronization of data.
 homepage: http://cleandart.github.io/clean_sync/
