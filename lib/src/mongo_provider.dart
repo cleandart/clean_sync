@@ -18,7 +18,7 @@ class DiffNotPossibleException implements Exception {
 }
 
 class MongoException implements Exception {
-   final Map mongoError;
+   final mongoError;
    final String msg;
    final String stackTrace;
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
@@ -540,6 +540,7 @@ class MongoProvider implements DataProvider {
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
           // ...
+          logger.shout(e, s);
           return _release_locks().then((_) {
             if (e is ModifierException) {
               throw e;
