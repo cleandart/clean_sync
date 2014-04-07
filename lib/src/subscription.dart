@@ -444,6 +444,9 @@ class Subscription {
   Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
     return _connection.send(_createDataRequest).then((response) {
+      if (_initialSync.isCompleted) {
+        return;
+      }
       if (response['error'] != null) {
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
@@ -518,7 +521,6 @@ class Subscription {
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
       .then((_) {
-        print('disposing collection: $collection');
         // check to make multiple disposes safe
         if (collection != null)
           collection.dispose();
@@ -527,7 +529,6 @@ class Subscription {
   }
 
   void restart([Map args = const {}]) {
-    print('restart ${this._author}');
     this.args = args;
     if (!_started) {
       _start();

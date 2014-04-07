@@ -17,7 +17,7 @@ stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id'))
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
-  (new Logger('clean_sync')).level = Level.FINE;
+  (new Logger('clean_sync')).level = Level.WARNING;
   setupDefaultLogHandler();
   run();
 }
@@ -299,9 +299,11 @@ run() {
         sub.dispose();
       });
 
-      return new Future.delayed(new Duration(milliseconds: 500), () {});
+      return new Future.delayed(new Duration(milliseconds: 5000), () {});
 
   });
+
+  test('cosi', (){});
 
   test('test data list manipulation', () {
     DataMap morders = new DataMap();
