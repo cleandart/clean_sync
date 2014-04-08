@@ -43,26 +43,28 @@ class OperationCall {
     this.args, this.userId});
 
   OperationCall.fromJson(Map source){
-    this.name = source['name'];
-    this.docs = source['docs'];
-    if (this.docs == null) {
-      this.docs = [];
-    }
-    this.collections = source['collections'];
-    this.args = source['args'];
-    this.userId = source['userId'];
-    this.completer = new Completer();
+    name = source['name'];
+    args = source['args'];
+    userId = source['userId'];
+    completer = new Completer();
 
-    if (docs is! List) {
-      docs = [docs];
+    if (source['docs'] is! List) {
+      docs = [source['docs']];
       docsListed = true;
     } else {
+      docs = source['docs'];
       docsListed = false;
     }
-    if (collections is! List) {
-      collections = [collections];
+    if (source['docs'] == null) {
+      docs = [];
+      docsListed = false;
+    }
+
+    if (source['collections'] is! List) {
+      collections = [source['collections']];
       collectionsListed = true;
     } else {
+      collections = source['collections'];
       collectionsListed = false;
     }
   }
@@ -92,6 +94,7 @@ class MongoServer{
   handleClient(Socket socket){
     socket.listen((List<int> data){
       Map message = JSON.decode(new String.fromCharCodes(data));
+      logger.info("Received JSON: ${message}");
       OperationCall opCall = new OperationCall.fromJson(message);
       queue.add(opCall);
       performOne();
@@ -122,7 +125,7 @@ class MongoServer{
     ServerOperation op = operations[opCall.name];
     List fullDocs = [];
     List fullColls = [];
-    int i;
+    int i = -1;
     Map user;
     MongoProvider mongoProvider;
     bool _docsListed;
@@ -133,10 +136,11 @@ class MongoServer{
     Future.forEach(opCall.docs, (doc){
       logger.fine('fetching docs');
       i++;
-      return db.collection(op.docsCollections[i]).find({'_id': opCall.docs[i]}).findOne()
+      return db.collection(opCall.collections[i]).find({'_id': opCall.docs[i]}).findOne()
           .then((fullDoc) => fullDocs.add(fullDoc));
     })
     .then((_){
+      logger.fine('Docs received: ${fullDocs}');
       logger.fine('fetching user');
       if (opCall.userId != null) {
         print('user id: ${opCall.userId}');
@@ -163,9 +167,9 @@ class MongoServer{
       logger.fine('operation - core');
       return op.operation == null ? null : op.operation(fullDocsArg, opCall.args, fullCollsArg);
     }).then((_) {
+      logger.fine('operation - after');
       return op.after == null ? null : op.after(fullDocsArg, opCall.args, user, fullCollsArg);
     }).then((_) {
-      logger.fine('operation - after');
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {
       opCall.completer.complete({'error': 'error: $e \n $s'});

@@ -32,11 +32,11 @@ class MongoClient {
           socket = _socket;
           socket.listen((List <int> data){
             Map resp = JSON.decode(new String.fromCharCodes(data));
+            logger.finer("Resp: $resp");
             Completer completer = reqToResp.remove(resp['operationId']);
             if (resp.containsKey('result')) {
               completer.complete(resp['result']);
-            } else
-            if (resp.containsKey('error')) {
+            } else if (resp.containsKey('error')) {
               completer.completeError(resp['error']);
             } else {
               completer.completeError('MongoClient - unknown error');
@@ -49,11 +49,12 @@ class MongoClient {
         });
   }
 
-  Future performOperation(name, {docs, collection, args, userId}) {
+  Future performOperation(name, {docs, collections, args, userId}) {
     Completer completer = new Completer();
     String operationId = '$prefix--${count++}';
     reqToResp[operationId] = completer;
-    socket.write(JSON.encode({'name': name, 'docs': docs, 'collection': collection, 'args': args,
+    logger.finer("ReqToResp: ${reqToResp}");
+    socket.write(JSON.encode({'name': name, 'docs': docs, 'collections': collections, 'args': args,
       'userId': userId, 'operationId': operationId}));
     return completer.future;
   }

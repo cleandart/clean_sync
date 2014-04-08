@@ -10,7 +10,7 @@ Logger logger = new Logger('mongo_wrapper_logger');
 main(){
 
   setupDefaultLogHandler();
-  logger.level = Level.FINE;
+  logger.level = Level.FINER;
 
   MongoServer server = new MongoServer(27001, "mongodb://0.0.0.0/mongoServerTest");
   server.start();
@@ -19,12 +19,24 @@ main(){
         return collection.add(args, "");
       }
   );
+  server.registerOperation("delete",
+      operation: (fullDocs, args, MongoProvider collection) {
+        return collection.remove(fullDocs["_id"],"");
+      }
+  );
+
+  int idgen = new DateTime.now().millisecondsSinceEpoch;
   MongoClient client = new MongoClient("127.0.0.1", 27001);
 
   client.connected.then((_){
-    return client.performOperation('save', collection: 'test', args: {'name': 'jozo'});
+    idgen++;
+    return client.performOperation('save', collections: 'test', args: {'_id' : '$idgen', 'name': 'jozo'});
   }).then((result){
     print(result);
   });
 
+  MongoClient client2 = new MongoClient("127.0.0.1", 27001);
+  client2.connected.then((_) {
+    return client2.performOperation('delete', docs: '$idgen', collections: 'test', args: {});
+  }).then((result) => print(result));
 }
