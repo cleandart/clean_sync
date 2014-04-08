@@ -116,6 +116,7 @@ class MongoServer{
     logger.fine('perform one');
     if (queue.isEmpty) return;
     new Future.delayed(new Duration(), (){
+      if (queue.isEmpty) return;
       _performOperation(queue.removeAt(0));
       performOne();
     });
