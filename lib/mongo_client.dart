@@ -18,6 +18,7 @@ class MongoClient {
   Socket socket;
   int count = 0;
   Completer _connected;
+  List<Function> queue = [];
   Future get connected => _connected.future;
 
 
@@ -51,7 +52,17 @@ class MongoClient {
 
 //  performOperation('zosrot', docs:['jozko', 'anicka'], collections: 'processed');
 
-  Future performOperation(name, {docs, collections, args, userId}) {
+  performOperation(name, {docs, collections, args, userId}) {
+    queue.add(() => _performOperation(name, docs, collections, args, userId));
+    performOne();
+  }
+
+  Future performOne() {
+    if (queue.isEmpty) return new Future.value(null);
+    return queue.removeAt(0)();
+  }
+
+  Future _performOperation(name, docs, collections, args, userId) {
     Completer completer = new Completer();
     String operationId = '$prefix--${count++}';
     reqToResp[operationId] = completer;
