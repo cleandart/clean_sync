@@ -10,28 +10,26 @@ Logger logger = new Logger('mongo_wrapper_logger');
 
 emptyFun(){}
 
+class ValidationException implements Exception {
+  final String error;
+  final String stackTrace;
+  ValidationException(this.error, [this.stackTrace]);
+  String toString() => error;
+}
+
 class ServerOperation {
   String name;
   Function before;
   Function operation;
   Function after;
-  List docsCollections;
-  bool docsCollectionListed;
 
   ServerOperation(this.name, {this.operation, this.before,
-      this.after, this.docsCollections}){
-    if (this.docsCollections is! List) {
-      this.docsCollections = [this.docsCollections];
-      docsCollectionListed = true;
-    } else {
-      docsCollectionListed = false;
-    }
-  }
+      this.after});
 }
 
 class OperationCall {
   String name;
-  List docs;
+  List<List> docs;
   List<String> collections;
   Map args;
   String userId;
@@ -48,7 +46,7 @@ class OperationCall {
     userId = source['userId'];
     completer = new Completer();
 
-    if (source['docs'] is! List) {
+    if (source['docs'] is! List<List>) {
       docs = [source['docs']];
       docsListed = true;
     } else {
@@ -78,38 +76,51 @@ class MongoServer{
   MongoDatabase db;
   String userColName;
   List<OperationCall> queue;
+  List<Socket> clientSockets = [];
+  ServerSocket serverSocket;
 
   MongoServer(this.port, this.mongoUrl);
 
-  start() {
+  Future start() {
     db = new MongoDatabase(mongoUrl);
     queue = [];
-    ServerSocket.bind("127.0.0.1", port).then(
+    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
+        serverSocket = server;
         server.listen(handleClient);
       }
     );
+    return Future.wait(db.init..add(socketFuture));
   }
 
   handleClient(Socket socket){
+    clientSockets.add(socket);
     socket.listen((List<int> data){
+      logger.info("Received JSON: ${new String.fromCharCodes(data)}");
       Map message = JSON.decode(new String.fromCharCodes(data));
-      logger.info("Received JSON: ${message}");
       OperationCall opCall = new OperationCall.fromJson(message);
       queue.add(opCall);
       performOne();
       opCall.completer.future.then((Map response){
         response['operationId'] = message['operationId'];
         socket.write(JSON.encode(response));
-        socket.close();
+       // socket.close();
       });
     });
   }
 
-  registerOperation(name, {operation, before, after, collections}){
+  Future close() {
+    return Future.wait([
+       db.close(),
+       Future.wait(clientSockets.map((socket) => socket.close())),
+       serverSocket.close()
+    ]);
+  }
+
+  registerOperation(name, {operation, before, after}){
     logger.fine("registering operation $name");
     operations[name] = new ServerOperation(name, operation: operation,
-        before: before, after: after, docsCollections: collections);
+        before: before, after: after);
   }
 
   performOne() {
@@ -137,10 +148,9 @@ class MongoServer{
     Future.forEach(opCall.docs, (doc){
       logger.fine('fetching docs');
       i++;
-      return db.collection(opCall.collections[i]).find({'_id': opCall.docs[i]}).findOne()
+      return db.collection(opCall.docs[i][1]).find({'_id': opCall.docs[i][0]}).findOne()
           .then((fullDoc) => fullDocs.add(fullDoc));
-    })
-    .then((_){
+    }).then((_){
       logger.fine('Docs received: ${fullDocs}');
       logger.fine('fetching user');
       if (opCall.userId != null) {
@@ -163,8 +173,7 @@ class MongoServer{
       fullCollsArg = opCall.collectionsListed ? fullColls[0] : fullColls;
       return op.before == null ? null: op.before(fullDocsArg,
           opCall.args, user, fullCollsArg);
-    })
-    .then((_) {
+    }).then((_) {
       logger.fine('operation - core');
       return op.operation == null ? null : op.operation(fullDocsArg, opCall.args, fullCollsArg);
     }).then((_) {
@@ -173,7 +182,11 @@ class MongoServer{
     }).then((_) {
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {
-      opCall.completer.complete({'error': 'error: $e \n $s'});
+      if (e is ValidationException) {
+        opCall.completer.complete({'error':{'validation':'$e'}});
+      } else {
+        opCall.completer.complete({'error':{'unknown':'$e'}});
+      }
     });
   }
 

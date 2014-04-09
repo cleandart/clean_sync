@@ -42,6 +42,8 @@ const num NOSKIP = 0;
 
 const String VERSION_FIELD_NAME = '__clean_version';
 const String LOCK_COLLECTION_NAME = '__clean_lock';
+const String COLLECTION_NAME = '__clean_collection';
+
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
@@ -63,9 +65,7 @@ class MongoDatabase {
       }));
   }
 
-  void close() {
-    Future.wait(init).then((_) => _db.close());
-  }
+  Future close() => Future.wait(init).then((_) => _db.close());
 
   void create_collection(String collectionName) {
     init.add(_conn.then((_) =>
@@ -261,6 +261,8 @@ class MongoProvider implements DataProvider {
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
       assert(version != null);
+      // Add collection name to document (it's not in database)
+      if (data.isNotEmpty) data[0][COLLECTION_NAME] = collection.collectionName;
       return {'data': data, 'version': version};
     }).then((result) {
       stopWatch(watchID);
@@ -280,7 +282,7 @@ class MongoProvider implements DataProvider {
         _collectionHistory.insertAll(data.map((elem) =>
             {
               "before" : {},
-              "after" : elem,
+              "after" : stripCollectionName(elem),
               "action" : "add",
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
@@ -317,7 +319,7 @@ class MongoProvider implements DataProvider {
           }).then((_) =>
             _collectionHistory.insert({
               "before" : record,
-              "after" : newRecord,
+              "after" : stripCollectionName(newRecord),
               "action" : "change",
               "author" : author,
               "version" : nextVersion
@@ -383,7 +385,7 @@ class MongoProvider implements DataProvider {
           }).then((_) =>
             _collectionHistory.insert({
               "before" : oldData,
-              "after" : newData,
+              "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
               "version" : nextVersion
@@ -397,6 +399,12 @@ class MongoProvider implements DataProvider {
           throw e;
         }
       }));
+  }
+
+  stripCollectionName(Map doc){
+    //modifikuje doc
+    doc.remove(COLLECTION_NAME);
+    return doc;
   }
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
@@ -474,15 +482,15 @@ class MongoProvider implements DataProvider {
             } else {
               newData[VERSION_FIELD_NAME] = nextVersion;
               if (inferredAction == 'add') {
-                return collection.insert(newData);
+                return collection.insert(stripCollectionName(newData));
               } else {
-                return collection.save(newData);
+                return collection.save(stripCollectionName(newData));
               }
             }
           }).then((_) =>
             _collectionHistory.insert({
               "before" : oldData,
-              "after" : newData,
+              "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
               "version" : nextVersion
@@ -530,7 +538,7 @@ class MongoProvider implements DataProvider {
             return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
             _collectionHistory.insert({
               "before" : oldItem,
-              "after" : newItem.single,
+              "after" : stripCollectionName(newItem.single),
               "action" : "change",
               "author" : author,
               "version" : nextVersion++

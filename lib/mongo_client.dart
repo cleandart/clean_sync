@@ -49,6 +49,8 @@ class MongoClient {
         });
   }
 
+//  performOperation('zosrot', docs:['jozko', 'anicka'], collections: 'processed');
+
   Future performOperation(name, {docs, collections, args, userId}) {
     Completer completer = new Completer();
     String operationId = '$prefix--${count++}';
@@ -56,7 +58,8 @@ class MongoClient {
     logger.finer("ReqToResp: ${reqToResp}");
     socket.write(JSON.encode({'name': name, 'docs': docs, 'collections': collections, 'args': args,
       'userId': userId, 'operationId': operationId}));
-    return completer.future;
+    return Future.wait([socket.flush()]).then((_) => completer.future);
+//    return completer.future;
   }
 }
 

@@ -21,7 +21,7 @@ main(){
   );
   server.registerOperation("delete",
       operation: (fullDocs, args, MongoProvider collection) {
-        return collection.remove(fullDocs["_id"],"");
+        return collection.remove(args["_id"],"");
       }
   );
 
@@ -40,7 +40,7 @@ main(){
     }).then((result) => print(result));
     MongoClient client2 = new MongoClient("127.0.0.1", 27001);
     client2.connected.then((_) {
-      return client2.performOperation('delete', docs: '$idgen', collections: 'test', args: {});
+      return client2.performOperation('delete', collections: 'test', args: {'_id':'$idgen'});
     }).then((result) => print(result));
   });
 
