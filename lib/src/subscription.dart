@@ -182,6 +182,7 @@ class Subscription {
   String collectionName;
   DataSet collection;
   Connection _connection;
+  Transactor _transactor;
   // author field is not used anymore; we are keeping it in the DB mainly for debugging
   // and logging purposes
   String _author;
@@ -250,13 +251,13 @@ class Subscription {
   }
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._author, this._idGenerator, this._handleData, this._handleDiff,
+      this._transactor, this._author, this._idGenerator, this._handleData, this._handleDiff,
       this._forceDataRequesting) {
     _initialSync = createInitialSync();
   }
 
-  Subscription(collectionName, connection, author, idGenerator)
-      : this.config(collectionName, _createNewCollection(), connection, author,
+  Subscription(collectionName, connection, transactor, author, idGenerator)
+      : this.config(collectionName, _createNewCollection(), connection, transactor, author,
           idGenerator, handleData, handleDiff, false);
 
 
@@ -393,6 +394,8 @@ class Subscription {
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
+        // Should work somehow like this
+        // _transactor.operation('jsonApply', change.toJson(topLevel: true));
         _modifiedItems.mergeIn(change);
         for (var key in change.changedItems.keys) {
           if (!_sentItems.containsKey(key['_id'])) {

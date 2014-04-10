@@ -145,12 +145,16 @@ void run() {
     });
 
     test("should not perform operation if before throws", () {
+      var caught = false;
       return client.connected.then((_) {
         var operation = client.performOperation("throw", args:{'throw':'before'})
-        .whenComplete((){
-          expect(lastOperation, equals("before"));
+        .catchError((e,s) {
+          expect(e,isMap);
+          expect(e.containsKey('validation'), isTrue);
+          caught = true;
+        }).then((_){
+          expect(caught, isTrue);
         });
-        expect(operation, throws);
       });
     });
 
@@ -179,14 +183,14 @@ void run() {
     });
 
     test("should report error if there was no entry found", () {
+      var caught = false;
       return client.connected.then((_) {
         var operation = client.performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
         .catchError((e,s) {
           expect(e,isMap);
           expect(e.containsKey('query'), isTrue);
-          throw false;
-        });
-        expect(operation, throws);
+          caught = true;
+        }).then((_) => expect(caught, isTrue));
       });
     });
 
@@ -226,7 +230,6 @@ void run() {
         .then((_) => client.connected.then((_){
              data['name'] = 'another name';
              data.remove('_id');
-             //then
              expect(client.performOperation("set", docs: ['$id',testCollectionUser], args: data), completes);
         }));
     });
