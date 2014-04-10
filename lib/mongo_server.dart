@@ -10,10 +10,37 @@ Logger logger = new Logger('mongo_wrapper_logger');
 
 emptyFun(){}
 
+/**
+ * Takes a message of potentially concatenated JSONs
+ * and returns List of separate JSONs
+ * */
+List<String> getJSONs(String message) {
+  List<String> jsons = [];
+  int numl = 0;
+  String temp = "";
+  for (int i = 0; i < message.length; i++) {
+    temp += message[i];
+    if (message[i] == '{') numl++;
+    if (message[i] == '}') numl--;
+    if (numl == 0) {
+      jsons.add(temp);
+      temp = "";
+    }
+  }
+  return jsons;
+}
+
 class ValidationException implements Exception {
   final String error;
   final String stackTrace;
   ValidationException(this.error, [this.stackTrace]);
+  String toString() => error;
+}
+
+class DocumentNotFoundException implements Exception {
+  final String error;
+  final String stackTrace;
+  DocumentNotFoundException(this.error, [this.stackTrace]);
   String toString() => error;
 }
 
@@ -46,16 +73,17 @@ class OperationCall {
     userId = source['userId'];
     completer = new Completer();
 
-    if (source['docs'] is! List<List>) {
-      docs = [source['docs']];
-      docsListed = true;
-    } else {
-      docs = source['docs'];
-      docsListed = false;
-    }
     if (source['docs'] == null) {
       docs = [];
       docsListed = false;
+    } else {
+      if (source['docs'][0] is! List) {
+        docs = [source['docs']];
+        docsListed = true;
+      } else {
+        docs = source['docs'];
+        docsListed = false;
+      }
     }
 
     if (source['collections'] is! List) {
@@ -97,15 +125,19 @@ class MongoServer{
     clientSockets.add(socket);
     socket.listen((List<int> data){
       logger.info("Received JSON: ${new String.fromCharCodes(data)}");
-      Map message = JSON.decode(new String.fromCharCodes(data));
-      OperationCall opCall = new OperationCall.fromJson(message);
-      queue.add(opCall);
-      performOne();
-      opCall.completer.future.then((Map response){
-        response['operationId'] = message['operationId'];
-        socket.write(JSON.encode(response));
-       // socket.close();
+      // JSONs could have been sent frequently and therefore concatenated
+      var messages = getJSONs(new String.fromCharCodes(data)).map((f) => JSON.decode(f));
+      List<OperationCall> opCalls = new List();
+      messages.forEach((m) {
+        var op = new OperationCall.fromJson(m);
+        opCalls.add(op);
+        queue.add(op);
+        op.completer.future.then((Map response){
+          response['operationId'] = m['operationId'];
+          socket.write(JSON.encode(response));
+        });
       });
+      _performOne();
     });
   }
 
@@ -123,17 +155,20 @@ class MongoServer{
         before: before, after: after);
   }
 
-  performOne() {
-    logger.fine('perform one');
+  bool running = false;
+
+  _performOne() {
+    if (running) return;
     if (queue.isEmpty) return;
-    new Future.delayed(new Duration(), (){
-      if (queue.isEmpty) return;
-      _performOperation(queue.removeAt(0));
-      performOne();
+    logger.fine('server: perform one');
+    running = true;
+    _performOperation(queue.removeAt(0)).then((_) {
+      running = false;
+      _performOne();
     });
   }
 
-  _performOperation(OperationCall opCall) {
+  Future _performOperation(OperationCall opCall) {
     ServerOperation op = operations[opCall.name];
     List fullDocs = [];
     List fullColls = [];
@@ -145,10 +180,11 @@ class MongoServer{
     var fullDocsArg;
     var fullCollsArg;
 
-    Future.forEach(opCall.docs, (doc){
+    return Future.forEach(opCall.docs, (doc){
       logger.fine('fetching docs');
       i++;
       return db.collection(opCall.docs[i][1]).find({'_id': opCall.docs[i][0]}).findOne()
+          .catchError((e,s) => throw new DocumentNotFoundException('$e','$s'))
           .then((fullDoc) => fullDocs.add(fullDoc));
     }).then((_){
       logger.fine('Docs received: ${fullDocs}');
@@ -183,8 +219,13 @@ class MongoServer{
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {
       if (e is ValidationException) {
+        logger.warning('Validation failed', e,  s);
         opCall.completer.complete({'error':{'validation':'$e'}});
+      } else if (e is DocumentNotFoundException) {
+        logger.warning('Document not found', e, s);
+        opCall.completer.complete({'error':{'query':'$e'}});
       } else {
+        logger.shout("Some other error occured !",e,s);
         opCall.completer.complete({'error':{'unknown':'$e'}});
       }
     });

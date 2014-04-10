@@ -32,16 +32,20 @@ class MongoClient {
           _connected.complete(null);
           socket = _socket;
           socket.listen((List <int> data){
-            Map resp = JSON.decode(new String.fromCharCodes(data));
-            logger.finer("Resp: $resp");
-            Completer completer = reqToResp.remove(resp['operationId']);
-            if (resp.containsKey('result')) {
-              completer.complete(resp['result']);
-            } else if (resp.containsKey('error')) {
-              completer.completeError(resp['error']);
-            } else {
-              completer.completeError('MongoClient - unknown error');
-            }
+            logger.finer('Raw response: ${new String.fromCharCodes(data)}');
+            // We could have received more JSONs at once
+            var responses = getJSONs(new String.fromCharCodes(data)).map((m) => JSON.decode(m));
+            logger.finer("JSON resp: $responses");
+            responses.forEach((resp) {
+              Completer completer = reqToResp.remove(resp['operationId']);
+              if (resp.containsKey('result')) {
+                completer.complete(resp['result']);
+              } else if (resp.containsKey('error')) {
+                completer.completeError(resp['error']);
+              } else {
+                completer.completeError('MongoClient - unknown error');
+              }
+            });
           });
         })
         .catchError((e) {
@@ -50,27 +54,14 @@ class MongoClient {
         });
   }
 
-//  performOperation('zosrot', docs:['jozko', 'anicka'], collections: 'processed');
-
-  performOperation(name, {docs, collections, args, userId}) {
-    queue.add(() => _performOperation(name, docs, collections, args, userId));
-    performOne();
-  }
-
-  Future performOne() {
-    if (queue.isEmpty) return new Future.value(null);
-    return queue.removeAt(0)();
-  }
-
-  Future _performOperation(name, docs, collections, args, userId) {
+  Future performOperation(name, {docs, collections, args, userId}) {
     Completer completer = new Completer();
     String operationId = '$prefix--${count++}';
     reqToResp[operationId] = completer;
     logger.finer("ReqToResp: ${reqToResp}");
     socket.write(JSON.encode({'name': name, 'docs': docs, 'collections': collections, 'args': args,
       'userId': userId, 'operationId': operationId}));
-    return Future.wait([socket.flush()]).then((_) => completer.future);
-//    return completer.future;
+    return completer.future;
   }
 }
 

@@ -8,6 +8,7 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
+import 'package:clean_data/clean_data.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 class IdGenerator {
@@ -35,6 +36,8 @@ void run() {
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
     String lastOperation;
+    DataReference lastOperationRef1 = new DataReference("");
+    DataReference lastOperationRef2 = new DataReference("");
 
     setUp(() {
       lastOperation = "";
@@ -55,8 +58,8 @@ void run() {
         );
         server.registerOperation("set",
             before: (fullDocs, args, user, MongoProvider collection) {
-              if (args.containsKey("_id")) throw new Exception("Cannot set _id of document");
-              if ((fullDocs is List) && (fullDocs.length > 1)) throw new Exception("Too many documents");
+              if (args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
+              if ((fullDocs is List) && (fullDocs.length > 1)) throw new ValidationException("Too many documents");
 
             },
             operation: (fullDocs, args, MongoProvider collection) {
@@ -79,15 +82,37 @@ void run() {
               if (args['throw'] == 'after') throw new Exception("After threw");
             }
         );
+
+        server.registerOperation("change ref1",
+            before: (fullDocs, args, user, MongoProvider collection) {
+              lastOperationRef1.value = "before";
+            },
+            operation: (fullDocs, args, MongoProvider collection) {
+              lastOperationRef1.value = "operation";
+            },
+            after: (fullDocs, args, user, MongoProvider collection) {
+              lastOperationRef1.value = "after";
+            }
+        );
+
+        server.registerOperation("change ref2",
+            before: (fullDocs, args, user, MongoProvider collection) {
+              lastOperationRef2.value = "before";
+            },
+            operation: (fullDocs, args, MongoProvider collection) {
+              lastOperationRef2.value = "operation";
+            },
+            after: (fullDocs, args, user, MongoProvider collection) {
+              lastOperationRef2.value = "after";
+            }
+        );
         server.registerOperation("dummy");
 
       });
     });
 
     tearDown(() {
-      server.db.collection(testCollectionUser).collection.drop();
-
-      return server.close();
+      return server.db.collection(testCollectionUser).collection.drop().then((_) => server.close());
     });
 
     test("save document", () {
@@ -109,7 +134,6 @@ void run() {
       return server.db.collection(testCollectionUser).add(data, "").then((_) {
         return server.db.collection(testCollectionUser).find(data).findOne();
       }).then((data){
-        print(data);
         return client.connected.then((_){
           data['name'] = 'another name';
           data.remove('_id');
@@ -140,13 +164,71 @@ void run() {
       });
     });
 
-    solo_test("should handle operations sent right after each other", () {
+    test("should handle operations sent right after each other", () {
       return client.connected.then((_) {
         expect(Future.wait([
-           client.performOperation("dummy", args: {'a':'1'}),
-           client.performOperation("dummy", args: {'a':'2'})
+          client.performOperation("dummy", args: {'a':'1'}),
+          client.performOperation("dummy", args: {'a':'2'}),
+          client.performOperation("dummy", args: {'a':'3'}),
+          client.performOperation("dummy", args: {'a':'4'}),
+          client.performOperation("dummy", args: {'a':'5'}),
+          client.performOperation("dummy", args: {'a':'6'}),
+          client.performOperation("dummy", args: {'a':'7'}),
         ]),completes);
       });
+    });
+
+    test("should report error if there was no entry found", () {
+      return client.connected.then((_) {
+        var operation = client.performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
+        .catchError((e,s) {
+          expect(e,isMap);
+          expect(e.containsKey('query'), isTrue);
+          throw false;
+        });
+        expect(operation, throws);
+      });
+    });
+
+    test("\'before\' of next function should execute after \'after\' of the previous", () {
+      bool failureOccured = false;
+      lastOperationRef2.onChangeSync.listen((_) {
+        if (lastOperationRef1.value != "after") failureOccured = true;
+      });
+      lastOperationRef1.onChangeSync.listen((_) {
+        if (lastOperationRef2.value != "") failureOccured = true;
+      });
+      return client.connected.then((_) {
+        var future1 = client.performOperation("change ref1");
+        var future2 = client.performOperation("change ref2");
+        return Future.wait([future1, future2]);
+      }).then((_) => new Future(() => expect(failureOccured, isFalse)));
+    });
+
+    test("functions should execute in order: before, operation, after", () {
+      bool failureOccured = false;
+      String previousOperation = "";
+      lastOperationRef1.onChangeSync.listen((_) {
+        if ((previousOperation == "") && (lastOperationRef1.value != "before")) failureOccured = true;
+        if ((previousOperation == "before") && (lastOperationRef1.value != "operation")) failureOccured = true;
+        if ((previousOperation == "operation") && (lastOperationRef1.value != "after")) failureOccured = true;
+        previousOperation = lastOperationRef1.value;
+      });
+      return client.connected.then((_) {
+        return client.performOperation("change ref1");
+      }).then((_) => new Future(() => expect(failureOccured, isFalse)));
+    });
+
+    test("operations should work with \'unpacked\' list for one doc only", () {
+      var id = idgen.next();
+      var data = {'_id' : '$id', 'name' : 'some name', 'credit' : 5000};
+      return server.db.collection(testCollectionUser).add(data, "")
+        .then((_) => client.connected.then((_){
+             data['name'] = 'another name';
+             data.remove('_id');
+             //then
+             expect(client.performOperation("set", docs: ['$id',testCollectionUser], args: data), completes);
+        }));
     });
 
   });
