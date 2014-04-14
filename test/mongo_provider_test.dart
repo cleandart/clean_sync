@@ -574,24 +574,6 @@ void main() {
       });
     });
 
-//    solo_test('timestamp should be present in history collection', () {
-//      Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-//      return ready.then((_) => Future.wait([
-//        months.addAll([clone(january),clone(february)], "John Doe" ),
-//        months.changeJson("january", [january, clone(january2)], "John Doe")
-//        ])
-//      ).then((_) {
-//        return Future.wait([mongodb.collection(historyCollectionName('months')).find({"action":"add"}).data()
-//            .then((res) =>
-//                expect(res["data"][0].containsKey("timestamp"), isTrue)),
-//            mongodb.collection(historyCollectionName('months')).find({"action":"change"}).data()
-//            .then((res) {
-//              expect(res["data"][0].containsKey("jsonData"), isTrue);
-//              expect(res["data"][0].containsKey("timestamp"), isTrue);
-//        })]);
-//      });
-//    });
-
     test('cache should invalidate when changing the collection', () {
       var _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest',
           cache: new Cache(new Duration(seconds: 1), 1000));
