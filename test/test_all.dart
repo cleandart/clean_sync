@@ -11,6 +11,7 @@ import 'exception_test.dart' as exception_test;
 import 'collection_modification_test.dart' as collection_modification_test;
 import 'subs_random_test.dart' as subs_random_test;
 import 'mongo_provider_random_test.dart' as mp_random_test;
+import 'mongo_server_test.dart' as mongo_server_test;
 import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:logging/logging.dart';
@@ -35,6 +36,7 @@ run(SimpleConfiguration configuration) {
   subscription_test.run();
   id_generator_test.main();
   exception_test.run();
+  mongo_server_test.run();
   collection_modification_test.run();
   subs_random_test.run(100, new DummyCache());
   subs_random_test.run(100, new Cache(new Duration(milliseconds: 100), 10000));

@@ -262,7 +262,7 @@ class MongoProvider implements DataProvider {
       if(stripVersion) _stripCleanVersion(data);
       assert(version != null);
       // Add collection name to document (it's not in database)
-      if (data.isNotEmpty) data[0][COLLECTION_NAME] = collection.collectionName;
+      data.forEach((e) => e[COLLECTION_NAME] = collection.collectionName);
       return {'data': data, 'version': version};
     }).then((result) {
       stopWatch(watchID);

@@ -11,21 +11,34 @@ Logger logger = new Logger('mongo_wrapper_logger');
 emptyFun(){}
 
 /**
- * Takes a message of potentially concatenated JSONs
- * and returns List of separate JSONs
+ * Takes a [message] of potentially concatenated JSONs
+ * and returns List of separate JSONs. If the message is incomplete,
+ * the incomplete part is stored in [incompleteJson]
  * */
-List<String> getJSONs(String message) {
+List<String> getJSONs(String message, [Map incompleteJson]) {
   List<String> jsons = [];
   int numl = 0;
   String temp = "";
+  if (incompleteJson == null) incompleteJson = {};
+  if (incompleteJson.containsKey("numl")) {
+    numl = incompleteJson["numl"];
+    message = incompleteJson["msg"] + message;
+  }
+  int lastAdditionAt = 0;
   for (int i = 0; i < message.length; i++) {
     temp += message[i];
     if (message[i] == '{') numl++;
     if (message[i] == '}') numl--;
     if (numl == 0) {
       jsons.add(temp);
+      lastAdditionAt = i;
       temp = "";
     }
+  }
+  if (lastAdditionAt != message.length-1) {
+    // message is incomplete
+    incompleteJson["numl"] = numl;
+    incompleteJson["msg"] = message.substring(lastAdditionAt+1);
   }
   return jsons;
 }
@@ -106,12 +119,15 @@ class MongoServer{
   List<OperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
+  // {numl:[int], msg:[String]}
+  Map incompleteJson = {};
 
   MongoServer(this.port, this.mongoUrl);
 
   Future start() {
     db = new MongoDatabase(mongoUrl);
     queue = [];
+    incompleteJson = {"numl":0, "msg":""};
     var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
         serverSocket = server;
@@ -126,7 +142,7 @@ class MongoServer{
     socket.listen((List<int> data){
       logger.info("Received JSON: ${new String.fromCharCodes(data)}");
       // JSONs could have been sent frequently and therefore concatenated
-      var messages = getJSONs(new String.fromCharCodes(data)).map((f) => JSON.decode(f));
+      var messages = getJSONs(new String.fromCharCodes(data), incompleteJson).map((f) => JSON.decode(f));
       List<OperationCall> opCalls = new List();
       messages.forEach((m) {
         var op = new OperationCall.fromJson(m);

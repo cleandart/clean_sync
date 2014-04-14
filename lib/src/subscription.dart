@@ -251,13 +251,13 @@ class Subscription {
   }
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-      this._transactor, this._author, this._idGenerator, this._handleData, this._handleDiff,
+       this._author, this._idGenerator, this._handleData, this._handleDiff,
       this._forceDataRequesting) {
     _initialSync = createInitialSync();
   }
 
-  Subscription(collectionName, connection, transactor, author, idGenerator)
-      : this.config(collectionName, _createNewCollection(), connection, transactor, author,
+  Subscription(collectionName, connection, author, idGenerator)
+      : this.config(collectionName, _createNewCollection(), connection,  author,
           idGenerator, handleData, handleDiff, false);
 
 
