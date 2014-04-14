@@ -1,11 +1,12 @@
 import 'package:clean_ajax/client.dart';
+import 'dart:async';
 
 class Transactor {
   Connection _connection;
 
   Transactor(this._connection);
 
-  operation(String name, Map args) {
-    _connection.send(() => new ClientRequest('sync', {'name':'jsonApply', 'args':args}));
+  Future operation(String name, Map args) {
+    return _connection.send(() => new ClientRequest('sync', {'action':name, 'args':args}));
   }
 }
