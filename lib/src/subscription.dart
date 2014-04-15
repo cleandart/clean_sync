@@ -396,12 +396,20 @@ class Subscription {
         ChangeSet change = event['change'];
         _modifiedItems.mergeIn(change);
         List mapped = change.changedItems.keys.map((e) => e['_id']).toList();
-        _transactor.operation('jsonApply', {
+        var clientVersion = _idGenerator.next();
+        var item = () => _transactor.operation('jsonApply', {
           'collections' : [collection, collectionName],
           'args':change.toJson(topLevel: true),
+          'author':_author,
+          'clientVersion': clientVersion,
           // There must be a better way
           'docs':collection.where((e) => mapped.contains(e['_id'])),
+        }).catchError((e,s) {
+          _sentItems[clientVersion]["failed"] = true;
         });
+        _sentItems[clientVersion]["failed"] = false;
+        _sentItems[clientVersion]["data"] = item;
+        item();
 //        for (var key in change.changedItems.keys) {
 //          if (!_sentItems.containsKey(key['_id'])) {
 //            _sendRequest(key);
