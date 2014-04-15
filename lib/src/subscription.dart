@@ -394,14 +394,19 @@ class Subscription {
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
-        // Should work somehow like this
-        // _transactor.operation('jsonApply', change.toJson(topLevel: true));
         _modifiedItems.mergeIn(change);
-        for (var key in change.changedItems.keys) {
-          if (!_sentItems.containsKey(key['_id'])) {
-            _sendRequest(key);
-          }
-        }
+        List mapped = change.changedItems.keys.map((e) => e['_id']).toList();
+        _transactor.operation('jsonApply', {
+          'collections' : [collection, collectionName],
+          'args':change.toJson(topLevel: true),
+          // There must be a better way
+          'docs':collection.where((e) => mapped.contains(e['_id'])),
+        });
+//        for (var key in change.changedItems.keys) {
+//          if (!_sentItems.containsKey(key['_id'])) {
+//            _sendRequest(key);
+//          }
+//        }
       }
     }));
   }

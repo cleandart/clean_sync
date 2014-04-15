@@ -24,7 +24,7 @@ class IdGenerator {
 
 void main() {
   setupDefaultLogHandler();
-  logger.level = Level.FINER;
+  logger.level = Level.INFO;
   run();
 }
 
@@ -182,6 +182,17 @@ void run() {
       });
     });
 
+    test("should handle many operations right after each other (2000)", () {
+      List<Future> ops = [];
+      return client.connected.then((_) {
+        for (int i = 0; i < 2000; i++) {
+          if (i % 10 == 0) logger.fine("At $i");
+          ops.add(client.performOperation("dummy", args: {"i":'$i'}));
+        }
+        return expect(Future.wait(ops), completes);
+      });
+    });
+
     test("should report error if there was no entry found", () {
       var caught = false;
       return client.connected.then((_) {
@@ -233,6 +244,7 @@ void run() {
              expect(client.performOperation("set", docs: ['$id',testCollectionUser], args: data), completes);
         }));
     });
+
 
   });
 }

@@ -19,13 +19,19 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
   List<String> jsons = [];
   int numl = 0;
   String temp = "";
+  int startPoint = 0;
+  logger.fine("Messages: $message");
+  logger.fine("From previous iteration: $incompleteJson");
   if (incompleteJson == null) incompleteJson = {};
   if (incompleteJson.containsKey("numl")) {
     numl = incompleteJson["numl"];
     message = incompleteJson["msg"] + message;
+    startPoint = incompleteJson["msg"].length;
+    temp = incompleteJson["msg"];
+    logger.fine("New message: $message");
   }
   int lastAdditionAt = 0;
-  for (int i = 0; i < message.length; i++) {
+  for (int i = startPoint; i < message.length; i++) {
     temp += message[i];
     if (message[i] == '{') numl++;
     if (message[i] == '}') numl--;
@@ -40,6 +46,7 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
     incompleteJson["numl"] = numl;
     incompleteJson["msg"] = message.substring(lastAdditionAt+1);
   }
+  logger.fine("Jsons: $jsons");
   return jsons;
 }
 
@@ -141,8 +148,10 @@ class MongoServer{
     clientSockets.add(socket);
     socket.listen((List<int> data){
       logger.info("Received JSON: ${new String.fromCharCodes(data)}");
+      logger.fine("Incomplete json: $incompleteJson");
       // JSONs could have been sent frequently and therefore concatenated
       var messages = getJSONs(new String.fromCharCodes(data), incompleteJson).map((f) => JSON.decode(f));
+      logger.fine("Parsed JSONs: $messages");
       List<OperationCall> opCalls = new List();
       messages.forEach((m) {
         var op = new OperationCall.fromJson(m);

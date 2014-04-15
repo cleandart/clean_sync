@@ -68,7 +68,7 @@ void run() {
         "args" : args
       }).then((_) =>
         expect(connection.getLogs(callsTo('send')).logs.first.args.first().toJson(),
-            equals(new ClientRequest('sync',{'action':'change','args':{
+            equals(new ClientRequest('sync-operation',{'operation':'change','args':{
               'docs':[['1','weird'],['2','dummy']],
               'collections':'months',
               'args':args}}).toJson()

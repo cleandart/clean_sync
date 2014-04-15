@@ -7,6 +7,7 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'package:logging/logging.dart';
+import 'package:clean_ajax/server.dart';
 
 
 Logger logger = new Logger('mongo_wrapper_logger');
@@ -20,6 +21,7 @@ class MongoClient {
   Completer _connected;
   List<Function> queue = [];
   Future get connected => _connected.future;
+  Map incompleteJson = {};
 
 
   String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
@@ -34,7 +36,7 @@ class MongoClient {
           socket.listen((List <int> data){
             logger.finer('Raw response: ${new String.fromCharCodes(data)}');
             // We could have received more JSONs at once
-            var responses = getJSONs(new String.fromCharCodes(data)).map((m) => JSON.decode(m));
+            var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
             logger.finer("JSON resp: $responses");
             responses.forEach((resp) {
               Completer completer = reqToResp.remove(resp['operationId']);
@@ -52,6 +54,14 @@ class MongoClient {
           print("Unable to connect: $e");
           exit(1);
         });
+  }
+
+  Future handleSyncRequest(ServerRequest request) {
+    Map data = request.args;
+    logger.finest("Request-operation: $data");
+    Map args = data["args"];
+    return performOperation(data['operation'], docs:args["docs"],
+        collections:args["collections"],args:args["args"], userId:request.authenticatedUserId);
   }
 
   Future performOperation(name, {docs, collections, args, userId}) {

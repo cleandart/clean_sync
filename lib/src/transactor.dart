@@ -15,20 +15,35 @@ class ServerOperation {
 
 class Transactor {
   Connection _connection;
-  // Local collections - Map: {name: [String], data: [Collection]}
 
   Map<String, ServerOperation> operations = {};
 
   Transactor(this._connection);
 
+  /**
+   * [args] should contain 'collections' of type List<[DataSet, name]>,
+   * List of full documents 'docs' and Map of 'args'.
+   * Performs operation specified in [name] on data given and sends
+   * minimized operation data to the server
+   */
   Future operation(String name, Map args) {
     performClientOperation(name, args);
     return new Future(() => _connection.send(() {
-        if (args["collections"][0] is List) {
+      // collections could be [], [[]] or null if not specified
+        if ((args["collections"] == null) || (args["collections"].isEmpty)) args["collections"] = [null,null];
+        else if (args["collections"][0] is List) {
+          if (args["collections"][0].isEmpty) args["collections"] = [null,null];
           args["collections"] = args["collections"].map((e) => e[1]).toList();
         } else args["collections"] = args["collections"][1];
-        args["docs"] = args["docs"].map((e) => [e["_id"], e["__clean_collection"]]).toList();
-        return new ClientRequest('sync', {'action':'operation', 'name' : name, 'args':args});
+        // if not specified, collections is now null
+        // docs could be List<Map>, Map if specified, [] or null if not specified
+        if (args["docs"] is Map)
+          args["docs"] = {"_id":args["docs"]["_id"], "__clean_collection": args["docs"]["__clean_collection"]};
+        if (args["docs"] is List) {
+          if (args["docs"].isEmpty) args["docs"] = null;
+          else args["docs"] = args["docs"].map((e) => [e["_id"], e["__clean_collection"]]).toList();
+        }
+        return new ClientRequest('sync-operation', {'operation' : name, 'args':args});
       }));
   }
 
