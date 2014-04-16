@@ -286,6 +286,7 @@ class MongoProvider implements DataProvider {
               "action" : "add",
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
+              "timestamp" : new DateTime.now(),
             }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -322,7 +323,8 @@ class MongoProvider implements DataProvider {
               "after" : newRecord,
               "action" : "change",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now()
             }));
         }
       },
@@ -388,7 +390,8 @@ class MongoProvider implements DataProvider {
               "after" : newData,
               "action" : inferredAction,
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now()
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
@@ -487,7 +490,9 @@ class MongoProvider implements DataProvider {
               "after" : newData,
               "action" : inferredAction,
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now(),
+              "jsonData" : jsonData
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
@@ -535,7 +540,8 @@ class MongoProvider implements DataProvider {
               "after" : newItem.single,
               "action" : "change",
               "author" : author,
-              "version" : nextVersion++
+              "version" : nextVersion++,
+              "timestamp" : new DateTime.now()
             }));
           });
         }).then((_) => _release_locks()).then((_) => nextVersion)
@@ -564,7 +570,8 @@ class MongoProvider implements DataProvider {
             "after" : {},
             "action" : "remove",
             "author" : author,
-            "version" : nextVersion++
+            "version" : nextVersion++,
+            "timestamp" : new DateTime.now()
         }).toList(growable: false)));
       },
       onError: (e,s) {
