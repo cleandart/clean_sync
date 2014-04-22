@@ -26,20 +26,16 @@ void run() {
       months = new DataSet()..addAll(
                 ["jan","feb","mar","apr","jun","jul","aug","sep","oct","nov","dec"]);
 
-      transactor.registerOperation("save",
+      transactor.registerClientOperation("save",
         operation: (fullDocs, args, DataSet collection) {
           collection.add(args);
         }
       );
-      transactor.registerOperation("change",
+      transactor.registerClientOperation("change",
         operation: (fullDocs, args, DataSet collection) {
           if (fullDocs is List) fullDocs = fullDocs[0];
           args.forEach((k,v) => fullDocs[k] = v);
         }
-      );
-      transactor.registerOperation("noop",
-        before: (fullDocs, args, user, DataSet collection) => failure = true,
-        after: (fullDocs, args, user, DataSet collection) => failure = true
       );
     });
 
@@ -75,10 +71,6 @@ void run() {
             )
         )
       );
-    });
-
-    test("transactor shall not run \'before\' or \'after\' function", () {
-      return transactor.operation("noop",{}).then((_) => expect(failure, isFalse));
     });
 
   });

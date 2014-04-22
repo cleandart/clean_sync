@@ -275,17 +275,20 @@ class Subscription {
     _sentItems.forEach((id, item) {
       if (item["failed"]) {
         print('action ${id}');
-        actions.add(_send(id, () => item["data"]));
+        //actions.add(_send(id, () => item["data"]));
+        actions.add(item["data"]());
       }
     });
-
-    if (!this.updateLock) {
-      for (var key in new List.from(_modifiedItems.changedItems.keys)) {
-        if (!_sentItems.containsKey(key['_id'])) {
-          _sendRequest(key);
-        }
-      }
-    }
+//
+//    Needs to be resolved for transactor
+//
+//    if (!this.updateLock) {
+//      for (var key in new List.from(_modifiedItems.changedItems.keys)) {
+//        if (!_sentItems.containsKey(key['_id'])) {
+//          _sendRequest(key);
+//        }
+//      }
+//    }
 
     if (_periodicDiffRequesting.isPaused) {
       _periodicDiffRequesting.resume();
@@ -307,77 +310,77 @@ class Subscription {
     });
   }
 
-  void _sendRequest(DataMap elem) {
-    assert(_modifiedItems.changedItems.containsKey(elem));
-
-    if (_connected) {
-      reqFactory() {
-        Map data;
-        String clientVersion = _idGenerator.next();
-
-        if (_modifiedItems.changedItems.containsKey(elem)) {
-          data = {
-            "action" : "jsonChange",
-            "collection" : collectionName,
-            "jsonData": _modifiedItems.changedItems[elem].toJson(),
-            'args': args,
-            "_id" : elem["_id"],
-            "author" : _author,
-            "clientVersion" : clientVersion
-          };
-        }
-        assert(data!=null);
-        _modifiedItems.changedItems.remove(elem);
-        return data;
-      }
-      _send(elem["_id"], reqFactory);
-    }
-  }
-
-  Future _send(String id, Map reqFactory()) {
-
-    logger.finer('_send entered');
-    _sentItems[id] = {};
-
-    Future result = _connection.send((){
-      var _data = reqFactory();
-      logger.finer('Sending #${id}, ${_data}');
-      _sentItems[id].addAll({
-          "data" : _data,
-          "failed" : false,
-      });
-      return new ClientRequest("sync", _data);
-    })
-      .then((result) {
-        if (result is Map && result['error'] != null) {
-          _errorStreamController.add(result['error']);
-        }
-
-        logger.finer('sent #${id}');
-        _sentItems.remove(id);
-        DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
-
-        // if there are some more changes, sent them
-        if (elem != null){
-          _sendRequest(elem);
-        };
-
-        if (_sentItems.isEmpty && _modifiedItems.changedItems.isEmpty) {
-          _onFullSyncController.add(null);
-        }
-
-        return result;
-      }, onError: (e) {
-        if (e is ConnectionError) {
-          _sentItems[id]["failed"] = true;
-        }
-        else if (e is CancelError) { /* do nothing */ }
-        else throw e;
-      });
-
-    _sentItems[id].addAll({'result': result});
-    return result;
-  }
+//  void _sendRequest(DataMap elem) {
+//    assert(_modifiedItems.changedItems.containsKey(elem));
+//
+//    if (_connected) {
+//      reqFactory() {
+//        Map data;
+//        String clientVersion = _idGenerator.next();
+//
+//        if (_modifiedItems.changedItems.containsKey(elem)) {
+//          data = {
+//            "action" : "jsonChange",
+//            "collection" : collectionName,
+//            "jsonData": _modifiedItems.changedItems[elem].toJson(),
+//            'args': args,
+//            "_id" : elem["_id"],
+//            "author" : _author,
+//            "clientVersion" : clientVersion
+//          };
+//        }
+//        assert(data!=null);
+//        _modifiedItems.changedItems.remove(elem);
+//        return data;
+//      }
+//      _send(elem["_id"], reqFactory);
+//    }
+//  }
+//
+//  Future _send(String id, Map reqFactory()) {
+//
+//    logger.finer('_send entered');
+//    _sentItems[id] = {};
+//
+//    Future result = _connection.send((){
+//      var _data = reqFactory();
+//      logger.finer('Sending #${id}, ${_data}');
+//      _sentItems[id].addAll({
+//          "data" : _data,
+//          "failed" : false,
+//      });
+//      return new ClientRequest("sync", _data);
+//    })
+//      .then((result) {
+//        if (result is Map && result['error'] != null) {
+//          _errorStreamController.add(result['error']);
+//        }
+//
+//        logger.finer('sent #${id}');
+//        _sentItems.remove(id);
+//        DataMap elem = _modifiedItems.changedItems.keys.firstWhere((e) => e["_id"] == id, orElse: () => null);
+//
+//        // if there are some more changes, sent them
+//        if (elem != null){
+//          _sendRequest(elem);
+//        };
+//
+//        if (_sentItems.isEmpty && _modifiedItems.changedItems.isEmpty) {
+//          _onFullSyncController.add(null);
+//        }
+//
+//        return result;
+//      }, onError: (e) {
+//        if (e is ConnectionError) {
+//          _sentItems[id]["failed"] = true;
+//        }
+//        else if (e is CancelError) { /* do nothing */ }
+//        else throw e;
+//      });
+//
+//    _sentItems[id].addAll({'result': result});
+//    return result;
+//  }
 
   // TODO rename to something private-like
   void setupListeners() {
@@ -395,21 +398,44 @@ class Subscription {
       if (!this.updateLock) {
         ChangeSet change = event['change'];
         _modifiedItems.mergeIn(change);
-        List mapped = change.changedItems.keys.map((e) => e['_id']).toList();
+        var operation;
         var clientVersion = _idGenerator.next();
-        var item = () => _transactor.operation('jsonApply', {
-          'collections' : [collection, collectionName],
-          'args':change.toJson(topLevel: true),
-          'author':_author,
-          'clientVersion': clientVersion,
-          // There must be a better way
-          'docs':collection.where((e) => mapped.contains(e['_id'])),
-        }).catchError((e,s) {
-          _sentItems[clientVersion]["failed"] = true;
-        });
+        if (change.addedItems.length > 0) {
+          // Addition
+          // As it's synced, only one should be added
+          assert(change.addedItems.length == 1);
+          operation = () => _transactor.operation('add', {
+            'collections' : [collection, collectionName],
+            'args' : change.addedItems.first,
+            'author': _author,
+            'clientVersion': clientVersion
+          });
+        } else if (change.removedItems.length > 0) {
+          // Removal
+          // Only one item should be removed
+          assert(change.removedItems.length == 1);
+          operation = () => _transactor.operation('remove', {
+            'collections' : [collection, collectionName],
+            'args' : {"_id" : change.removedItems.first["_id"]},
+            'author' : _author,
+            'clientVersion' : clientVersion
+          });
+        } else {
+          // Change
+          List mapped = change.changedItems.keys.map((e) => e['_id']).toList();
+          // Only one item should be changed
+          assert(mapped.length == 1);
+          operation = () => _transactor.operation("change", {
+            'args' : change.toJson(topLevel: true),
+            'author' : _author,
+            'clientVersion' : clientVersion,
+            'docs' : collection.where((e) => e["_id"] == mapped.first)
+          });
+        }
+        // clientVersion should be unique identifier
         _sentItems[clientVersion]["failed"] = false;
-        _sentItems[clientVersion]["data"] = item;
-        item();
+        _sentItems[clientVersion]["data"] = operation;
+        operation().catchError((e,s) => _sentItems[clientVersion]["failed"] = true);
 //        for (var key in change.changedItems.keys) {
 //          if (!_sentItems.containsKey(key['_id'])) {
 //            _sendRequest(key);

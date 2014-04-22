@@ -5,6 +5,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:logging/logging.dart';
+import 'operations.dart' as ops;
+import 'operations.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
@@ -50,28 +52,11 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
   return jsons;
 }
 
-class ValidationException implements Exception {
-  final String error;
-  final String stackTrace;
-  ValidationException(this.error, [this.stackTrace]);
-  String toString() => error;
-}
-
 class DocumentNotFoundException implements Exception {
   final String error;
   final String stackTrace;
   DocumentNotFoundException(this.error, [this.stackTrace]);
   String toString() => error;
-}
-
-class ServerOperation {
-  String name;
-  Function before;
-  Function operation;
-  Function after;
-
-  ServerOperation(this.name, {this.operation, this.before,
-      this.after});
 }
 
 class OperationCall {
@@ -106,7 +91,8 @@ class OperationCall {
       }
     }
 
-    if (source['collections'] is! List) {
+    if (source['collections'] == null) collections = [];
+    else if (source['collections'] is! List) {
       collections = [source['collections']];
       collectionsListed = true;
     } else {
@@ -129,7 +115,13 @@ class MongoServer{
   // {numl:[int], msg:[String]}
   Map incompleteJson = {};
 
-  MongoServer(this.port, this.mongoUrl);
+  MongoServer(this.port, this.mongoUrl){
+    ops.commonOperations.forEach((o) => operations[o.name] = o);
+    ops.incompatibleOperations.forEach((o) => operations[o[0].name] = o[0]);
+  }
+
+  MongoServer.config(this.port, this.mongoUrl);
+
 
   Future start() {
     db = new MongoDatabase(mongoUrl);
@@ -177,7 +169,11 @@ class MongoServer{
   registerOperation(name, {operation, before, after}){
     logger.fine("registering operation $name");
     operations[name] = new ServerOperation(name, operation: operation,
-        before: before, after: after);
+        before: before == null ? [] : [before], after: after == null ? [] : [after]);
+  }
+
+  registerBeforeCallback(operationName, before) {
+    operations[operationName].before.add(before);
   }
 
   bool running = false;
@@ -191,6 +187,27 @@ class MongoServer{
       running = false;
       _performOne();
     });
+  }
+
+  Function reduceArguments(Function op, docs, Map args, user, colls) {
+    if (op == null) return () => new Future(() => null);
+    if (user == null) {
+      if (docs == null) {
+        if (colls == null) return () => new Future(() => op(args));
+        else return () => new Future(() => op(args, collection: colls));
+      } else {
+        if (colls == null) return () => new Future(() => op(args, fullDocs: docs));
+        else return () => new Future (() => op(args, collection: colls, fullDocs: docs));
+      }
+    } else {
+      if (docs == null) {
+        if (colls == null) return () => new Future(() => op(args, user: user));
+        else return () => new Future(() => op(args, collection: colls));
+      } else {
+        if (colls == null) return () => new Future(() => op(args, fullDocs: docs, user: user));
+        else return () => new Future(() => op(args, collection: colls, fullDocs: docs, user: user));
+      }
+    }
   }
 
   Future _performOperation(OperationCall opCall) {
@@ -230,16 +247,25 @@ class MongoServer{
       for (String col in opCall.collections) {
         fullColls.add(db.collection(col));
       }
-      fullDocsArg = opCall.docsListed ? fullDocs[0] : fullDocs;
-      fullCollsArg = opCall.collectionsListed ? fullColls[0] : fullColls;
-      return op.before == null ? null: op.before(fullDocsArg,
-          opCall.args, user, fullCollsArg);
+      if (fullDocs.isEmpty) fullDocsArg = null;
+      else fullDocsArg = opCall.docsListed ? fullDocs[0] : fullDocs;
+      if (fullColls.isEmpty) fullCollsArg = null;
+      else fullCollsArg = opCall.collectionsListed ? fullColls[0] : fullColls;
+      return Future.forEach(op.before, (b) => reduceArguments(b, fullDocsArg, opCall.args, user, fullCollsArg)());
     }).then((_) {
       logger.fine('operation - core');
-      return op.operation == null ? null : op.operation(fullDocsArg, opCall.args, fullCollsArg);
+      return reduceArguments(op.operation, fullDocsArg, opCall.args, null, fullCollsArg)()
+        .then((_) {
+          if (fullDocsArg != null) {
+            if (fullDocsArg is! List) fullDocsArg = [fullDocsArg];
+            return Future.forEach(fullDocsArg, (d) {
+              return db.collection(d["__clean_collection"]).change(d["_id"], d, "");
+            });
+          } else return null;
+      });
     }).then((_) {
       logger.fine('operation - after');
-      return op.after == null ? null : op.after(fullDocsArg, opCall.args, user, fullCollsArg);
+      return Future.forEach(op.after, (a) => reduceArguments(a, fullDocsArg, opCall.args, user, fullCollsArg)());
     }).then((_) {
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {

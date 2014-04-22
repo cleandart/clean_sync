@@ -3,22 +3,17 @@ part of clean_sync.client;
 // Should have the same registered operations as MongoServer
 // Should apply changes to local collections
 
-class ServerOperation {
-  String name;
-  Function before;
-  Function operation;
-  Function after;
-
-  ServerOperation(this.name, {this.operation, this.before,
-      this.after});
-}
-
 class Transactor {
   Connection _connection;
 
-  Map<String, ServerOperation> operations = {};
+  Map<String, ClientOperation> operations = {};
 
-  Transactor(this._connection);
+  Transactor(this._connection) {
+    ops.commonOperations.forEach((o) => operations[o.name] = o.toClientOperation());
+    ops.incompatibleOperations.forEach((o) => operations[o[1].name] = o[1]);
+  }
+
+  Transactor.config(this._connection);
 
   /**
    * [args] should contain 'collections' of type List<[DataSet, name]>,
@@ -43,17 +38,17 @@ class Transactor {
           if (args["docs"].isEmpty) args["docs"] = null;
           else args["docs"] = args["docs"].map((e) => [e["_id"], e["__clean_collection"]]).toList();
         }
-        return new ClientRequest('sync-operation', {'operation' : name, 'args':args});
+        return new ClientRequest('sync-operation', {'operation': name, 'args': args});
       }));
   }
 
   performClientOperation(String name, Map args) {
-    ServerOperation op = operations[name];
+    ClientOperation op = operations[name];
     // collections is List: [DataSet, name]
     var fullColls = null;
     if (args["collections"] != null) {
       if (args["collections"][0] is List) {
-        fullColls = args["collections"].map((e) => e[0]);
+        fullColls = args["collections"].map((e) => e[0]).toList();
       } else fullColls = args["collections"][0];
     }
     var fullDocs = args["docs"];
@@ -62,11 +57,10 @@ class Transactor {
 
   }
 
-  registerOperation(name, {operation, before, after}){
+  registerClientOperation(name, {operation}){
     logger.fine("registering operation $name");
     // We don't need before nor after operations here
-    operations[name] = new ServerOperation(name, operation: operation,
-        before: null, after: null);
+    operations[name] = new ClientOperation(name, operation: operation);
   }
 
 }

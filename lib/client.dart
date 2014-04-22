@@ -17,6 +17,8 @@ import "package:logging/logging.dart";
 import 'dart:math';
 import 'dart:collection';
 import "dart:convert";
+import 'operations.dart' as ops;
+import 'operations.dart';
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';

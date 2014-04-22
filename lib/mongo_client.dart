@@ -27,9 +27,19 @@ class MongoClient {
   String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
   Map<String, Completer> reqToResp = {};
 
+  MongoClient.config(this.url, this.port) {
+    _connected = new Completer();
+  }
+
   MongoClient(this.url, this.port){
     _connected = new Completer();
-    Socket.connect(url, port)
+    this.connect();
+  }
+
+  //connect
+
+  Future connect() =>
+    Socket.connect(this.url, this.port)
         .then((Socket _socket) {
           _connected.complete(null);
           socket = _socket;
@@ -54,7 +64,7 @@ class MongoClient {
           print("Unable to connect: $e");
           exit(1);
         });
-  }
+
 
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;

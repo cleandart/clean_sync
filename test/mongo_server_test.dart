@@ -9,6 +9,7 @@ import 'package:clean_sync/mongo_client.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:clean_sync/operations.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 class IdGenerator {
@@ -24,7 +25,7 @@ class IdGenerator {
 
 void main() {
   setupDefaultLogHandler();
-  logger.level = Level.INFO;
+  logger.level = Level.FINE;
   run();
 }
 
@@ -47,62 +48,60 @@ void run() {
         client = new MongoClient("127.0.0.1", 27001);
 
         server.registerOperation("save",
-            operation: (fullDocs, args, MongoProvider collection){
+            operation: (args, {MongoProvider collection}){
               return collection.add(args, "");
             }
         );
         server.registerOperation("delete",
-            operation: (fullDocs, args, MongoProvider collection) {
+            operation: (args, {MongoProvider collection}) {
               return collection.remove(args["_id"],"");
             }
         );
         server.registerOperation("set",
-            before: (fullDocs, args, user, MongoProvider collection) {
+            before: (args, {user, fullDocs}) {
               if (args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
               if ((fullDocs is List) && (fullDocs.length > 1)) throw new ValidationException("Too many documents");
 
             },
-            operation: (fullDocs, args, MongoProvider collection) {
-              if (fullDocs is List) fullDocs = fullDocs[0];
+            operation: (args, {fullDocs}) {
               args.forEach((k,v) => fullDocs[k] = v);
-              return server.db.collection(fullDocs[COLLECTION_NAME]).change(fullDocs['_id'], fullDocs, "");
             }
         );
         server.registerOperation("throw",
-            before: (fullDocs, args, user, MongoProvider collection) {
+            before: (args, {user}) {
               lastOperation = "before";
               if (args['throw'] == 'before') throw new ValidationException("Before threw");
             },
-            operation: (fullDocs, args, MongoProvider collection) {
+            operation: (args) {
               lastOperation = "operation";
               if (args['throw'] == 'operation') throw new Exception("Operation threw");
             },
-            after: (fullDocs, args, user, MongoProvider collection) {
+            after: (args, {user}) {
               lastOperation = "after";
               if (args['throw'] == 'after') throw new Exception("After threw");
             }
         );
 
         server.registerOperation("change ref1",
-            before: (fullDocs, args, user, MongoProvider collection) {
+            before: (args, {user}) {
               lastOperationRef1.value = "before";
             },
-            operation: (fullDocs, args, MongoProvider collection) {
+            operation: (args) {
               lastOperationRef1.value = "operation";
             },
-            after: (fullDocs, args, user, MongoProvider collection) {
+            after: (args, {user}) {
               lastOperationRef1.value = "after";
             }
         );
 
         server.registerOperation("change ref2",
-            before: (fullDocs, args, user, MongoProvider collection) {
+            before: (args, {user}) {
               lastOperationRef2.value = "before";
             },
-            operation: (fullDocs, args, MongoProvider collection) {
+            operation: (args) {
               lastOperationRef2.value = "operation";
             },
-            after: (fullDocs, args, user, MongoProvider collection) {
+            after: (args, {user}) {
               lastOperationRef2.value = "after";
             }
         );
@@ -112,7 +111,9 @@ void run() {
     });
 
     tearDown(() {
-      return server.db.collection(testCollectionUser).collection.drop().then((_) => server.close());
+      return Future.wait([server.db.collection(testCollectionUser).collection.drop(),
+          server.db.collection(historyCollectionName(testCollectionUser)).collection.drop()])
+          .then((_) => server.close());
     });
 
     test("save document", () {
@@ -138,7 +139,7 @@ void run() {
           data['name'] = 'another name';
           data.remove('_id');
           //then
-          expect(client.performOperation("set", docs: [['$id',data[COLLECTION_NAME]]], args: data), completes);
+          expect(client.performOperation("set", docs: ['$id',data[COLLECTION_NAME]], args: data), completes);
         });
       });
 
