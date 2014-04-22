@@ -1,5 +1,5 @@
 
-library client_test;
+library mongo_server_test;
 
 import 'package:unittest/unittest.dart';
 import 'dart:async';

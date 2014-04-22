@@ -68,14 +68,16 @@ class OperationCall {
   Completer completer;
   bool docsListed;
   bool collectionsListed;
+  String author;
 
   OperationCall(this.name, this.completer, {this.docs, this.collections,
-    this.args, this.userId});
+    this.args, this.userId, this.author});
 
   OperationCall.fromJson(Map source){
     name = source['name'];
     args = source['args'];
     userId = source['userId'];
+    author = source['author'];
     completer = new Completer();
 
     if (source['docs'] == null) {
@@ -259,7 +261,7 @@ class MongoServer{
           if (fullDocsArg != null) {
             if (fullDocsArg is! List) fullDocsArg = [fullDocsArg];
             return Future.forEach(fullDocsArg, (d) {
-              return db.collection(d["__clean_collection"]).change(d["_id"], d, "");
+              return db.collection(d["__clean_collection"]).change(d["_id"], d, opCall.author);
             });
           } else return null;
       });

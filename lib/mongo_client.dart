@@ -71,16 +71,17 @@ class MongoClient {
     logger.finest("Request-operation: $data");
     Map args = data["args"];
     return performOperation(data['operation'], docs:args["docs"],
-        collections:args["collections"],args:args["args"], userId:request.authenticatedUserId);
+        collections:args["collections"],args:args["args"],
+        userId:request.authenticatedUserId, author: data["author"]);
   }
 
-  Future performOperation(name, {docs, collections, args, userId}) {
+  Future performOperation(name, {docs, collections, args, userId, author}) {
     Completer completer = new Completer();
     String operationId = '$prefix--${count++}';
     reqToResp[operationId] = completer;
     logger.finer("ReqToResp: ${reqToResp}");
     socket.write(JSON.encode({'name': name, 'docs': docs, 'collections': collections, 'args': args,
-      'userId': userId, 'operationId': operationId}));
+      'userId': userId, 'operationId': operationId, 'author': author}));
     return completer.future;
   }
 }

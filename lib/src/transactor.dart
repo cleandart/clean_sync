@@ -38,7 +38,12 @@ class Transactor {
           if (args["docs"].isEmpty) args["docs"] = null;
           else args["docs"] = args["docs"].map((e) => [e["_id"], e["__clean_collection"]]).toList();
         }
-        return new ClientRequest('sync-operation', {'operation': name, 'args': args});
+        return new ClientRequest('sync-operation', {
+          'operation': name,
+          'args': args,
+          'author': args["author"],
+          'clientVersion': args["clientVersion"]
+        });
       }));
   }
 
