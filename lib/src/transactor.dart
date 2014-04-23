@@ -22,8 +22,8 @@ class Transactor {
    * minimized operation data to the server
    */
   Future operation(String name, Map args) {
-    performClientOperation(name, args);
-    return new Future(() => _connection.send(() {
+    return performClientOperation(name, args)
+      .then((_) => new Future(() => _connection.send(() {
       // collections could be [], [[]] or null if not specified
         if ((args["collections"] == null) || (args["collections"].isEmpty)) args["collections"] = [null,null];
         else if (args["collections"][0] is List) {
@@ -44,10 +44,11 @@ class Transactor {
           'author': args["author"],
           'clientVersion': args["clientVersion"]
         });
-      }));
+      }))
+    );
   }
 
-  performClientOperation(String name, Map args) {
+  Future performClientOperation(String name, Map args) {
     ClientOperation op = operations[name];
     // collections is List: [DataSet, name]
     var fullColls = null;
@@ -58,8 +59,7 @@ class Transactor {
     }
     var fullDocs = args["docs"];
 
-    if (op.operation != null) op.operation(fullDocs, args["args"], fullColls);
-
+    return reduceArguments(op.operation, fullDocs, args["args"], null, fullColls)();
   }
 
   registerClientOperation(name, {operation}){

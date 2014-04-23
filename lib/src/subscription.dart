@@ -138,19 +138,15 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
         }
       }
       else if (action == "change" ) {
-        // 1. the change may be for item that is currently not present in the collection;
-        // 2. the field may be 'locked', because it was changed on user's machine, and
-        // this change was not yet confirmed from server
-         if (record != null) {
-           if(!subscription._sentItems.containsKey(record['_id'])
-             && !subscription._modifiedItems.changedItems.containsKey('_id')) {
-              logger.finer('aplying changes (change)');
-              res = max(res, change['version']);
-              applyChange(change["data"], record);
-           } else {
-             logger.finer('discarding diff');
-             throw "stop";
-           }
+        // TODO check if the record is not currently participating in some running operation
+        // would be nice although it is not necessary
+        if (record != null) {
+
+
+           logger.finer('aplying changes (change)');
+           res = max(res, change['version']);
+           applyChange(change["data"], record);
+
         }
       }
       else if (action == "remove" ) {
@@ -197,7 +193,9 @@ class Subscription {
   // along with client version of the change and failed flag. The structure of an
   // inner map is as: 'data' (DataMap), 'failed' (bool), 'result' (Future that completes
   // when request completes)
-  Map<String, Map<String, dynamic>> _sentItems = {};
+//  Map<String, Map<String, dynamic>> _sentItems = {};
+
+  Set _sentItems = new Set();
   // reflects changes to this.collection, that were not already sent to the server
   ChangeSet _modifiedItems = new ChangeSet();
   // flag used to prevent subscription to have multiple get_diff requests 'pending'.
@@ -251,14 +249,14 @@ class Subscription {
   }
 
   Subscription.config(this.collectionName, this.collection, this._connection,
-       this._author, this._idGenerator, this._handleData, this._handleDiff,
+       this._author, this._idGenerator, this._transactor, this._handleData, this._handleDiff,
       this._forceDataRequesting) {
     _initialSync = createInitialSync();
   }
 
   Subscription(collectionName, connection, author, idGenerator)
       : this.config(collectionName, _createNewCollection(), connection,  author,
-          idGenerator, handleData, handleDiff, false);
+          idGenerator, new Transactor(connection), handleData, handleDiff, false);
 
 
   /**
@@ -269,16 +267,18 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
+  //TODO MOVE resync to Transactor
+
   void _resync() {
     List<Future> actions = [];
     // resend all failed changes
-    _sentItems.forEach((id, item) {
-      if (item["failed"]) {
-        print('action ${id}');
-        //actions.add(_send(id, () => item["data"]));
-        actions.add(item["data"]());
-      }
-    });
+//    _sentItems.forEach((id, item) {
+//      if (item["failed"]) {
+//        print('action ${id}');
+//        //actions.add(_send(id, () => item["data"]));
+//        actions.add(item["data"]());
+//      }
+//    });
 //
 //    Needs to be resolved for transactor
 //
@@ -426,21 +426,26 @@ class Subscription {
           // Only one item should be changed
           assert(mapped.length == 1);
           operation = () => _transactor.operation("change", {
-            'args' : change.toJson(topLevel: true),
+            'args' : change.toJson(),
             'author' : _author,
             'clientVersion' : clientVersion,
-            'docs' : collection.where((e) => e["_id"] == mapped.first)
+            'docs' : collection.firstWhere((e) => e["_id"] == mapped.first)
           });
         }
         // clientVersion should be unique identifier
-        _sentItems[clientVersion]["failed"] = false;
-        _sentItems[clientVersion]["data"] = operation;
-        operation().catchError((e,s) => _sentItems[clientVersion]["failed"] = true);
-//        for (var key in change.changedItems.keys) {
-//          if (!_sentItems.containsKey(key['_id'])) {
-//            _sendRequest(key);
-//          }
-//        }
+        Future result;
+        result = operation()
+          .then((res) {
+            if (res is Map && res['result'] != null) res = res['result'];
+            _sentItems.remove(result);
+            return result;
+          }, onError: (res){
+            if (res is Map && res['error'] != null) res = res['error'];
+            // Silent ignore - should be resolved
+            _sentItems.remove(result);
+            return result;
+          });
+        _sentItems.add(result);
       }
     }));
   }
@@ -548,7 +553,7 @@ class Subscription {
   Future _closeSubs() {
     return Future.forEach(_subscriptions, (sub){
       sub.cancel();
-    }).then((_) => Future.wait(_sentItems.values.map((item) => item["result"])));
+    }).then((_) => Future.wait(_sentItems));
   }
 
   Future dispose(){

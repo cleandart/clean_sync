@@ -69,15 +69,17 @@ class OperationCall {
   bool docsListed;
   bool collectionsListed;
   String author;
+  String clientVersion;
 
   OperationCall(this.name, this.completer, {this.docs, this.collections,
-    this.args, this.userId, this.author});
+    this.args, this.userId, this.author, this.clientVersion});
 
   OperationCall.fromJson(Map source){
     name = source['name'];
     args = source['args'];
     userId = source['userId'];
     author = source['author'];
+    clientVersion = source['clientVersion'];
     completer = new Completer();
 
     if (source['docs'] == null) {
@@ -191,27 +193,6 @@ class MongoServer{
     });
   }
 
-  Function reduceArguments(Function op, docs, Map args, user, colls) {
-    if (op == null) return () => new Future(() => null);
-    if (user == null) {
-      if (docs == null) {
-        if (colls == null) return () => new Future(() => op(args));
-        else return () => new Future(() => op(args, collection: colls));
-      } else {
-        if (colls == null) return () => new Future(() => op(args, fullDocs: docs));
-        else return () => new Future (() => op(args, collection: colls, fullDocs: docs));
-      }
-    } else {
-      if (docs == null) {
-        if (colls == null) return () => new Future(() => op(args, user: user));
-        else return () => new Future(() => op(args, collection: colls));
-      } else {
-        if (colls == null) return () => new Future(() => op(args, fullDocs: docs, user: user));
-        else return () => new Future(() => op(args, collection: colls, fullDocs: docs, user: user));
-      }
-    }
-  }
-
   Future _performOperation(OperationCall opCall) {
     ServerOperation op = operations[opCall.name];
     List fullDocs = [];
@@ -261,7 +242,8 @@ class MongoServer{
           if (fullDocsArg != null) {
             if (fullDocsArg is! List) fullDocsArg = [fullDocsArg];
             return Future.forEach(fullDocsArg, (d) {
-              return db.collection(d["__clean_collection"]).change(d["_id"], d, opCall.author);
+              return db.collection(d["__clean_collection"]).change(d["_id"], d,
+                  opCall.author, clientVersion: opCall.clientVersion);
             });
           } else return null;
       });

@@ -1,4 +1,4 @@
-library client_test;
+library transactor_test;
 import 'package:unittest/unittest.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:mock/mock.dart';

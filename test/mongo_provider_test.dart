@@ -87,7 +87,7 @@ void main() {
       // then
           expect(data['data'].length, equals(1));
           Map strippedData = data['data'][0];
-          expect(strippedData, equals(january));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january));
           expect(data['version'], equals(1));
       }).then((_) => months.diffFromVersion(0))
         .then((dataDiff) {
@@ -97,7 +97,7 @@ void main() {
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
-          expect(strippedData, equals(january));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january));
           expect(diff['author'], equals('John Doe'));
         });
     });
@@ -111,9 +111,9 @@ void main() {
       // then
           expect(data['data'].length, equals(2));
           Map strippedData = data['data'][0];
-          expect(strippedData, equals(january));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january));
           strippedData = data['data'][1];
-          expect(strippedData, equals(february));
+          expect(strippedData..remove(COLLECTION_NAME), equals(february));
 
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(0))
@@ -124,13 +124,13 @@ void main() {
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
-          expect(strippedData, equals(january));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january));
 
           diff = diffList[1];
           expect(diff['action'], equals('add'));
           expect(diff['_id'], equals('february'));
           strippedData = diff['data'];
-          expect(strippedData, equals(february));
+          expect(strippedData..remove(COLLECTION_NAME), equals(february));
 
           expect(diff['author'], equals('John Doe'));
         });
@@ -142,6 +142,7 @@ void main() {
                                               clone(march), clone(april)], 'John Doe'))
         .then((_) => months.find({'days': 31}).data())
         .then((data){
+          data['data'].forEach((v) => v..remove(COLLECTION_NAME));
           expect(data['data'], unorderedEquals([january, march]));
         });
     });
@@ -152,6 +153,7 @@ void main() {
                                               clone(march), clone(april)], 'John Doe'))
         .then((_) => months.find({'days': 31}).fields(['days']).data())
         .then((data){
+          data['data'].forEach((v) => v..remove(COLLECTION_NAME));
           expect(data['data'], unorderedEquals([{'days': 31, '_id': 'january'},
                                                 {'days': 31, '_id': 'march'}]));
         });
@@ -163,6 +165,7 @@ void main() {
                                               clone(march), clone(april)], 'John Doe'))
       .then((_) => months.find({'days': 31}).excludeFields(['days', 'number', '_id']).data())
         .then((data){
+          data['data'].forEach((v) => v..remove(COLLECTION_NAME));
           expect(data['data'], unorderedEquals([{'name': 'January'}, {'name': 'March'}]));
         });
     });
@@ -172,6 +175,7 @@ void main() {
       return ready.then((_) => months.addAll([{'a': {'b': 'c', 'd': 'e'}}], 'JD'))
       .then((_) => months.find().excludeFields(['_id', 'a.b']).data())
         .then((data){
+          data['data'].forEach((v) => v..remove(COLLECTION_NAME));
           expect(data['data'], unorderedEquals([{'a': {'d': 'e'}}]));
         });
     });
@@ -219,7 +223,7 @@ void main() {
       // then
           expect(data['data'].length, equals(1));
           Map strippedData = data['data'][0];
-          expect(strippedData, equals(january2));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
@@ -229,7 +233,7 @@ void main() {
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
-          expect(strippedData, equals(january2));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
     });
@@ -247,7 +251,7 @@ void main() {
       // then
           expect(data['data'].length, equals(1));
           Map strippedData = data['data'][0];
-          expect(strippedData, equals(january2));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january2));
           expect(data['version'], equals(2));
       }).then((_) => months.diffFromVersion(1))
         .then((dataDiff) {
@@ -257,7 +261,7 @@ void main() {
           expect(diff['action'], equals('change'));
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
-          expect(strippedData, equals(january2));
+          expect(strippedData..remove(COLLECTION_NAME), equals(january2));
           expect(diff['author'], equals('Michael Smith'));
         });
     });
@@ -353,12 +357,13 @@ void main() {
        .then((_) => months.add(clone(may), 'John Doe'))
        .then((_) => months.change('march', march2, 'John Doe'))
        .then((_) => months.change('january', january, 'John Doe'))
-       .then((_) => months.data()).then((data) => dataEnd = data['data'] );
+       .then((_) => months.data()).then((data) => dataEnd = data['data']..forEach((v) => v..remove(COLLECTION_NAME)) );
       //when
       return multipleAccess.then((_) => months.diffFromVersion(0))
 
       // then
       .then((dataDiff) {
+         dataStart.forEach((v) => v..remove(COLLECTION_NAME));
          handleDiff(dataDiff['diff'], dataStart);
          expect(dataStart, unorderedEquals(dataEnd));
       });
@@ -433,7 +438,7 @@ void main() {
           .then((dataInfo) {
             expect(dataInfo['version'], equals(13));
             var data = dataInfo['data'];
-            expect(data[1], equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
+            expect(data[1]..remove(COLLECTION_NAME), equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
             return dataInfo;
           })
           .then((_) => months.diffFromVersion(12))
@@ -444,7 +449,7 @@ void main() {
             expect(diff['action'], equals('change'));
             expect(diff['_id'], equals('february'));
             Map strippedData = diff['data'];
-            expect(strippedData, equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
+            expect(strippedData..remove(COLLECTION_NAME), equals({'days': 29, 'number': 2, 'name': 'February', '_id': 'february'}));
             expect(diff['author'], equals('John Doe'));
           });
     });
@@ -514,6 +519,7 @@ void main() {
           .then((_){
             months.find({'days': 31}).limit(1).skip(1).fields(['name']);
             return months.find().data().then((data){
+              data['data'].forEach((v) => v..remove(COLLECTION_NAME));
               expect(data['data'], unorderedEquals(monthsCol));
             });
           });
@@ -524,7 +530,7 @@ void main() {
       return ready.then((_) => months.add(clone(january), 'John Doe'))
       .then((_) => months.findOne())
       .then((data) {
-
+        data..remove(COLLECTION_NAME);
         // then
         expect(data.length, equals(january.length));
         expect(data, equals(january));

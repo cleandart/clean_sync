@@ -1,5 +1,27 @@
 import 'package:clean_sync/server.dart';
 import 'package:clean_data/clean_data.dart';
+import 'dart:async';
+
+Function reduceArguments(Function op, docs, Map args, user, colls) {
+  if (op == null) return () => new Future(() => null);
+  if (user == null) {
+    if (docs == null) {
+      if (colls == null) return () => new Future(() => op(args));
+      else return () => new Future(() => op(args, collection: colls));
+    } else {
+      if (colls == null) return () => new Future(() => op(args, fullDocs: docs));
+      else return () => new Future (() => op(args, collection: colls, fullDocs: docs));
+    }
+  } else {
+    if (docs == null) {
+      if (colls == null) return () => new Future(() => op(args, user: user));
+      else return () => new Future(() => op(args, collection: colls));
+    } else {
+      if (colls == null) return () => new Future(() => op(args, fullDocs: docs, user: user));
+      else return () => new Future(() => op(args, collection: colls, fullDocs: docs, user: user));
+    }
+  }
+}
 
 class ValidationException implements Exception {
   final String error;
