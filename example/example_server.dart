@@ -5,7 +5,7 @@ import 'package:clean_ajax/server.dart';
 import 'package:crypto/crypto.dart';
 import 'package:clean_router/common.dart';
 
-void main() { 
+void main() {
   /**
    * Mongo daemon has to be running at its default port.
    * No authentification is used (/etc/mongodb.conf contains auth=false, which
@@ -28,7 +28,7 @@ void main() {
     });
 
     publish('personsOlderThan24Desc', (_) {
-      return mongodb.collection("persons").find({"age" : {'\$gt' : 24}}).sort({"age": DESC}).skip(2).limit(3);
+      return mongodb.collection("persons").sort({"age": ASC}).limit(3);
       //return mongodb.collection("persons").find({"age" : null});
     });
 

@@ -92,9 +92,9 @@ void main() {
   subscriber.init().then((_) {
     personsDiff = subscriber.subscribe("persons");
     personsDiff24 = subscriber.subscribe("personsOlderThan24Desc");
-//    personsData.start();
-//    personsData24.start();
-
+    personsDiff.restart();
+    personsDiff24.restart();
+    
     Map<String, Subscription> map = {
         '#list-diff': personsDiff,
         '#list24-diff': personsDiff24,

@@ -31,7 +31,7 @@ abstract class DataProvider {
    *  was added. In case of 'change', value of 'data' is a [Map] containing new
    *  key-value pairs and/or pairs of already existing keys and updated values.
    */
-  Future<Map> diffFromVersion(num version);
+  Future<Map> diffFromVersion(num version, {Map highestElement: null, num collectionLength : 0});
   Future add(Map data, String author, {String clientVersion : null});
   Future change(String id, Map change, String author, {String clientVersion : null});
   Future remove(String id, String author, {String clientVersion : null});

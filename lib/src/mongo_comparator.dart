@@ -31,7 +31,7 @@
 */
 
 
-//part of clean_sync.client;
+part of clean_sync.common;
 
 class MongoComparator {
 
@@ -49,11 +49,11 @@ class MongoComparator {
       }
     });
 
-    if(result == 0){
-      int a_version = a["__clean_version"];
-      int b_version = b["__clean_version"];
-      return a_version.compareTo(b_version);
-    }
+//    if(result == 0){
+//      int a_version = a["__clean_version"];
+//      int b_version = b["__clean_version"];
+//      return a_version.compareTo(b_version);
+//    }
 
     return result;
   }

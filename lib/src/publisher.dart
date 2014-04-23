@@ -24,6 +24,9 @@ class Resource {
 
     var action = data["action"];
     var reqVersion = data['version'];
+    var highestElement = data['highestElement'];
+    var collectionLength = data['collectionLength'] != null ? data['collectionLength'] : 0;
+    
     List<String> modifications = ['add', 'change', 'remove', 'jsonChange'];
 
     Future beforeRequest = new Future.value(null);
@@ -63,7 +66,7 @@ class Resource {
           });
         }
         else if(action == "get_diff") {
-          return dp.diffFromVersion(reqVersion)
+          return dp.diffFromVersion(reqVersion, highestElement: highestElement, collectionLength: collectionLength)
             .then((result) {
                 stopWatch(watchID);
                 return result;

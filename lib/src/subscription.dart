@@ -21,13 +21,14 @@ Completer createInitialSync(){
 final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, Subscription subscription, String author) {
-  logger.fine('handleData: ${data}');
+  logger.fine('handleData: subscription: $subscription, ${data}');
   var collection = subscription.collection;
   if (collection != null) {
     subscription.updateLock = true;
     collection.clear();
     collection.addAll(data);
-    subscription.updateLock = false;
+    subscription.updateHighestElement();
+    subscription.updateLock = false;    
   }
 }
 
@@ -167,6 +168,11 @@ num handleDiff(List<Map> diff, Subscription subscription, String author) {
       throw e;
     }
   }
+  
+  subscription
+    ..updateHighestElement()
+    ..trim();
+  
   logger.fine('handleDiff ends');
 //  destroyStructure(diff);
   subscription.updateLock = false;
@@ -221,7 +227,11 @@ class Subscription {
   bool _connected = true;
 
   bool _started = false;
-
+  
+  Map _highestElement;
+  num _limit = 0;
+  Map _sortParams = {};
+  
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
 
@@ -229,11 +239,16 @@ class Subscription {
   Stream get onFullSync => _onFullSyncController.stream;
   bool get disposed => collection == null;
 
-
   // version exposed only for testing and debugging
   get version => _version;
 
-  String toString() => 'Subscription(${_author}, ver: ${_version})';
+//  void set highestElement(element) {
+//    this._highestElement = element;
+//  }
+  
+  Map get highestElement => _highestElement;
+  
+  String toString() => 'Subscription(${collectionName}, ${_author}, ver: ${_version})';
   Completer _initialSync;
   List<StreamSubscription> _subscriptions = [];
   StreamController _errorStreamController = new StreamController.broadcast();
@@ -272,6 +287,22 @@ class Subscription {
         subscriptions.map((subscription) => subscription.initialSync));
   }
 
+  void updateHighestElement() {
+    _highestElement = collection.isEmpty ? null : collection.reduce(_greater);
+  }
+  
+  void trim() {
+    if (_sortParams.isNotEmpty && _limit > 0 && collection.isNotEmpty) {
+      collection.toList()
+        ..sort((a, b) => MongoComparator.compareWithKeySelector(a, b, _sortParams))
+        ..skip(_limit).forEach((data) => collection.remove(data));
+    }
+  }
+  
+  DataMap _greater(DataMap a, DataMap b) {
+    return MongoComparator.compareWithKeySelector(a, b, _sortParams) == 1 ? a : b;
+  }
+  
   void _resync() {
     logger.info("Resyncing subscription ${this}");
     if (!_initialSync.isCompleted) {
@@ -443,8 +474,10 @@ class Subscription {
       return new ClientRequest("sync", {
         "action" : "get_diff",
         "collection" : collectionName,
-        'args': args,
-        "version" : _version
+        "args": args,
+        "version" : _version,
+        "highestElement" : highestElement,
+        "collectionLength" : collection.length
       });
     }
   }
@@ -463,6 +496,8 @@ class Subscription {
         return;
       }
       _version = response['version'];
+      _limit = response['limit'];
+      _sortParams = response['sortParams'];
       _handleData(response['data'], this, _author);
       _connected = true;
 
