@@ -2,26 +2,33 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'dart:async';
 
-Function reduceArguments(Function op, docs, Map args, user, colls) {
-  if (op == null) return () => new Future(() => null);
+Function reduceArguments(Function op, docs, Map args, user, colls, caller) {
+  if (op == null) return () => caller(() => null);
   if (user == null) {
     if (docs == null) {
-      if (colls == null) return () => new Future(() => op(args));
-      else return () => new Future(() => op(args, collection: colls));
+      if (colls == null) return () => caller(() => op(args));
+      else return () => caller(() => op(args, collection: colls));
     } else {
-      if (colls == null) return () => new Future(() => op(args, fullDocs: docs));
-      else return () => new Future (() => op(args, collection: colls, fullDocs: docs));
+      if (colls == null) return () => caller(() => op(args, fullDocs: docs));
+      else return () => caller(() => op(args, collection: colls, fullDocs: docs));
     }
   } else {
     if (docs == null) {
-      if (colls == null) return () => new Future(() => op(args, user: user));
-      else return () => new Future(() => op(args, collection: colls));
+      if (colls == null) return () => caller(() => op(args, user: user));
+      else return () => caller(() => op(args, collection: colls));
     } else {
-      if (colls == null) return () => new Future(() => op(args, fullDocs: docs, user: user));
-      else return () => new Future(() => op(args, collection: colls, fullDocs: docs, user: user));
+      if (colls == null) return () => caller(() => op(args, fullDocs: docs, user: user));
+      else return () => caller(() => op(args, collection: colls, fullDocs: docs, user: user));
     }
   }
 }
+
+Function reduceArgumentsSync(Function op, docs, Map args, user, colls)
+  => reduceArguments(op, docs, args, user, colls, (f) => f());
+
+
+Function reduceArgumentsAsync(Function op, docs, Map args, user, colls)
+  => reduceArguments(op, docs, args, user, colls, (f) => new Future(() => f()));
 
 class ValidationException implements Exception {
   final String error;
@@ -32,9 +39,9 @@ class ValidationException implements Exception {
 
 class ServerOperation {
   String name;
-  List<Function> before;
+  List<Function> before = [];
   Function operation;
-  List<Function> after;
+  List<Function> after = [];
 
   ServerOperation(this.name, {this.before, this.operation, this.after});
 
@@ -45,8 +52,9 @@ class ServerOperation {
 class ClientOperation {
   String name;
   Function operation;
+  List<Function> argsDecorator = [];
 
-  ClientOperation(this.name, {this.operation});
+  ClientOperation(this.name, {this.operation, this.argsDecorator});
 }
 
 // First element is ServerOperation, second is equivalent ClientOperation

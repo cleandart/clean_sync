@@ -177,7 +177,9 @@ class MongoServer{
   }
 
   registerBeforeCallback(operationName, before) {
-    operations[operationName].before.add(before);
+    if (operations[operationName].before == null)
+      operations[operationName].before = [before];
+    else operations[operationName].before.add(before);
   }
 
   bool running = false;
@@ -234,10 +236,10 @@ class MongoServer{
       else fullDocsArg = opCall.docsListed ? fullDocs[0] : fullDocs;
       if (fullColls.isEmpty) fullCollsArg = null;
       else fullCollsArg = opCall.collectionsListed ? fullColls[0] : fullColls;
-      return Future.forEach(op.before, (b) => reduceArguments(b, fullDocsArg, opCall.args, user, fullCollsArg)());
+      return Future.forEach(op.before, (b) => reduceArgumentsAsync(b, fullDocsArg, opCall.args, user, fullCollsArg)());
     }).then((_) {
       logger.fine('operation - core');
-      return reduceArguments(op.operation, fullDocsArg, opCall.args, null, fullCollsArg)()
+      return reduceArgumentsAsync(op.operation, fullDocsArg, opCall.args, null, fullCollsArg)()
         .then((_) {
           if (fullDocsArg != null) {
             if (fullDocsArg is! List) fullDocsArg = [fullDocsArg];
@@ -249,7 +251,7 @@ class MongoServer{
       });
     }).then((_) {
       logger.fine('operation - after');
-      return Future.forEach(op.after, (a) => reduceArguments(a, fullDocsArg, opCall.args, user, fullCollsArg)());
+      return Future.forEach(op.after, (a) => reduceArgumentsAsync(a, fullDocsArg, opCall.args, user, fullCollsArg)());
     }).then((_) {
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {

@@ -69,9 +69,8 @@ class MongoClient {
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
     logger.finest("Request-operation: $data");
-    Map args = data["args"];
-    return performOperation(data['operation'], docs:args["docs"],
-        collections:args["collections"],args:args["args"],
+    return performOperation(data['operation'], docs:data["docs"],
+        collections:data["collections"],args:data["args"],
         userId:request.authenticatedUserId, author: data["author"],
         clientVersion: data["clientVersion"]);
   }
