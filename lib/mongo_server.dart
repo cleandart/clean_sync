@@ -143,10 +143,10 @@ class MongoServer{
   handleClient(Socket socket){
     clientSockets.add(socket);
     socket.listen((List<int> data){
-      logger.info("Received JSON: ${new String.fromCharCodes(data)}");
-      logger.fine("Incomplete json: $incompleteJson");
+      logger.finer("Received JSON: ${new String.fromCharCodes(data)}");
+      logger.finer("Incomplete json: $incompleteJson");
       // JSONs could have been sent frequently and therefore concatenated
-      var messages = getJSONs(new String.fromCharCodes(data), incompleteJson).map((f) => JSON.decode(f));
+      List<String> messages = getJSONs(new String.fromCharCodes(data), incompleteJson).map((f) => JSON.decode(f));
       logger.fine("Parsed JSONs: $messages");
       List<OperationCall> opCalls = new List();
       messages.forEach((m) {
@@ -215,7 +215,6 @@ class MongoServer{
       logger.fine('Docs received: ${fullDocs}');
       logger.fine('fetching user');
       if (opCall.userId != null) {
-        print('user id: ${opCall.userId}');
         if (userColName == null) {
           throw new Exception('userColName is not set!');
         }
