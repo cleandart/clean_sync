@@ -452,8 +452,12 @@ class Subscription {
   Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
     logger.info("Setting up data requesting for ${this}");
+    /// remember initialSync, that was active in thsi moment. Later, when we get
+    /// initial data, we check, if this completer is already completed - if so,
+    /// it means, the subscription was restarted sooner than initialSync-ed
+    var oldInitialSync =_initialSync;
     return _connection.send(_createDataRequest).then((response) {
-      if (_initialSync.isCompleted) {
+      if (oldInitialSync.isCompleted) {
         return;
       }
       if (response['error'] != null) {
@@ -510,6 +514,7 @@ class Subscription {
   }
 
   void _start() {
+    _started = true;
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
@@ -518,7 +523,7 @@ class Subscription {
     });
     setupConnectionRecovery();
     setupListeners();
-    setupDataRequesting().then((_) => _started = true);
+    setupDataRequesting();
   }
 
 
