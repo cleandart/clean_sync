@@ -126,7 +126,7 @@ void run() {
 
       // when
       var future = subscriber.init().then((_) {
-        subscriber.subscribe("months");
+        subscriber.subscribe("months","months");
       });
 
       return future.then((_) {
@@ -142,7 +142,7 @@ void run() {
 
       // when
       var when = () {
-        subscriber.subscribe("collection");
+        subscriber.subscribe("collection","collection");
       };
 
       // then
@@ -180,7 +180,7 @@ void run() {
         } else {
           LogEntry log = connection.getLogs().last;
           changeWasSent = log.methodName == 'send' &&
-              lastRequest.args['jsonData'][1]['_id'] == 'prefix-123';
+              lastRequest.args['args']["_id"] == 'prefix-123';
         }
         if(idWasGenerated && changeWasSent) {
           return true;
@@ -201,22 +201,22 @@ void run() {
       transactor = new Transactor(connection,updateLock, 'author', idGenerator);
       collection = new DataSet();
       collection.addIndex(['_id']);
-      months = new Subscription.config('months', collection, connection, idGenerator,
+      months = new Subscription.config('monthsResource','months', collection, connection, idGenerator,
         transactor, mockHandleData, mockHandleDiff, false, updateLock);
       months.initialSync.catchError((e){});
 
       createSubscriptionStub = (collection){
-        return new Subscription.config('months', collection, connection, idGenerator,
+        return new Subscription.config('monthsResource','months', collection, connection, idGenerator,
         transactor, mockHandleData, mockHandleDiff, false, updateLock);
       };
 
     });
 
     tearDown(() {
-//      if (months != null) return months.dispose();
+      if (months != null) return months.dispose();
     });
 
-    solo_test("assign id to data.", () {
+    test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       january = new DataMap.from({'name': 'January', 'order': 1});
@@ -226,9 +226,6 @@ void run() {
       months.collection.add(january);
 
       // then
-      print('${months.collection}');
-      print('${months.collection.first}');
-      print('${months.collection.first['_id']}');
       expect(months.collection.first['_id'], equals('prefix-1'));
     });
 
@@ -285,8 +282,8 @@ void run() {
 
       collection.add(elem);
 
-      Subscription subs = new Subscription.config('collection', collection, _connection,
-          transactor, mockHandleData, mockHandleDiff, false, updateLock);
+      Subscription subs = new Subscription.config('collectionResource','collection',
+          collection, _connection, transactor, mockHandleData, mockHandleDiff, false, updateLock);
 
       subs.setupListeners();
 
@@ -411,6 +408,7 @@ void run() {
 
     test("send add-request.", () {
       // given
+      idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
       january = new DataMap.from({'name': 'January', 'order': 1});
 
       // when
@@ -422,8 +420,14 @@ void run() {
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest, isNotNull);
         expect(lastRequest.type, equals("sync-operation"));
-        expect(lastRequest.args, equals({"action": "jsonChange", "collection": "months",
-                     "jsonData": [CLEAN_UNDEFINED, january], "author": "author", '_id': null, "args": {}, "clientVersion": null}));
+        expect(lastRequest.args, equals({
+          "operation": "add",
+          "collection": "months",
+          "args": january,
+          "author": "author",
+          "clientVersion": "prefix-1",
+          "docs" : null
+         }));
       });
     });
 
@@ -466,9 +470,13 @@ void run() {
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest.type, equals("sync-operation"));
-        expect(slice(lastRequest.args, ['action', 'collection', 'author', 'jsonData']),
-            equals({"action": "jsonChange", "collection": "months", "author": "author",
-              'jsonData': [january, CLEAN_UNDEFINED]}));
+        expect(slice(lastRequest.args, ['operation', 'collection', 'author', 'args']),
+            equals({
+          "operation": "remove",
+          "collection": "months",
+          "author": "author",
+          "args": {"_id" : "12"}
+        }));
       });
     });
 

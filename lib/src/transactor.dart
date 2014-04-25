@@ -1,7 +1,7 @@
 part of clean_sync.client;
 
 // Should have the same registered operations as MongoServer
-// Should apply changes to local collections
+// Should apply changes to local collection
 
 class Transactor {
   Connection _connection;
@@ -25,70 +25,75 @@ class Transactor {
 
   Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
-  Future performServerOperation(String name, Map args, {docs, collections}){
+  Future performServerOperation(String name, Map args, {docs, collection}){
     Completer completer = new Completer();
     queue.add({
-      "operation": () => _performServerOperation(name, args, docs:docs, collections:collections),
+      "operation": () => _performServerOperation(name, args, docs:docs, collection:collection),
       "completer": completer
     });
     _performOne();
     return completer.future;
   }
   /**
-   * [args] should contain 'collections' of type List<[DataSet, name]>,
+   * [args] should contain 'collection' of type List<[DataSet, name]>,
    * List of full documents 'docs' and Map of 'args'.
    * Performs operation specified in [name] on data given and sends
    * minimized operation data to the server
    */
-  Future performOperation(String name, Map args, {docs, collections}) {
+  Future performOperation(String name, Map args, {docs, collection}) {
     Completer completer = new Completer();
     queue.add({
-      "operation": () => _performOperation(name, args, docs:docs, collections: collections),
+      "operation": () => _performOperation(name, args, docs:docs, collection: collection),
       "completer": completer
     });
     _performOne();
     return completer.future;
   }
 
-  performClientOperation(String name, Map args, {docs, collections, decorateArgs: true}) {
-    if (decorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
+  performClientOperation(String name, Map args, {docs, collection, decorateArgs: true}) {
     ClientOperation op = operations[name];
-    // collections is List: [DataSet, name]
+    if (decorateArgs) op.argsDecorator.forEach((f) => f(args));
+    // collection is List: [DataSet, name]
     var fullColls = null;
-    if (collections != null) {
-      if (collections[0] is List) {
-        fullColls = collections.map((e) => e[0]).toList();
-      } else fullColls = collections[0];
+    if (collection != null) {
+      if (collection[0] is List) {
+        fullColls = collection.map((e) => e[0]).toList();
+      } else fullColls = collection[0];
     }
     var fullDocs = docs;
 
     updateLock.value = true;
-    reduceArgumentsSync(op.operation, fullDocs, args["args"], null, fullColls)();
+    reduceArgumentsSync(op.operation, fullDocs, args, null, fullColls)();
     updateLock.value = false;
   }
 
-  Future _performServerOperation(String name, Map args, {docs, collections, decorateArgs: true}){
+  Future _performServerOperation(String name, Map args, {docs, collection, decorateArgs: true}){
     if (decorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     String clientVersion = _idGenerator.next();
+    var collectionNames;
     return new Future(() => _connection.send(() {
-    // collections could be [], [[]] or null if not specified
-      if ((collections == null) || (collections.isEmpty)) collections = [null,null];
-      else if (collections[0] is List) {
-        if (collections[0].isEmpty) collections = [null,null];
-        collections = collections.map((e) => e[1]).toList();
-      } else collections = collections[1];
-      // if not specified, collections is now null
+    // collection could be [], [[]] or null if not specified
+      if (collection == null) collection = [];
+      else if (collection[0] is List) {
+        collectionNames = collection.map((e) => e[1]).toList();
+      } else collectionNames = collection[1];
+      // if not specified, collection is now null
       // docs could be List<Map>, Map if specified, [] or null if not specified
+      List newDocs;
       if (docs is Map)
-        docs = {"_id":docs["_id"], "__clean_collection": docs["__clean_collection"]};
+        newDocs = [docs["_id"], docs["__clean_collection"]];
+      else
       if (docs is List) {
-        if (docs.isEmpty) docs = null;
-        else docs = docs.map((e) => [e["_id"], e["__clean_collection"]]).toList();
+        if (docs.isEmpty) newDocs = null;
+        else {
+          print(docs);
+          newDocs = docs.map((e) => [e["_id"], e["__clean_collection"]]).toList();
+        }
       }
       return new ClientRequest('sync-operation', {
         'operation': name,
-        'docs': docs,
-        'collections': collections,
+        'docs': newDocs,
+        'collection': collectionNames,
         'args': args,
         'author': author,
         'clientVersion': clientVersion
@@ -96,10 +101,9 @@ class Transactor {
     }));
   }
 
-  Future _performOperation(String name, Map args, {docs, collections}) {
-
-    performClientOperation(name, args, docs:docs, collections:collections, decorateArgs: false);
-    return _performServerOperation(name, args, docs: docs, collections: collections, decorateArgs: false);
+  Future _performOperation(String name, Map args, {docs, collection}) {
+    performClientOperation(name, args, docs:docs, collection:collection, decorateArgs: false);
+    return _performServerOperation(name, args, docs: docs, collection: collection, decorateArgs: false);
   }
 
   _performOne() {
@@ -122,9 +126,7 @@ class Transactor {
   }
 
   registerArgsDecorator(operationName, argsDecorator) {
-    if (operations[operationName].argsDecorator == null)
-      operations[operationName].argsDecorator = [argsDecorator];
-    else operations[operationName].argsDecorator.add(argsDecorator);
+    operations[operationName].argsDecorator.add(argsDecorator);
   }
 
 }

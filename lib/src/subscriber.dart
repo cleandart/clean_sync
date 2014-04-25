@@ -5,8 +5,9 @@
 part of clean_sync.client;
 
 final _defaultSubscriptionFactory =
-    (collectionName, connection, idGenerator, transactor, updateLock) =>
-        new Subscription(collectionName, connection, idGenerator, transactor, updateLock);
+    (resourceName, mongoCollectionName, connection, idGenerator, transactor, updateLock) =>
+        new Subscription(resourceName, mongoCollectionName, connection,
+            idGenerator, transactor, updateLock);
 
 final _defaultTransactorFactory =
     (connection, updateLock, author, idGenerator) =>
@@ -91,13 +92,13 @@ class Subscriber {
    * really big collection and want to request only a portion of data specified
    * by args in restart method.
    */
-  Subscription subscribe(String collectionName) {
+  Subscription subscribe(String resourceName, String mongoCollectionName) {
     if(_idPrefix == null) {
       throw new StateError("Subscriber can not be used before the Future"
           " returned by 'init' method has completed.");
     }
-    var subscription = _createSubscription(collectionName, _connection, _dataIdGenerator,
-      createTransactor(), updateLock);
+    var subscription = _createSubscription(resourceName, mongoCollectionName,
+        _connection, _dataIdGenerator, createTransactor(), updateLock);
     return subscription;
   }
 

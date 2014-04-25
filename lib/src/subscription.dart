@@ -24,8 +24,10 @@ void handleData(List<Map> data, Subscription subscription) {
   logger.fine('handleData: ${data}');
   var collection = subscription.collection;
   subscription.updateLock.value = true;
+  print('tututu 1');
   collection.clear();
   collection.addAll(data);
+  print('tututu 3');
   subscription.updateLock.value = false;
 }
 
@@ -175,7 +177,8 @@ class CanceledException implements Exception {
 
 class Subscription {
   // constructor arguments:
-  String collectionName;
+  String resourceName;
+  String mongoCollectionName;
   DataSet collection;
   Connection _connection;
   Transactor _transactor;
@@ -246,14 +249,14 @@ class Subscription {
     return collection;
   }
 
-  Subscription.config(this.collectionName, this.collection, this._connection,
-      this._idGenerator, this._transactor, this._handleData, this._handleDiff,
-      this._forceDataRequesting, this.updateLock) {
+  Subscription.config(this.resourceName, this.mongoCollectionName, this.collection,
+      this._connection, this._idGenerator, this._transactor, this._handleData,
+      this._handleDiff, this._forceDataRequesting, this.updateLock) {
     _initialSync = createInitialSync();
   }
 
-  Subscription(collectionName, connection, idGenerator, transactor, updateLock)
-      : this.config(collectionName, _createNewCollection(), connection, idGenerator,
+  Subscription(resourceName, mongoCollectionName, connection, idGenerator, transactor, updateLock)
+      : this.config(resourceName, mongoCollectionName, _createNewCollection(), connection, idGenerator,
           transactor, handleData, handleDiff, false, updateLock);
 
 
@@ -386,9 +389,10 @@ class Subscription {
     var change = new ChangeSet();
 
     // TODO assign ID to document added
-    _subscriptions.add(collection.onBeforeAdd.listen((event) {
-      assert(event is Map);
-      if (!event.containsKey("_id")) event["_id"] = _idGenerator.next();
+    _subscriptions.add(collection.onBeforeAdd.listen((dataObj) {
+      assert(dataObj is Map);
+      if (!dataObj.containsKey("_id")) dataObj["_id"] = _idGenerator.next();
+      if (!dataObj.containsKey("__clean_collection")) dataObj["__clean_collection"] = mongoCollectionName;
     }));
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
@@ -398,10 +402,11 @@ class Subscription {
         if (change.addedItems.length > 0) {
           // Addition
           // As it's synced, only one should be added
+          print('tututu 2');
           assert(change.addedItems.length == 1);
           operation = () => _transactor.performServerOperation('add',
             change.addedItems.first,
-            collections: [collection, collectionName]
+            collection: [collection, mongoCollectionName]
           );
         } else if (change.removedItems.length > 0) {
           // Removal
@@ -409,11 +414,12 @@ class Subscription {
           assert(change.removedItems.length == 1);
           operation = () => _transactor.performServerOperation('remove',
             {"_id" : change.removedItems.first["_id"]},
-            collections: [collection, collectionName]
+            collection: [collection, mongoCollectionName]
           );
         } else {
           // Only one item should be changed
           assert(change.changedItems.length == 1);
+          print('tututu change catched! ${change.changedItems.keys.first}');
           operation = () => _transactor.performServerOperation("change",
             change.changedItems.values.first.toJson(),
             docs: change.changedItems.keys.first
@@ -424,12 +430,12 @@ class Subscription {
           .then((res) {
             if (res is Map && res['result'] != null) res = res['result'];
             _sentItems.remove(result);
-            return result;
+            return res;
           }, onError: (res){
             if (res is Map && res['error'] != null) res = res['error'];
             // Silent ignore - should be resolved
             _sentItems.remove(result);
-            return result;
+            return res;
           });
         _sentItems.add(result);
       }
@@ -441,7 +447,7 @@ class Subscription {
 
     return new ClientRequest("sync", {
       "action" : "get_data",
-      "collection" : collectionName,
+      "collection" : resourceName,
       'args': args
     });
   }
@@ -456,7 +462,7 @@ class Subscription {
 
       return new ClientRequest("sync", {
         "action" : "get_diff",
-        "collection" : collectionName,
+        "collection" : resourceName,
         'args': args,
         "version" : _version
       });
@@ -505,14 +511,17 @@ class Subscription {
                    _version = response['version'];
             }
           }
-        }, onError: (e){
+        }, onError: (e, s){
           if (e is CancelError) { /* do nothing */ }
           else if (e is ConnectionError) {
             // connection failed
             _periodicDiffRequesting.pause();
             requestLock = false;
           }
-          else throw e;
+          else {
+            logger.shout('', e, s);
+            throw e;
+          }
         });
     _subscriptions.add(_periodicDiffRequesting);
   }

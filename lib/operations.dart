@@ -39,11 +39,24 @@ class ValidationException implements Exception {
 
 class ServerOperation {
   String name;
-  List<Function> before = [];
+  List<Function> _before = [];
   Function operation;
-  List<Function> after = [];
+  List<Function> _after = [];
 
-  ServerOperation(this.name, {this.before, this.operation, this.after});
+  List<Function> get before {
+    if (_before == null) _before = [];
+    return _before;
+  }
+
+  List<Function> get after {
+    if (_after == null) _after = [];
+    return _after;
+  }
+
+  ServerOperation(this.name, {before, this.operation, after}) {
+    _before = before;
+    _after = after;
+  }
 
   ClientOperation toClientOperation() =>
       new ClientOperation(this.name, operation:this.operation);
@@ -52,9 +65,14 @@ class ServerOperation {
 class ClientOperation {
   String name;
   Function operation;
-  List<Function> argsDecorator = [];
+  List<Function> _argsDecorator = [];
 
-  ClientOperation(this.name, {this.operation, this.argsDecorator});
+  List<Function> get argsDecorator {
+    if (_argsDecorator == null) _argsDecorator = [];
+    return _argsDecorator;
+  }
+
+  ClientOperation(this.name, {this.operation});
 }
 
 // First element is ServerOperation, second is equivalent ClientOperation
@@ -64,17 +82,17 @@ List<List> incompatibleOperations = [
       before: [(args, {user, MongoProvider collection}) {
         if (args is! Map) throw new ValidationException("Added document should be a Map");
         if (!args.containsKey("_id")) throw new ValidationException("Document does not contain _id");
-        try {
-          // There should be no document with given _id in collection, so this should throw
-          collection.find({"_id":args["_id"]}).findOne();
-          // As it gets here, collection found document with given _id
-          throw new ValidationException("_id given is already used");
-        } catch (e) {
+        // There should be no document with given _id in collection, so this should throw
+        return collection.find({"_id":args["_id"]}).findOne().then((_) =>
+        // As it gets here, collection found document with given _id
+        throw new ValidationException("_id given is already used"))
+        .catchError((e,s) {
           if (e is ValidationException) throw e;
-        }
+        });
+
       }],
       operation: (args, {MongoProvider collection}) {
-        collection.add(args, '');
+        return collection.add(args, '');
       }),
 
     new ClientOperation('add',
@@ -87,15 +105,14 @@ List<List> incompatibleOperations = [
       before: [(args, {user, MongoProvider collection}) {
         if (args is! Map) throw new ValidationException("Args should be Map containing _id");
         if (!args.containsKey("_id")) throw new ValidationException("Args should contain _id");
-        try {
-          collection.find({"_id":args["_id"]}).findOne();
-        } catch (e) {
-          // Find one threw => there are no entries with given _id
-          throw new ValidationException("No document with given _id found");
-        }
+        return collection.find({"_id":args["_id"]}).findOne()
+            .catchError((e,s) =>
+                // Find one threw => there are no entries with given _id
+          throw new ValidationException("No document with given _id found"));
+
       }],
       operation: (args, {MongoProvider collection}) {
-        collection.remove(args["_id"], "");
+        return collection.remove(args["_id"], "");
       }),
 
     new ClientOperation('remove',

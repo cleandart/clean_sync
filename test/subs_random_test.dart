@@ -267,7 +267,7 @@ run(count, cache, {failProb: 0}) {
         Subscription newSub;
         res = res
           .then((_) =>
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart())
+            newSub = new Subscription(sub.resourceName, connection, 'dummyAuthor', new IdGeneratorMock())..restart())
           .then((_) =>
               newSub.initialSync)
           .then((_){

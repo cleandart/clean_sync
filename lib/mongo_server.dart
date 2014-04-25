@@ -62,16 +62,16 @@ class DocumentNotFoundException implements Exception {
 class OperationCall {
   String name;
   List<List> docs;
-  List<String> collections;
+  List<String> collection;
   Map args;
   String userId;
   Completer completer;
   bool docsListed;
-  bool collectionsListed;
+  bool collectionListed;
   String author;
   String clientVersion;
 
-  OperationCall(this.name, this.completer, {this.docs, this.collections,
+  OperationCall(this.name, this.completer, {this.docs, this.collection,
     this.args, this.userId, this.author, this.clientVersion});
 
   OperationCall.fromJson(Map source){
@@ -95,13 +95,13 @@ class OperationCall {
       }
     }
 
-    if (source['collections'] == null) collections = [];
-    else if (source['collections'] is! List) {
-      collections = [source['collections']];
-      collectionsListed = true;
+    if (source['collection'] == null) collection = [];
+    else if (source['collection'] is! List) {
+      collection = [source['collection']];
+      collectionListed = true;
     } else {
-      collections = source['collections'];
-      collectionsListed = false;
+      collection = source['collection'];
+      collectionListed = false;
     }
   }
 }
@@ -110,6 +110,7 @@ class OperationCall {
 class MongoServer{
   int port;
   String mongoUrl;
+  Cache cache;
   Map <String, ServerOperation> operations = {};
   MongoDatabase db;
   String userColName;
@@ -119,16 +120,17 @@ class MongoServer{
   // {numl:[int], msg:[String]}
   Map incompleteJson = {};
 
-  MongoServer(this.port, this.mongoUrl){
+  MongoServer(this.port, this.mongoUrl, {this.cache}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     ops.incompatibleOperations.forEach((o) => operations[o[0].name] = o[0]);
   }
 
-  MongoServer.config(this.port, this.mongoUrl);
+  MongoServer.config(this.port, this.mongoUrl, {this.cache});
 
 
   Future start() {
-    db = new MongoDatabase(mongoUrl);
+    if (cache == null) db = new MongoDatabase(mongoUrl);
+    else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
     incompleteJson = {"numl":0, "msg":""};
     var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
@@ -177,9 +179,7 @@ class MongoServer{
   }
 
   registerBeforeCallback(operationName, before) {
-    if (operations[operationName].before == null)
-      operations[operationName].before = [before];
-    else operations[operationName].before.add(before);
+    operations[operationName].before.add(before);
   }
 
   bool running = false;
@@ -229,14 +229,16 @@ class MongoServer{
     .then((_user){
       logger.fine('operation - before');
       user = _user;
-      for (String col in opCall.collections) {
+      for (String col in opCall.collection) {
         fullColls.add(db.collection(col));
       }
       if (fullDocs.isEmpty) fullDocsArg = null;
       else fullDocsArg = opCall.docsListed ? fullDocs[0] : fullDocs;
       if (fullColls.isEmpty) fullCollsArg = null;
-      else fullCollsArg = opCall.collectionsListed ? fullColls[0] : fullColls;
-      return Future.forEach(op.before, (b) => reduceArgumentsAsync(b, fullDocsArg, opCall.args, user, fullCollsArg)());
+      else fullCollsArg = opCall.collectionListed ? fullColls[0] : fullColls;
+      return Future.forEach(op.before,
+          (b) =>
+              reduceArgumentsAsync(b, fullDocsArg, opCall.args, user, fullCollsArg)());
     }).then((_) {
       logger.fine('operation - core');
       return reduceArgumentsAsync(op.operation, fullDocsArg, opCall.args, null, fullCollsArg)()

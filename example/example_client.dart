@@ -11,11 +11,11 @@ import "package:clean_ajax/client_browser.dart";
 
 LIElement createListElement(person, persons) {
   TextInputElement name = new TextInputElement()
-  ..className = "_id-${person["_id"]}-${persons.collectionName}-name"
+  ..className = "_id-${person["_id"]}-${persons.resourceName}-name"
   ..value = "${person["name"]}";
 
   TextInputElement age = new TextInputElement()
-  ..className = "_id-${person["_id"]}-${persons.collectionName}-age"
+  ..className = "_id-${person["_id"]}-${persons.resourceName}-age"
   ..value = "${person["age"]}";
 
   ButtonElement save = new ButtonElement()
@@ -27,8 +27,8 @@ LIElement createListElement(person, persons) {
     String _id = e.dataset["_id"];
     DataMap pers = persons.collection.firstWhere((d) => d["_id"] == _id);
 
-    InputElement name = querySelector("._id-${person["_id"]}-${persons.collectionName}-name");
-    InputElement age = querySelector("._id-${person["_id"]}-${persons.collectionName}-age");
+    InputElement name = querySelector("._id-${person["_id"]}-${persons.resourceName}-name");
+    InputElement age = querySelector("._id-${person["_id"]}-${persons.resourceName}-age");
 
     if (pers != null) {
       //pers["name"] = name.value;
@@ -110,7 +110,7 @@ void main() {
         });
         event.strictlyChanged.forEach((DataMap person, ChangeSet changes) {
           changes.changedItems.forEach((String key, Change value) {
-            InputElement e = querySelector("._id-${person["_id"]}-${sub.collectionName}-${key}");
+            InputElement e = querySelector("._id-${person["_id"]}-${sub.resourceName}-${key}");
             if (e != null) {
               e.value = value.newValue.toString();
             }

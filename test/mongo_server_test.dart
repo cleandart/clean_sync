@@ -120,7 +120,7 @@ void run() {
       var id = idgen.next();
       var args = {'_id' : '$id', 'name' : 'sample', 'credit' : 5000};
       var future = client.connected.then((_){
-        return client.performOperation('save', collections: testCollectionUser, args: args);
+        return client.performOperation('save', collection: testCollectionUser, args: args);
       }).catchError((e,s) => print('Error: $e, $s'));
 
       return future.then((_) {
