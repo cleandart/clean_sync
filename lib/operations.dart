@@ -1,27 +1,6 @@
 import 'package:clean_sync/server.dart';
+import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_data/clean_data.dart';
-import 'dart:async';
-
-Function reduceArguments(Function op, docs, Map args, user, colls) {
-  if (op == null) return () => new Future(() => null);
-  if (user == null) {
-    if (docs == null) {
-      if (colls == null) return () => new Future(() => op(args));
-      else return () => new Future(() => op(args, collection: colls));
-    } else {
-      if (colls == null) return () => new Future(() => op(args, fullDocs: docs));
-      else return () => new Future (() => op(args, collection: colls, fullDocs: docs));
-    }
-  } else {
-    if (docs == null) {
-      if (colls == null) return () => new Future(() => op(args, user: user));
-      else return () => new Future(() => op(args, collection: colls));
-    } else {
-      if (colls == null) return () => new Future(() => op(args, fullDocs: docs, user: user));
-      else return () => new Future(() => op(args, collection: colls, fullDocs: docs, user: user));
-    }
-  }
-}
 
 class ValidationException implements Exception {
   final String error;
@@ -32,11 +11,24 @@ class ValidationException implements Exception {
 
 class ServerOperation {
   String name;
-  List<Function> before;
+  List<Function> _before = [];
   Function operation;
-  List<Function> after;
+  List<Function> _after = [];
 
-  ServerOperation(this.name, {this.before, this.operation, this.after});
+  List<Function> get before {
+    if (_before == null) _before = [];
+    return _before;
+  }
+
+  List<Function> get after {
+    if (_after == null) _after = [];
+    return _after;
+  }
+
+  ServerOperation(this.name, {before, this.operation, after}) {
+    _before = before != null ? [before] : [];
+    _after = after != null ? [after] : [];
+  }
 
   ClientOperation toClientOperation() =>
       new ClientOperation(this.name, operation:this.operation);
@@ -45,6 +37,12 @@ class ServerOperation {
 class ClientOperation {
   String name;
   Function operation;
+  List<Function> _argsDecorator = [];
+
+  List<Function> get argsDecorator {
+    if (_argsDecorator == null) _argsDecorator = [];
+    return _argsDecorator;
+  }
 
   ClientOperation(this.name, {this.operation});
 }
@@ -53,58 +51,82 @@ class ClientOperation {
 List<List> incompatibleOperations = [
   [
     new ServerOperation('add',
-      before: [(args, {user, MongoProvider collection}) {
-        if (args is! Map) throw new ValidationException("Added document should be a Map");
-        if (!args.containsKey("_id")) throw new ValidationException("Document does not contain _id");
-        try {
-          // There should be no document with given _id in collection, so this should throw
-          collection.find({"_id":args["_id"]}).findOne();
-          // As it gets here, collection found document with given _id
-          throw new ValidationException("_id given is already used");
-        } catch (e) {
+      before: (OperationCall opCall) {
+        if (!opCall.args.containsKey("_id")) throw new ValidationException("Document does not contain _id");
+
+        return opCall.colls[0].find({"_id": opCall.args["_id"]}).data()
+            .then((data){
+               if(data['data'].length > 0) {
+                 throw new ValidationException("_id given is already used");
+               }
+            })
+        .catchError((e,s) {
           if (e is ValidationException) throw e;
-        }
-      }],
-      operation: (args, {MongoProvider collection}) {
-        collection.add(args, '');
+        });
+      },
+
+      operation: (OperationCall opCall) {
+        return opCall.colls[0].add(opCall.args, '');
       }),
 
     new ClientOperation('add',
-      operation: (args, {DataSet collection}) {
-        collection.add(args);
+      operation: (OperationCall opCall) {
+        opCall.colls[0].add(opCall.args, '');
       })
   ],
   [
     new ServerOperation('remove',
-      before: [(args, {user, MongoProvider collection}) {
-        if (args is! Map) throw new ValidationException("Args should be Map containing _id");
-        if (!args.containsKey("_id")) throw new ValidationException("Args should contain _id");
-        try {
-          collection.find({"_id":args["_id"]}).findOne();
-        } catch (e) {
-          // Find one threw => there are no entries with given _id
-          throw new ValidationException("No document with given _id found");
-        }
-      }],
-      operation: (args, {MongoProvider collection}) {
-        collection.remove(args["_id"], "");
+      before: (OperationCall opCall) {
+        if (!opCall.args.containsKey("_id")) throw new ValidationException("Args should contain _id");
+        return opCall.colls[0].find({"_id": opCall.args["_id"]}).findOne()
+            .catchError((e,s) =>
+                // Find one threw => there are no entries with given _id
+          throw new ValidationException("No document with given _id found"));
+
+      },
+      operation: (OperationCall opCall) {
+        return opCall.colls[0].remove(opCall.args["_id"], "");
       }),
 
     new ClientOperation('remove',
-      operation: (args, {DataSet collection}){
-        collection.remove(args["_id"]);
+      operation: (OperationCall opCall){
+        opCall.colls[0].remove(opCall.args["_id"], "");
+      })
+  ],
+
+  [
+    new ServerOperation('addAll',
+      operation: (OperationCall opCall) {
+        return opCall.colls[0].addAll(opCall.args["data"], "");
+      }),
+
+    new ClientOperation('addAll',
+      operation: (OperationCall opCall){
+        opCall.colls[0].addAll(opCall.args["data"], "");
+      })
+  ],
+
+  [
+    new ServerOperation('removeAll',
+      operation: (OperationCall opCall) {
+        return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
+      }),
+
+    new ClientOperation('removeAll',
+      operation: (OperationCall opCall){
+        opCall.colls[0].remove(opCall.args["_id"], "");
       })
   ]
+
+
 ];
 
 List<ServerOperation> commonOperations = [
   new ServerOperation('change',
-    before: [(args, {user, fullDocs}) {
-      if (fullDocs is List) throw new ValidationException("Only one document at a time can be changed");
-      if (args is! Map) throw new ValidationException("Args should be Map - see ChangeSet.toJson");
-      if (args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
-    }],
-    operation: (args, {fullDocs}) {
-      applyJSON(args,fullDocs);
+    before: (OperationCall opCall) {
+      if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
+    },
+    operation: (OperationCall opCall) {
+      applyJSON(opCall.args, opCall.docs[0]);
     })
 ];

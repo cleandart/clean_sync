@@ -17,13 +17,10 @@ class MongoClient {
   String url;
   int port;
   Socket socket;
-  int count = 0;
+  int _count = 0;
   Completer _connected;
-  List<Function> queue = [];
   Future get connected => _connected.future;
   Map incompleteJson = {};
-
-
   String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
   Map<String, Completer> reqToResp = {};
 
@@ -48,7 +45,9 @@ class MongoClient {
             // We could have received more JSONs at once
             var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
             logger.finer("JSON resp: $responses");
+            print(responses);
             responses.forEach((resp) {
+              logger.fine('response obtained: ${resp}');
               Completer completer = reqToResp.remove(resp['operationId']);
               if (resp.containsKey('result')) {
                 completer.complete(resp['result']);
@@ -69,19 +68,18 @@ class MongoClient {
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
     logger.finest("Request-operation: $data");
-    Map args = data["args"];
-    return performOperation(data['operation'], docs:args["docs"],
-        collections:args["collections"],args:args["args"],
-        userId:request.authenticatedUserId, author: data["author"],
+    return p_performOperation(data['operation'], docs: data["docs"],
+        colls: data["colls"], args: data["args"],
+        userId: request.authenticatedUserId, author: data["author"],
         clientVersion: data["clientVersion"]);
   }
 
-  Future performOperation(name, {docs, collections, args, userId, author, clientVersion}) {
+  Future p_performOperation(name, {docs, colls, args, userId, author, clientVersion}) {
     Completer completer = new Completer();
-    String operationId = '$prefix--${count++}';
+    String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;
     logger.finer("ReqToResp: ${reqToResp}");
-    socket.write(JSON.encode({'name': name, 'docs': docs, 'collections': collections, 'args': args,
+    socket.write(JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
       'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}));
     return completer.future;
   }

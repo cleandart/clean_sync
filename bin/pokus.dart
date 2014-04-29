@@ -31,16 +31,16 @@ main(){
   // Create 2 and delete 1
   client.connected.then((_){
     idgen++;
-    return client.performOperation('save', collections: 'test', args: {'_id' : '$idgen', 'name': 'jozo'});
+    return client._performOperation('save', collections: 'test', args: {'_id' : '$idgen', 'name': 'jozo'});
   }).then((result){
     print(result);
     client = new MongoClient("127.0.0.1", 27001);
     client.connected.then((_) {
-      return client.performOperation('save', collections: 'test', args: {'_id' : '${idgen+1}' , 'name' : 'juro'});
+      return client._performOperation('save', collections: 'test', args: {'_id' : '${idgen+1}' , 'name' : 'juro'});
     }).then((result) => print(result));
     MongoClient client2 = new MongoClient("127.0.0.1", 27001);
     client2.connected.then((_) {
-      return client2.performOperation('delete', collections: 'test', args: {'_id':'$idgen'});
+      return client2._performOperation('delete', collections: 'test', args: {'_id':'$idgen'});
     }).then((result) => print(result));
   });
 

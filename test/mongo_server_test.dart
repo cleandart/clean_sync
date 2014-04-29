@@ -25,7 +25,7 @@ class IdGenerator {
 
 void main() {
   setupDefaultLogHandler();
-  logger.level = Level.FINE;
+  logger.level = Level.FINER;
   run();
 }
 
@@ -48,64 +48,64 @@ void run() {
         client = new MongoClient("127.0.0.1", 27001);
 
         server.registerOperation("save",
-            operation: (args, {MongoProvider collection}){
-              return collection.add(args, "");
+            operation: (OperationCall opCall){
+              return opCall.colls[0].add(opCall.args, "");
             }
         );
         server.registerOperation("delete",
-            operation: (args, {MongoProvider collection}) {
-              return collection.remove(args["_id"],"");
+            operation: (OperationCall opCall) {
+              return opCall.colls[0].remove(opCall.args["_id"],"");
             }
         );
         server.registerOperation("set",
-            before: (args, {user, fullDocs}) {
-              if (args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
-              if ((fullDocs is List) && (fullDocs.length > 1)) throw new ValidationException("Too many documents");
+            before: (OperationCall opCall) {
+              if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
+              if ((opCall.docs is List) && (opCall.docs.length > 1)) throw new ValidationException("Too many documents");
 
             },
-            operation: (args, {fullDocs}) {
-              args.forEach((k,v) => fullDocs[k] = v);
+            operation: (OperationCall opCall) {
+              opCall.args.forEach((k,v) => opCall.docs[0][k] = v);
             }
         );
         server.registerOperation("throw",
-            before: (args, {user}) {
+            before: (OperationCall opCall) {
               lastOperation = "before";
-              if (args['throw'] == 'before') throw new ValidationException("Before threw");
+              if (opCall.args['throw'] == 'before') throw new ValidationException("Before threw");
             },
-            operation: (args) {
+            operation: (OperationCall opCall) {
               lastOperation = "operation";
-              if (args['throw'] == 'operation') throw new Exception("Operation threw");
+              if (opCall.args['throw'] == 'operation') throw new Exception("Operation threw");
             },
-            after: (args, {user}) {
+            after: (OperationCall opCall) {
               lastOperation = "after";
-              if (args['throw'] == 'after') throw new Exception("After threw");
+              if (opCall.args['throw'] == 'after') throw new Exception("After threw");
             }
         );
 
         server.registerOperation("change ref1",
-            before: (args, {user}) {
+            before: (OperationCall opCall) {
               lastOperationRef1.value = "before";
             },
-            operation: (args) {
+            operation: (OperationCall opCall) {
               lastOperationRef1.value = "operation";
             },
-            after: (args, {user}) {
+            after: (OperationCall opCall) {
               lastOperationRef1.value = "after";
             }
         );
 
         server.registerOperation("change ref2",
-            before: (args, {user}) {
+            before: (OperationCall opCall) {
               lastOperationRef2.value = "before";
             },
-            operation: (args) {
+            operation: (OperationCall opCall) {
               lastOperationRef2.value = "operation";
             },
-            after: (args, {user}) {
+            after: (OperationCall opCall) {
               lastOperationRef2.value = "after";
             }
         );
-        server.registerOperation("dummy");
+        server.registerOperation("dummy", operation: (opCall){});
 
       });
     });
@@ -119,11 +119,11 @@ void run() {
     test("save document", () {
       var id = idgen.next();
       var args = {'_id' : '$id', 'name' : 'sample', 'credit' : 5000};
-      var future = client.connected.then((_){
-        return client.performOperation('save', collections: testCollectionUser, args: args);
-      }).catchError((e,s) => print('Error: $e, $s'));
-
-      return future.then((_) {
+      return client.connected.then((_) =>
+        client.p_performOperation('save', colls: [testCollectionUser], args: args)
+      )
+      .catchError((e,s) => logger.shout("error", e, s))
+      .then((_) {
         expect(server.db.collection(testCollectionUser).find(args).findOne(), completes);
       });
     });
@@ -139,7 +139,7 @@ void run() {
           data['name'] = 'another name';
           data.remove('_id');
           //then
-          expect(client.performOperation("set", docs: ['$id',data[COLLECTION_NAME]], args: data), completes);
+          expect(client.p_performOperation("set", args: data, docs: [['$id',data[COLLECTION_NAME]]]), completes);
         });
       });
 
@@ -148,8 +148,10 @@ void run() {
     test("should not perform operation if before throws", () {
       var caught = false;
       return client.connected.then((_) {
-        var operation = client.performOperation("throw", args:{'throw':'before'})
+        var operation = client.p_performOperation("throw", args:{'throw':'before'})
         .catchError((e,s) {
+          print(e);
+          print(s);
           expect(e,isMap);
           expect(e.containsKey('validation'), isTrue);
           caught = true;
@@ -161,7 +163,7 @@ void run() {
 
     test("should not perform after if operation throws", () {
       return client.connected.then((_) {
-        var operation = client.performOperation("throw", args:{'throw':'operation'})
+        var operation = client.p_performOperation("throw", args:{'throw':'operation'})
         .whenComplete((){
           expect(lastOperation, equals("operation"));
         });
@@ -172,32 +174,21 @@ void run() {
     test("should handle operations sent right after each other", () {
       return client.connected.then((_) {
         expect(Future.wait([
-          client.performOperation("dummy", args: {'a':'1'}),
-          client.performOperation("dummy", args: {'a':'2'}),
-          client.performOperation("dummy", args: {'a':'3'}),
-          client.performOperation("dummy", args: {'a':'4'}),
-          client.performOperation("dummy", args: {'a':'5'}),
-          client.performOperation("dummy", args: {'a':'6'}),
-          client.performOperation("dummy", args: {'a':'7'}),
+          client.p_performOperation("dummy", args: {'a':'1'}),
+          client.p_performOperation("dummy", args: {'a':'2'}),
+          client.p_performOperation("dummy", args: {'a':'3'}),
+          client.p_performOperation("dummy", args: {'a':'4'}),
+          client.p_performOperation("dummy", args: {'a':'5'}),
+          client.p_performOperation("dummy", args: {'a':'6'}),
+          client.p_performOperation("dummy", args: {'a':'7'}),
         ]),completes);
-      });
-    });
-
-    test("should handle many operations right after each other (2000)", () {
-      List<Future> ops = [];
-      return client.connected.then((_) {
-        for (int i = 0; i < 2000; i++) {
-          if (i % 10 == 0) logger.fine("At $i");
-          ops.add(client.performOperation("dummy", args: {"i":'$i'}));
-        }
-        return expect(Future.wait(ops), completes);
       });
     });
 
     test("should report error if there was no entry found", () {
       var caught = false;
       return client.connected.then((_) {
-        var operation = client.performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
+        var operation = client.p_performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
         .catchError((e,s) {
           expect(e,isMap);
           expect(e.containsKey('query'), isTrue);
@@ -215,8 +206,8 @@ void run() {
         if (lastOperationRef2.value != "") failureOccured = true;
       });
       return client.connected.then((_) {
-        var future1 = client.performOperation("change ref1");
-        var future2 = client.performOperation("change ref2");
+        var future1 = client.p_performOperation("change ref1");
+        var future2 = client.p_performOperation("change ref2");
         return Future.wait([future1, future2]);
       }).then((_) => new Future(() => expect(failureOccured, isFalse)));
     });
@@ -231,21 +222,9 @@ void run() {
         previousOperation = lastOperationRef1.value;
       });
       return client.connected.then((_) {
-        return client.performOperation("change ref1");
+        return client.p_performOperation("change ref1");
       }).then((_) => new Future(() => expect(failureOccured, isFalse)));
     });
-
-    test("operations should work with \'unpacked\' list for one doc only", () {
-      var id = idgen.next();
-      var data = {'_id' : '$id', 'name' : 'some name', 'credit' : 5000};
-      return server.db.collection(testCollectionUser).add(data, "")
-        .then((_) => client.connected.then((_){
-             data['name'] = 'another name';
-             data.remove('_id');
-             expect(client.performOperation("set", docs: ['$id',testCollectionUser], args: data), completes);
-        }));
-    });
-
 
   });
 }

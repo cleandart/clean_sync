@@ -69,8 +69,8 @@ run() {
       }, beforeRequest: beforeRequest);
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync1((_){});
-      sub = new Subscription('b', connection, 'author2', _idGenerator)..restart();
 
+      sub = new Subscription('b', connection, 'author2', _idGenerator)..restart();
       sub.initialSync.then((_) {
         sub.errorStream.listen(callback);
         sub.collection.add(newdata);

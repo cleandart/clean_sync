@@ -11,14 +11,18 @@ import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import './subscription_test.dart';
+import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/mongo_client.dart';
 
-stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id'));
+stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
+..remove('__clean_collection'));
 
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
-  (new Logger('clean_sync')).level = Level.FINE;
   setupDefaultLogHandler();
+//  (new Logger('clean_sync')).level = Level.FINEST;
+//  (new Logger('clean_ajax')).level = Level.FINE;
   run();
 }
 
@@ -44,14 +48,28 @@ run() {
 
   Publisher pub;
 
+  DataReference updateLock;
+  Transactor transactor;
+  MongoServer mongoServer;
+  MongoClient mongoClient;
+  ftransactorByAuthor(author) => new Transactor(connection, updateLock,
+      author, new IdGenerator('f'));
 
   setUp((){
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
+//    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
+    updateLock = new DataReference(false);
 
-    return Future.wait(mongodb.init)
-    .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks()).then((_){
+    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+
+    return mongoServer.start()
+    .then((_) {
+      mongodb = mongoServer.db;
+      mongodb.dropCollection('random');
+    })
+    .then((_) => mongodb.removeLocks())
+    .then((_){
+        mongoClient = new MongoClient("127.0.0.1", 27001);
 
         pub = new Publisher();
         pub.publish('a', (_) {
@@ -79,18 +97,24 @@ run() {
         });
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
-        requestHandler.registerDefaultHandler(pub.handleSyncRequest);
+        requestHandler.registerHandler('sync',pub.handleSyncRequest);
+        requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
 
-        subAll = new Subscription('a', connection, 'author_sub_all', new IdGenerator('a'))..restart();
+        subAll = new Subscription('a', "random", connection, new IdGenerator('a'),
+            ftransactorByAuthor('author_sub_all'), updateLock)..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author_sub_all2', new IdGenerator('b'))..restart();
+        subAll2 = new Subscription('a', "random", connection, new IdGenerator('b'),
+            ftransactorByAuthor('author_sub_all'), updateLock)..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author_sub_a', new IdGenerator('c'))..restart();
+        subA = new Subscription('b', "random", connection, new IdGenerator('c'),
+            ftransactorByAuthor('author_sub_a'), updateLock)..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author_sub_aa', new IdGenerator('d'))..restart();
+        subAa = new Subscription('c', "random", connection, new IdGenerator('d'),
+            ftransactorByAuthor('author_sub_aa'), updateLock)..restart();
         colAa = subAa.collection;
-        subArgs = new Subscription('withArgs', connection, 'author_sub_args', new IdGenerator('d'))
+        subArgs = new Subscription('withArgs', "random", connection, new IdGenerator('d'),
+            ftransactorByAuthor('author_sub_args'), updateLock)
                         ..restart({'name': 'aa'});
         colArgs = subArgs.collection;
 
@@ -112,21 +136,23 @@ run() {
     return Future.forEach(itemsToClose, (item) {
       return item.dispose();
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongodb.close());
+      .then((_) => mongodb.close())
+      .then((_) => mongoServer.close());
   });
 
   executeSubscriptionActions(List actions) {
     return
-    mongodb.dropCollection('random').then((_) =>
-    mongodb.removeLocks()).then((_) =>
-    subAll.initialSync).then((_) =>
-    subAll2.initialSync).then((_) =>
+    mongodb.dropCollection('random').then((_) {
+      return mongodb.removeLocks();}).then((_) =>
+      mongoClient.connected).then((_) {
+      return subAll.initialSync;}).then((_) {
+      return subAll2.initialSync;}).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
     subArgs.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
-      return new Future.delayed(new Duration(milliseconds: 200));
+      return new Future.delayed(new Duration(milliseconds: 300));
     }));
   }
 
@@ -135,7 +161,7 @@ run() {
 
     List actions = [
       () => colAll.add(data),
-      () => expect(data == colAll.first, isTrue)
+      () => expect(data == colAll.first, isTrue),
     ];
 
     return executeSubscriptionActions(actions);
@@ -179,12 +205,12 @@ run() {
   });
 
   test('locking working properly', (){
-    preventUpdate(Subscription subscription){
-      return (event) => expect(subscription.updateLock, isTrue);
+    checkPreventUpdate(Subscription subscription){
+      return (event) => expect(subscription.updateLock.value, isTrue);
     }
-    colAll2.onChangeSync.listen(preventUpdate(subAll2));
-    colA.onChangeSync.listen(preventUpdate(subA));
-    colAa.onChangeSync.listen(preventUpdate(subAa));
+    colAll2.onChangeSync.listen(checkPreventUpdate(subAll2));
+    colA.onChangeSync.listen(checkPreventUpdate(subA));
+    colAa.onChangeSync.listen(checkPreventUpdate(subAa));
     List actions = [
       () { colAll.add(data1);
            colAll.removeBy('_id', '0');
@@ -214,10 +240,12 @@ run() {
   test('test collection filtered change', () {
     List actions = [
       () => colAll.add(dataA),
-      () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello'}])),
+      () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello',
+         '__clean_collection': 'random'}])),
       () => expect(colAa, unorderedEquals([])),
       () => dataA['a'] = {'a': 'hello'},
-      () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'}}])),
+      () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'},
+         '__clean_collection': 'random'}])),
       () => expect(colA, unorderedEquals([])),
     ];
 
@@ -253,14 +281,17 @@ run() {
 
   test('test collection fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_pos', connection, 'author5', new IdGenerator('e'))..restart();
+    Subscription subMapped = new Subscription('mapped_pos', 'random', connection, new IdGenerator('e'),
+        ftransactorByAuthor('author5'), updateLock)..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'a': 1}])),
-      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart(),
+      () => newSub = new Subscription(subMapped.resourceName, subMapped.mongoCollectionName,
+          connection, new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'),
+          updateLock)..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
@@ -271,14 +302,17 @@ run() {
 
   test('test collection excluded fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_neg', connection, 'author5', new IdGenerator('e'))..restart();
+    Subscription subMapped = new Subscription('mapped_neg', "random", connection, new IdGenerator('e'),
+        ftransactorByAuthor('author5'), updateLock)..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'b': 3, 'c': 2}])),
-      () => newSub = new Subscription(subMapped.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart(),
+      () => newSub = new Subscription(subMapped.resourceName, subMapped.mongoCollectionName,
+          connection, new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'),
+          updateLock)..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
@@ -292,7 +326,7 @@ run() {
     DataMap morders = new DataMap();
     DataList orders = new DataList();
     colAll2.onChangeSync.listen((event){
-      expect(subAll2.updateLock, isTrue);
+      expect(subAll2.updateLock.value, isTrue);
     });
     List actions = [
       () => colAll.add({'order' : orders}),
@@ -305,11 +339,25 @@ run() {
 
   });
 
+  skip_test('wtf', (){
+    List actions = [
+      ()  { colAll.add(data1); colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
+//      ()  { colAll.add(data1);},
+//      ()  { colAll.remove(data1);},
+//      ()  { colAll.add(data1);},
+      () => expect(colAll.first == data1, isTrue),
+    ];
+
+    return executeSubscriptionActions(actions);
+
+  });
+
   test('add-remove-add', () {
     List actions = [
-      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
+      () {colAll.add(data1); colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
-      () {colAll.remove(data1); colAll.add(data1);},
+      () {colAll.removeBy('_id', data1['_id']);},
+      () {colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
     ];
 
@@ -317,18 +365,6 @@ run() {
 
   });
 
-
-  test('add-remove-add', () {
-    List actions = [
-      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
-      () => expect(colAll, unorderedEquals([data1])),
-      () {colAll.remove(data1); colAll.add(data1);},
-      () => expect(colAll, unorderedEquals([data1])),
-    ];
-
-    return executeSubscriptionActions(actions);
-
-  });
 
   test("restart immediately renews initialSync", (){
     return subArgs.initialSync.then((_){

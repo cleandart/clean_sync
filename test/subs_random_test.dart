@@ -73,10 +73,14 @@ run(count, cache, {failProb: 0}) {
   DataMap data4;
 
   Publisher pub;
+  DataReference updateLock;
+  ftransactorByAuthor(author) => new Transactor(connection, updateLock,
+      author, new IdGenerator('f'));
 
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
 
   setUp((){
+    updateLock = new DataReference(false);
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks()).then((_){
@@ -105,16 +109,20 @@ run(count, cache, {failProb: 0}) {
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
 
-        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'))..restart();
+        subAll = new Subscription('a', 'random', connection, new IdGenerator('a'),
+            ftransactorByAuthor('author1'), updateLock)..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'))..restart();
+        subAll2 = new Subscription('a', 'random', connection, new IdGenerator('b'),
+            ftransactorByAuthor('author2'), updateLock)..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'))..restart();
+        subA = new Subscription('b', 'random', connection, new IdGenerator('c'),
+            ftransactorByAuthor('author3'), updateLock)..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'))..restart();
+        subAa = new Subscription('c', 'random', connection, new IdGenerator('d'),
+            ftransactorByAuthor('author4'), updateLock)..restart();
         colAa = subAa.collection;
         subNoMatch = new Subscription('d', connection, 'author5',
-            new IdGenerator('e'))..restart();
+            new IdGenerator('e'), ftransactorByAuthor('author5'), updateLock)..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
@@ -267,7 +275,8 @@ run(count, cache, {failProb: 0}) {
         Subscription newSub;
         res = res
           .then((_) =>
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart())
+            newSub = new Subscription(sub.resourceName, connection, 'dummyAuthor',
+                new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'), updateLock)..restart())
           .then((_) =>
               newSub.initialSync)
           .then((_){

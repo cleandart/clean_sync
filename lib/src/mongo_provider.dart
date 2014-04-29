@@ -696,6 +696,8 @@ class MongoProvider implements DataProvider {
 
               _stripCleanVersion(record['before']);
               _stripCleanVersion(record['after']);
+              record["after"][COLLECTION_NAME] = this.collection.collectionName;
+              record["before"][COLLECTION_NAME] = this.collection.collectionName;
 
               if(before.contains(record['_id']) && after.contains(record['_id']))
               {
