@@ -4,12 +4,12 @@
 
 part of clean_sync.client;
 
-final _defaultSubscriptionFactory =
+final defaultSubscriptionFactory =
     (resourceName, mongoCollectionName, connection, idGenerator, transactor, updateLock) =>
         new Subscription(resourceName, mongoCollectionName, connection,
             idGenerator, transactor, updateLock);
 
-final _defaultTransactorFactory =
+final defaultTransactorFactory =
     (connection, updateLock, author, idGenerator) =>
         new Transactor(connection, updateLock, author, idGenerator);
 /**
@@ -29,7 +29,7 @@ final _defaultTransactorFactory =
 class Subscriber {
   Connection _connection;
   String _idPrefix = null;
-  final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
+  final IdGenerator _dataIdGenerator;
   final _createSubscription;
   final _createTransactor;
   DataReference updateLock;
@@ -37,8 +37,7 @@ class Subscriber {
   /**
    * Dependency injection constructor used mainly in tests.
    */
-  Subscriber.config(this._connection, this._dataIdGenerator,
-           this._subscriptionIdGenerator, this._createSubscription,
+  Subscriber.config(this._connection, this._dataIdGenerator, this._createSubscription,
            this._createTransactor, this.updateLock);
 
 
@@ -46,8 +45,7 @@ class Subscriber {
    * Creates new instance communicating with server using the [connection].
    */
   Subscriber(connection) : this.config(connection, new IdGenerator(),
-      new IdGenerator(), _defaultSubscriptionFactory, _defaultTransactorFactory,
-      new DataReference(false));
+      defaultSubscriptionFactory, defaultTransactorFactory, new DataReference(false));
 
   Future _loadIdPrefix() =>_connection.send(
         () => new ClientRequest("sync", {"action" : "get_id_prefix"})
@@ -71,7 +69,6 @@ class Subscriber {
 
     return idPrefix.then((prefix) {
       _idPrefix = prefix;
-      _subscriptionIdGenerator.prefix = prefix;
       _dataIdGenerator.prefix = prefix;
     });
   }
@@ -103,7 +100,7 @@ class Subscriber {
   }
 
   Transactor createTransactor(){
-    String author = _subscriptionIdGenerator.next();
+    String author = _dataIdGenerator.next();
     return _createTransactor(this._connection, this.updateLock, author, _dataIdGenerator);
   }
 }

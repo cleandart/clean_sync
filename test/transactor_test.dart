@@ -1,6 +1,6 @@
 library transactor_test;
 import 'package:unittest/unittest.dart';
-import 'package:unittest/mock.dart';
+import 'package:mock/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_sync/mongo_server.dart';
@@ -36,10 +36,10 @@ void run() {
       february = new DataMap.from({'__clean_collection': 'months', '_id': '2', 'name': 'february'});
 
       transactor.registerClientOperation('mockOper',
-        operation: (args, {docs, colls}) {
-          mockOperColls = colls;
-          mockOperArgs = args;
-          mockOperDocs = docs;
+        operation: (ClientOperationCall coCall) {
+          mockOperColls = coCall.colls;
+          mockOperArgs = coCall.args;
+          mockOperDocs = coCall.docs;
         }
       );
 

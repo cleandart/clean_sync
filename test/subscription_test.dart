@@ -5,7 +5,7 @@
 library client_test;
 
 import 'package:unittest/unittest.dart';
-import 'package:unittest/mock.dart';
+import 'package:mock/mock.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/common.dart';

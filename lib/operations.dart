@@ -1,6 +1,8 @@
 import 'package:clean_sync/server.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_data/clean_data.dart';
+import 'package:logging/logging.dart';
+
 
 class ValidationException implements Exception {
   final String error;
@@ -8,6 +10,9 @@ class ValidationException implements Exception {
   ValidationException(this.error, [this.stackTrace]);
   String toString() => error;
 }
+
+Logger logger = new Logger('mongo_wrapper_logger');
+
 
 class ServerOperation {
   String name;
@@ -51,7 +56,7 @@ class ClientOperation {
 List<List> incompatibleOperations = [
   [
     new ServerOperation('add',
-      before: (OperationCall opCall) {
+      before: (ServerOperationCall opCall) {
         if (!opCall.args.containsKey("_id")) throw new ValidationException("Document does not contain _id");
 
         return opCall.colls[0].find({"_id": opCall.args["_id"]}).data()
@@ -65,19 +70,18 @@ List<List> incompatibleOperations = [
         });
       },
 
-      operation: (OperationCall opCall) {
-        print('fff inserting ${opCall.args}');
+      operation: (ServerOperationCall opCall) {
         return opCall.colls[0].add(opCall.args, '');
       }),
 
     new ClientOperation('add',
-      operation: (OperationCall opCall) {
+      operation: (ServerOperationCall opCall) {
         opCall.colls[0].add(opCall.args, '');
       })
   ],
   [
     new ServerOperation('remove',
-      before: (OperationCall opCall) {
+      before: (ServerOperationCall opCall) {
         if (!opCall.args.containsKey("_id")) throw new ValidationException("Args should contain _id");
         return opCall.colls[0].find({"_id": opCall.args["_id"]}).findOne()
             .catchError((e,s) =>
@@ -85,38 +89,36 @@ List<List> incompatibleOperations = [
           throw new ValidationException("No document with given _id found"));
 
       },
-      operation: (OperationCall opCall) {
+      operation: (ServerOperationCall opCall) {
         return opCall.colls[0].remove(opCall.args["_id"], "");
       }),
 
     new ClientOperation('remove',
-      operation: (OperationCall opCall){
-        print('fff removing ${opCall.args}');
+      operation: (ServerOperationCall opCall){
         opCall.colls[0].remove(opCall.args["_id"], "");
       })
   ],
 
   [
     new ServerOperation('addAll',
-      operation: (OperationCall opCall) {
+      operation: (ServerOperationCall opCall) {
         return opCall.colls[0].addAll(opCall.args["data"], "");
       }),
 
     new ClientOperation('addAll',
-      operation: (OperationCall opCall){
+      operation: (ServerOperationCall opCall){
         opCall.colls[0].addAll(opCall.args["data"], "");
       })
   ],
 
   [
     new ServerOperation('removeAll',
-      operation: (OperationCall opCall) {
-        print('remove all, args: ${opCall.args}');
+      operation: (ServerOperationCall opCall) {
         return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
       }),
 
     new ClientOperation('removeAll',
-      operation: (OperationCall opCall){
+      operation: (ServerOperationCall opCall){
         opCall.colls[0].remove(opCall.args["_id"], "");
       })
   ]
@@ -126,15 +128,14 @@ List<List> incompatibleOperations = [
 
 List<ServerOperation> commonOperations = [
   new ServerOperation('change',
-    before: (OperationCall opCall) {
+    before: (ServerOperationCall opCall) {
       if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
     },
-    operation: (OperationCall opCall) {
+    operation: (ServerOperationCall opCall) {
       try {
-      applyJSON(opCall.args, opCall.docs[0]);
+        applyJSON(opCall.args, opCall.docs[0]);
       } catch (e, s){
-        //TODO: use logger properly
-       print('could not apply ${opCall.args} to ${opCall.docs[0]}');
+        logger.warning("couldn not apply change properly", e, s);
       }
     })
 ];

@@ -48,60 +48,60 @@ void run() {
         client = new MongoClient("127.0.0.1", 27001);
 
         server.registerOperation("save",
-            operation: (OperationCall opCall){
+            operation: (ServerOperationCall opCall){
               return opCall.colls[0].add(opCall.args, "");
             }
         );
         server.registerOperation("delete",
-            operation: (OperationCall opCall) {
+            operation: (ServerOperationCall opCall) {
               return opCall.colls[0].remove(opCall.args["_id"],"");
             }
         );
         server.registerOperation("set",
-            before: (OperationCall opCall) {
+            before: (ServerOperationCall opCall) {
               if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
               if ((opCall.docs is List) && (opCall.docs.length > 1)) throw new ValidationException("Too many documents");
 
             },
-            operation: (OperationCall opCall) {
+            operation: (ServerOperationCall opCall) {
               opCall.args.forEach((k,v) => opCall.docs[0][k] = v);
             }
         );
         server.registerOperation("throw",
-            before: (OperationCall opCall) {
+            before: (ServerOperationCall opCall) {
               lastOperation = "before";
               if (opCall.args['throw'] == 'before') throw new ValidationException("Before threw");
             },
-            operation: (OperationCall opCall) {
+            operation: (ServerOperationCall opCall) {
               lastOperation = "operation";
               if (opCall.args['throw'] == 'operation') throw new Exception("Operation threw");
             },
-            after: (OperationCall opCall) {
+            after: (ServerOperationCall opCall) {
               lastOperation = "after";
               if (opCall.args['throw'] == 'after') throw new Exception("After threw");
             }
         );
 
         server.registerOperation("change ref1",
-            before: (OperationCall opCall) {
+            before: (ServerOperationCall opCall) {
               lastOperationRef1.value = "before";
             },
-            operation: (OperationCall opCall) {
+            operation: (ServerOperationCall opCall) {
               lastOperationRef1.value = "operation";
             },
-            after: (OperationCall opCall) {
+            after: (ServerOperationCall opCall) {
               lastOperationRef1.value = "after";
             }
         );
 
         server.registerOperation("change ref2",
-            before: (OperationCall opCall) {
+            before: (ServerOperationCall opCall) {
               lastOperationRef2.value = "before";
             },
-            operation: (OperationCall opCall) {
+            operation: (ServerOperationCall opCall) {
               lastOperationRef2.value = "operation";
             },
-            after: (OperationCall opCall) {
+            after: (ServerOperationCall opCall) {
               lastOperationRef2.value = "after";
             }
         );
@@ -129,6 +129,7 @@ void run() {
     });
 
     test("collection name should be included in document", () {
+      print(server.operations['set'].before);
       // given
       var id = idgen.next();
       var data = {'_id' : '$id', 'name' : 'some name', 'credit' : 5000};
@@ -148,26 +149,22 @@ void run() {
     test("should not perform operation if before throws", () {
       var caught = false;
       return client.connected.then((_) {
-        var operation = client.p_performOperation("throw", args:{'throw':'before'})
-        .catchError((e,s) {
-          print(e);
-          print(s);
-          expect(e,isMap);
-          expect(e.containsKey('validation'), isTrue);
-          caught = true;
-        }).then((_){
-          expect(caught, isTrue);
+        return client.p_performOperation("throw", args:{'throw':'before'})
+            .then((res){
+            print(res);
+            expect(res, contains('error'));
         });
       });
     });
 
     test("should not perform after if operation throws", () {
       return client.connected.then((_) {
-        var operation = client.p_performOperation("throw", args:{'throw':'operation'})
-        .whenComplete((){
+        return client.p_performOperation("throw", args:{'throw':'operation'})
+        .then((res){
+          print('tututu ${res}');
+          expect(res, contains('error'));
           expect(lastOperation, equals("operation"));
         });
-        expect(operation, throws);
       });
     });
 

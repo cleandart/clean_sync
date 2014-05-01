@@ -3,6 +3,14 @@ part of clean_sync.client;
 // Should have the same registered operations as MongoServer
 // Should apply changes to local collection
 
+class ClientOperationCall {
+  String name;
+  List<Map> docs;
+  List<DataSet> colls;
+  Map args;
+  ClientOperationCall(this.name, {this.docs, this.colls, this.args});
+}
+
 class Transactor {
   Connection _connection;
   DataReference<bool> updateLock;
@@ -29,7 +37,6 @@ class Transactor {
   }
 
   Future performServerOperation(String name, Map args, {docs, colls, shouldDecorateArgs: true}){
-    print('server operation: ${name}');
     if (shouldDecorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     List<String> serverColls;
     List<List<String>> serverDocs;
@@ -65,7 +72,8 @@ class Transactor {
     ClientOperation op = operations[name];
     if (shouldDecorateArgs) op.argsDecorator.forEach((f) => f(args));
     updateLock.value = true;
-    op.operation(args, colls: clientColls, docs: docs);
+    op.operation(new ClientOperationCall(name, args: args, colls: clientColls,
+        docs: docs));
     updateLock.value = false;
   }
 

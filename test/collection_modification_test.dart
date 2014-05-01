@@ -1,9 +1,7 @@
 library collection_modification_test;
 
 import "package:unittest/unittest.dart";
-import "package:clean_sync/server.dart";
 import "dart:async";
-import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
@@ -11,8 +9,12 @@ import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import './subscription_test.dart';
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/client.dart';
+import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
+import 'package:clean_sync/mongo_server.dart';
+
+
 
 stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
 ..remove('__clean_collection'));
@@ -52,76 +54,77 @@ run() {
   Transactor transactor;
   MongoServer mongoServer;
   MongoClient mongoClient;
+  Subscriber subscriber;
   ftransactorByAuthor(author) => new Transactor(connection, updateLock,
       author, new IdGenerator('f'));
 
   setUp((){
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-//    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
-    updateLock = new DataReference(false);
-
     mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
 
     return mongoServer.start()
-    .then((_) {
-      mongodb = mongoServer.db;
-      mongodb.dropCollection('random');
-    })
-    .then((_) => mongodb.removeLocks())
-    .then((_){
+      .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
-
+        return mongoClient.connected;
+      }).then((_){
         pub = new Publisher();
-        pub.publish('a', (_) {
-          return mongodb.collection("random").find({});
-        });
-
-        pub.publish('b', (_) {
-          return mongodb.collection("random").find({'a': 'hello'});
-        });
-
-        pub.publish('c', (_) {
-          return mongodb.collection("random").find({'a.a': 'hello'});
-        });
-
-        pub.publish('withArgs', (args) {
-          return mongodb.collection("random").find({'a': args['name']});
-        });
-
-        pub.publish('mapped_pos', (_) {
-          return mongodb.collection("random").find({'b': 3}).fields(['a']);
-        });
-
-        pub.publish('mapped_neg', (_) {
-          return mongodb.collection("random").find({'b': 3}).excludeFields(['a']);
-        });
-
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerHandler('sync',pub.handleSyncRequest);
         requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
+        updateLock = new DataReference(false);
+        subscriber = new Subscriber.config(connection, new IdGenerator(), defaultSubscriptionFactory, defaultTransactorFactory,
+            updateLock);
+  //    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
+      })
+      .then((_) => subscriber.init("prefix"))
+      .then((_) {
+        mongodb = mongoServer.db;
+        mongodb.dropCollection('random');
+      })
+      .then((_) => mongodb.removeLocks())
+      .then((_){
 
-        subAll = new Subscription('a', "random", connection, new IdGenerator('a'),
-            ftransactorByAuthor('author_sub_all'), updateLock)..restart();
-        colAll = subAll.collection;
-        subAll2 = new Subscription('a', "random", connection, new IdGenerator('b'),
-            ftransactorByAuthor('author_sub_all'), updateLock)..restart();
-        colAll2 = subAll2.collection;
-        subA = new Subscription('b', "random", connection, new IdGenerator('c'),
-            ftransactorByAuthor('author_sub_a'), updateLock)..restart();
-        colA = subA.collection;
-        subAa = new Subscription('c', "random", connection, new IdGenerator('d'),
-            ftransactorByAuthor('author_sub_aa'), updateLock)..restart();
-        colAa = subAa.collection;
-        subArgs = new Subscription('withArgs', "random", connection, new IdGenerator('d'),
-            ftransactorByAuthor('author_sub_args'), updateLock)
-                        ..restart({'name': 'aa'});
-        colArgs = subArgs.collection;
+          pub.publish('a', (_) {
+            return mongodb.collection("random").find({});
+          });
 
-        data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
-        data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
-        dataA = new DataMap.from({'_id': '2', 'a': 'hello'});
-    });
+          pub.publish('b', (_) {
+            return mongodb.collection("random").find({'a': 'hello'});
+          });
+
+          pub.publish('c', (_) {
+            return mongodb.collection("random").find({'a.a': 'hello'});
+          });
+
+          pub.publish('withArgs', (args) {
+            return mongodb.collection("random").find({'a': args['name']});
+          });
+
+          pub.publish('mapped_pos', (_) {
+            return mongodb.collection("random").find({'b': 3}).fields(['a']);
+          });
+
+          pub.publish('mapped_neg', (_) {
+            return mongodb.collection("random").find({'b': 3}).excludeFields(['a']);
+          });
+
+
+          subAll = subscriber.subscribe('a', 'random')..restart();
+          colAll = subAll.collection;
+          subAll2 = subscriber.subscribe('a', 'random')..restart();
+          colAll2 = subAll2.collection;
+          subA = subscriber.subscribe('b', 'random')..restart();
+          colA = subA.collection;
+          subAa = subscriber.subscribe('c', 'random')..restart();
+          colAa = subAa.collection;
+          subArgs = subscriber.subscribe('withArgs', 'random')..restart({'name': 'aa'});
+          colArgs = subArgs.collection;
+
+          data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
+          data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
+          dataA = new DataMap.from({'_id': '2', 'a': 'hello'});
+      });
   });
 
   tearDown(() {

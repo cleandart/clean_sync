@@ -60,7 +60,7 @@ class DocumentNotFoundException implements Exception {
   String toString() => error;
 }
 
-class OperationCall {
+class ServerOperationCall {
   String name;
   List<DataMap> docs;
   List<MongoProvider> colls;
@@ -69,7 +69,7 @@ class OperationCall {
   String author;
   String clientVersion;
 
-  OperationCall(this.name, {this.docs, this.colls,
+  ServerOperationCall(this.name, {this.docs, this.colls,
     this.args, this.user, this.author, this.clientVersion});
 
 }
@@ -175,7 +175,8 @@ class MongoServer {
   registerOperation(name, {operation, before, after}){
     logger.fine("registering operation $name");
     operations[name] = new ServerOperation(name, operation: operation,
-        before: before == null ? [] : [before], after: after == null ? [] : [after]);
+        before: before, after: after);
+//        before: before == null ? [] : [before], after: after == null ? [] : [after]);
   }
 
   registerBeforeCallback(operationName, before) {
@@ -199,7 +200,7 @@ class MongoServer {
     ServerOperation op = operations[opCall.name];
     List fullDocs = [];
     List fullColls = [];
-    OperationCall fOpCall;
+    ServerOperationCall fOpCall;
     Map user;
     MongoProvider mongoProvider;
 
@@ -229,7 +230,7 @@ class MongoServer {
     .then((_user){
       logger.finer('operation - before');
       user = _user;
-      fOpCall = new OperationCall(opCall.name, docs: fullDocs,
+      fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: _user, args: opCall.args, author: opCall.author,
           clientVersion: opCall.clientVersion);
       return Future.forEach(op.before, (opBefore) => opBefore(fOpCall));
@@ -238,7 +239,6 @@ class MongoServer {
       return op.operation(fOpCall);
     }).then((_) {
       return Future.forEach(fullDocs, (d) {
-        print('fff change: ${d} "clientVersion: ${opCall.clientVersion}');
         return db.collection(d["__clean_collection"]).change(d["_id"], d,
             opCall.author, clientVersion: opCall.clientVersion);
       });
@@ -252,14 +252,13 @@ class MongoServer {
         logger.warning('Validation failed', e,  s);
         opCall.completer.complete({'error':{'validation':'$e'}});
       } else if (e is DocumentNotFoundException) {
-        print('fufufu');
         logger.warning('Document not found', e, s);
         opCall.completer.complete({'error':{'doc_not_found':'$e'}});
       } else {
         logger.shout("Some other error occured !",e,s);
         opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
-    }, test: (e) => e is DocumentNotFoundException);
+    });
   }
 
 }

@@ -45,7 +45,6 @@ class MongoClient {
             // We could have received more JSONs at once
             var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
             logger.finer("JSON resp: $responses");
-            print(responses);
             responses.forEach((resp) {
               logger.fine('response obtained: ${resp}');
               Completer completer = reqToResp.remove(resp['operationId']);
@@ -53,9 +52,9 @@ class MongoClient {
                 completer.complete(resp['result']);
               } else if (resp.containsKey('error')) {
                 //TODO: think about this
-                completer.complete(resp['error']);
+                completer.complete(resp);
               } else {
-                completer.completeError('MongoClient - unknown error');
+                completer.complete('MongoClient - unknown error');
               }
             });
           });

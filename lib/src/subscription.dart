@@ -108,11 +108,6 @@ num handleDiff(List<Map> diff, Subscription subscription) {
   var version = subscription._version;
   num res = -1;
 
-//  if (diff.isNotEmpty) {
-//    print(diff);
-//  }
-
-
   try {
     diff.forEach((Map change) {
       var _records = collection.findBy("_id", change["_id"]);
@@ -136,7 +131,6 @@ num handleDiff(List<Map> diff, Subscription subscription) {
         res = max(res, change['version']);
         if (record == null) {
           logger.finer('aplying changes (add)');
-          print('diff ${subscription._transactor.author} add');
           collection.add(change["data"]);
         } else {
           logger.finer('add discarded; same id already present');
@@ -156,7 +150,6 @@ num handleDiff(List<Map> diff, Subscription subscription) {
         }
       }
       else if (action == "remove" ) {
-        print('diff ${subscription._transactor.author} remove');
         logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
@@ -283,7 +276,6 @@ class Subscription {
     // resend all failed changes
 //    _sentItems.forEach((id, item) {
 //      if (item["failed"]) {
-//        print('action ${id}');
 //        //actions.add(_send(id, () => item["data"]));
 //        actions.add(item["data"]());
 //      }
@@ -425,7 +417,6 @@ class Subscription {
           requestLock = false;
           // id data and version was sent, diff is set to null
           if (response['error'] != null) {
-            print('tututu ${response}');
             throw new Exception(response['error']);
           }
           if(response['diff'] == null) {
@@ -447,9 +438,7 @@ class Subscription {
             requestLock = false;
           }
           else {
-            print('nunu');
             logger.shout('', e, s);
-            print('nunu');
             throw e;
           }
         });

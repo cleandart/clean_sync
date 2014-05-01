@@ -1,12 +1,12 @@
 library subs_random_test;
 
 import "package:unittest/unittest.dart";
+import "package:mock/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';
 import 'package:clean_sync/client.dart';
-import 'package:unittest/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
@@ -44,9 +44,9 @@ main() {
   config.timeout = null;
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
-  testLogger.level = Level.FINER;
+  testLogger.level = Level.INFO;
 //  (new Logger('clean_ajax')).level = Level.INFO;
-  (new Logger('clean_sync')).level = Level.FINER;
+//  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
