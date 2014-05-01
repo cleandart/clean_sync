@@ -641,6 +641,12 @@ class MongoProvider implements DataProvider {
     // selects records that fulfill _selector before or after change
     Map beforeOrAfterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
 
+    if (_limit > NOLIMIT || _skip > NOSKIP) {
+      throw new DiffNotPossibleException();
+      //throw new Exception('not correctly implemented');
+//              return _limitedDiffFromVersion(diff);
+    }
+
     // {before: {GT: {}}} to handle selectors like {before.age: null}
     List<Map> _beforeSelector = [{"version" : {GT : version}}, {"before" : {GT: {}}}];
     List<Map> _afterSelector = [{"version" : {GT : version}}, {"after" : {GT: {}}}];
@@ -731,11 +737,6 @@ class MongoProvider implements DataProvider {
               }
             });
 
-            if (_limit > NOLIMIT || _skip > NOSKIP) {
-              throw new DiffNotPossibleException();
-              //throw new Exception('not correctly implemented');
-//              return _limitedDiffFromVersion(diff);
-            }
 
             return _prettify(diff);
     }).catchError((e){
