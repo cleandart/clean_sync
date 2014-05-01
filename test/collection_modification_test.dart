@@ -8,7 +8,6 @@ import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
-import './subscription_test.dart';
 import 'package:clean_sync/client.dart';
 import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
@@ -55,8 +54,6 @@ run() {
   MongoServer mongoServer;
   MongoClient mongoClient;
   Subscriber subscriber;
-  ftransactorByAuthor(author) => new Transactor(connection, updateLock,
-      author, new IdGenerator('f'));
 
   setUp((){
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
@@ -75,7 +72,6 @@ run() {
         updateLock = new DataReference(false);
         subscriber = new Subscriber.config(connection, new IdGenerator(), defaultSubscriptionFactory, defaultTransactorFactory,
             updateLock);
-  //    mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
       })
       .then((_) => subscriber.init("prefix"))
       .then((_) {
@@ -284,17 +280,15 @@ run() {
 
   test('test collection fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_pos', 'random', connection, new IdGenerator('e'),
-        ftransactorByAuthor('author5'), updateLock)..restart();
+    Subscription subMapped = subscriber.subscribe('mapped_pos', 'random')..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'a': 1}])),
-      () => newSub = new Subscription(subMapped.resourceName, subMapped.mongoCollectionName,
-          connection, new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'),
-          updateLock)..restart(),
+      () => newSub = subscriber.subscribe(subMapped.resourceName,
+               subMapped.mongoCollectionName)..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
@@ -305,17 +299,15 @@ run() {
 
   test('test collection excluded fields', () {
     Subscription newSub;
-    Subscription subMapped = new Subscription('mapped_neg', "random", connection, new IdGenerator('e'),
-        ftransactorByAuthor('author5'), updateLock)..restart();
+    Subscription subMapped = subscriber.subscribe('mapped_neg', 'random')..restart();
     DataSet colMapped = subMapped.collection;
 
     List actions = [
       () => colAll.add({'a': 1, 'b': 3, 'c': 2}),
       () => colAll.add({'a': 2, 'b': 4, 'c': 2}),
       () => expect(stripIds(colMapped), equals([{'b': 3, 'c': 2}])),
-      () => newSub = new Subscription(subMapped.resourceName, subMapped.mongoCollectionName,
-          connection, new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'),
-          updateLock)..restart(),
+      () => newSub = subscriber.subscribe(subMapped.resourceName,
+               subMapped.mongoCollectionName)..restart(),
       () => expect(colMapped, unorderedEquals(newSub.collection)),
       () {subMapped.dispose(); newSub.dispose();}
     ];
