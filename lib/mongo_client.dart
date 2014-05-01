@@ -52,7 +52,8 @@ class MongoClient {
               if (resp.containsKey('result')) {
                 completer.complete(resp['result']);
               } else if (resp.containsKey('error')) {
-                completer.completeError(resp['error']);
+                //TODO: think about this
+                completer.complete(resp['error']);
               } else {
                 completer.completeError('MongoClient - unknown error');
               }

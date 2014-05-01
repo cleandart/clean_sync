@@ -425,6 +425,7 @@ class Subscription {
           requestLock = false;
           // id data and version was sent, diff is set to null
           if (response['error'] != null) {
+            print('tututu ${response}');
             throw new Exception(response['error']);
           }
           if(response['diff'] == null) {
@@ -446,7 +447,9 @@ class Subscription {
             requestLock = false;
           }
           else {
+            print('nunu');
             logger.shout('', e, s);
+            print('nunu');
             throw e;
           }
         });

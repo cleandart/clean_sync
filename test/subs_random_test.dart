@@ -13,6 +13,9 @@ import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
+import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/mongo_client.dart';
+
 
 
 Random rng = new Random();
@@ -42,8 +45,8 @@ main() {
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
   testLogger.level = Level.FINER;
-  (new Logger('clean_ajax')).level = Level.INFO;
-//  (new Logger('clean_sync')).level = Level.FINER;
+//  (new Logger('clean_ajax')).level = Level.INFO;
+  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
@@ -66,6 +69,8 @@ run(count, cache, {failProb: 0}) {
   Subscription subA;
   Subscription subAa;
   Subscription subNoMatch;
+  MongoServer mongoServer;
+  MongoClient mongoClient;
 
   DataMap data1;
   DataMap data2;
@@ -78,12 +83,17 @@ run(count, cache, {failProb: 0}) {
       author, new IdGenerator('f'));
 
   mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
+  mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+
 
   setUp((){
     updateLock = new DataReference(false);
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks()).then((_){
+    .then((_) => mongodb.removeLocks())
+    .then((_) => mongoServer.start())
+    .then((_) {
+        mongoClient = new MongoClient("127.0.0.1", 27001);
         pub = new Publisher();
         var versionProvider = mongodb.collection("random");
         pub.publish('a', (_) {
@@ -105,6 +115,7 @@ run(count, cache, {failProb: 0}) {
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
+        requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
         transport = new LoopBackTransportStub(
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
@@ -121,7 +132,7 @@ run(count, cache, {failProb: 0}) {
         subAa = new Subscription('c', 'random', connection, new IdGenerator('d'),
             ftransactorByAuthor('author4'), updateLock)..restart();
         colAa = subAa.collection;
-        subNoMatch = new Subscription('d', connection, 'author5',
+        subNoMatch = new Subscription('d', 'random', connection,
             new IdGenerator('e'), ftransactorByAuthor('author5'), updateLock)..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
@@ -275,7 +286,7 @@ run(count, cache, {failProb: 0}) {
         Subscription newSub;
         res = res
           .then((_) =>
-            newSub = new Subscription(sub.resourceName, connection, 'dummyAuthor',
+            newSub = new Subscription(sub.resourceName, 'random', connection,
                 new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'), updateLock)..restart())
           .then((_) =>
               newSub.initialSync)

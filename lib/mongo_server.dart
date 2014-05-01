@@ -238,6 +238,7 @@ class MongoServer {
       return op.operation(fOpCall);
     }).then((_) {
       return Future.forEach(fullDocs, (d) {
+        print('fff change: ${d} "clientVersion: ${opCall.clientVersion}');
         return db.collection(d["__clean_collection"]).change(d["_id"], d,
             opCall.author, clientVersion: opCall.clientVersion);
       });
@@ -251,13 +252,14 @@ class MongoServer {
         logger.warning('Validation failed', e,  s);
         opCall.completer.complete({'error':{'validation':'$e'}});
       } else if (e is DocumentNotFoundException) {
+        print('fufufu');
         logger.warning('Document not found', e, s);
-        opCall.completer.complete({'error':{'query':'$e'}});
+        opCall.completer.complete({'error':{'doc_not_found':'$e'}});
       } else {
         logger.shout("Some other error occured !",e,s);
-        opCall.completer.complete({'error':{'unknown':'$e'}});
+        opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
-    });
+    }, test: (e) => e is DocumentNotFoundException);
   }
 
 }

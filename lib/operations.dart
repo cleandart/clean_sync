@@ -66,6 +66,7 @@ List<List> incompatibleOperations = [
       },
 
       operation: (OperationCall opCall) {
+        print('fff inserting ${opCall.args}');
         return opCall.colls[0].add(opCall.args, '');
       }),
 
@@ -90,6 +91,7 @@ List<List> incompatibleOperations = [
 
     new ClientOperation('remove',
       operation: (OperationCall opCall){
+        print('fff removing ${opCall.args}');
         opCall.colls[0].remove(opCall.args["_id"], "");
       })
   ],
@@ -109,6 +111,7 @@ List<List> incompatibleOperations = [
   [
     new ServerOperation('removeAll',
       operation: (OperationCall opCall) {
+        print('remove all, args: ${opCall.args}');
         return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
       }),
 
@@ -127,6 +130,11 @@ List<ServerOperation> commonOperations = [
       if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
     },
     operation: (OperationCall opCall) {
+      try {
       applyJSON(opCall.args, opCall.docs[0]);
+      } catch (e, s){
+        //TODO: use logger properly
+       print('could not apply ${opCall.args} to ${opCall.docs[0]}');
+      }
     })
 ];

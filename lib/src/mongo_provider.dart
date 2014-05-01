@@ -338,19 +338,26 @@ class MongoProvider implements DataProvider {
 
   Future writeOperation(String _id, String author, String action, Map newData,
                         {String clientVersion: null, upsert: false}) {
+    print('write operation called, id: ${_id}');
     cache.invalidate();
     num nextVersion;
     return _get_locks()
       .then((_){
           if (clientVersion != null) {
             return _clientVersionExists(clientVersion).then((exists) {
-              if (exists) throw true;
+              print('client version check!!');
+              if (exists) {
+                print('client version exists!!');
+                throw true;
+              }
             });
           }
       })
+      .then((_) => print('locks obtained'))
       .then((_) => collection.findOne({"_id" : _id}))
-      .then((Map oldData) {
 
+      .then((Map oldData) {
+        print('here oldData: ${oldData}');
         if (oldData == null) oldData = {};
         // check that current db state is consistent with required action
         var inferredAction;
@@ -372,6 +379,7 @@ class MongoProvider implements DataProvider {
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
+            print('tutu action: ${action} inferredAction: ${inferredAction}');
             if (inferredAction == 'remove' ){
               return collection.remove({'_id': _id});
             } else {
@@ -393,6 +401,7 @@ class MongoProvider implements DataProvider {
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
       .catchError((e) => _release_locks().then((_) {
+        print('catched: ${e}');
         if (e is! Exception){
           return e;
         } else {
@@ -408,11 +417,13 @@ class MongoProvider implements DataProvider {
   }
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
+    print("MP: change called");
     return writeOperation(_id, author, 'change', newData,
         clientVersion: clientVersion, upsert: upsert);
   }
 
   Future add(Map data, String author, {clientVersion: null}) {
+    print('MP: add called');
     return writeOperation(data['_id'], author, 'add', data,
         clientVersion: clientVersion);
   }
@@ -422,6 +433,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
+    print("MP: changeJson called");
     cache.invalidate();
 
     num nextVersion;
@@ -507,6 +519,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future update(selector, Map modifier(Map document), String author) {
+    print("MP: update called");
     cache.invalidate();
     num nextVersion;
     List oldData;
@@ -557,20 +570,27 @@ class MongoProvider implements DataProvider {
   }
 
   Future removeAll(query, String author) {
+    print("MP: removeAll called");
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
+        print('a');
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
-        return collection.remove(query).then((_) =>
-          _collectionHistory.insertAll(data.map((elem) => {
-            "before" : elem,
-            "after" : {},
-            "action" : "remove",
-            "author" : author,
-            "version" : nextVersion++
-        }).toList(growable: false)));
+        print('b ${data}');
+        return collection.remove(query).then((_) {
+            print('c');
+          if (data.isNotEmpty) {
+            return _collectionHistory.insertAll(data.map((elem) => {
+              "before" : elem,
+              "after" : {},
+              "action" : "remove",
+              "author" : author,
+              "version" : nextVersion++
+            }).toList(growable: false));
+          } else return [];
+        });
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -895,9 +915,14 @@ class MongoProvider implements DataProvider {
   }
 
   Future _release_locks() {
+    print('releasing locks');
     return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
     _lock.remove({'_id': collection.collectionName})).then((_) =>
-    true);
+    true)
+    .then((_) => print('locks released'))
+    .catchError((e, s){
+     print('during releasing locks, error occured: ${e} ${s}');
+    });
   }
 
   void _stripCleanVersion(dynamic data) {
