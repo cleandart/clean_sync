@@ -732,8 +732,9 @@ class MongoProvider implements DataProvider {
             });
 
             if (_limit > NOLIMIT || _skip > NOSKIP) {
+              throw new DiffNotPossibleException();
               //throw new Exception('not correctly implemented');
-              return _limitedDiffFromVersion(diff);
+//              return _limitedDiffFromVersion(diff);
             }
 
             return _prettify(diff);

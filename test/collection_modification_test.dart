@@ -130,7 +130,7 @@ run() {
     }));
   }
 
-  test('data added to the set is not cloned, if it is already DataMap', () {
+  skip_test('data added to the set is not cloned, if it is already DataMap', () {
     DataMap data = new DataMap.from({'_id': '0', 'a' : 'aa'});
 
     List actions = [
@@ -216,7 +216,7 @@ run() {
       () => colAll.add(dataA),
       () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello'}])),
       () => expect(colAa, unorderedEquals([])),
-      () => dataA['a'] = {'a': 'hello'},
+      () => colA.first['a'] = {'a': 'hello'},
       () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'}}])),
       () => expect(colA, unorderedEquals([])),
     ];
@@ -324,9 +324,9 @@ run() {
 
   test('add-remove-add', () {
     List actions = [
-      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
+      () {colAll.add(data1); colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
-      () {colAll.remove(data1); colAll.add(data1);},
+      () {colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
     ];
 
@@ -337,9 +337,9 @@ run() {
 
   test('add-remove-add', () {
     List actions = [
-      () {colAll.add(data1); colAll.remove(data1); colAll.add(data1);},
+      () {colAll.add(data1); colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
-      () {colAll.remove(data1); colAll.add(data1);},
+      () {colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
       () => expect(colAll, unorderedEquals([data1])),
     ];
 
