@@ -68,13 +68,13 @@ class MongoClient {
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
     logger.finest("Request-operation: $data");
-    return p_performOperation(data['operation'], docs: data["docs"],
+    return performOperation(data['operation'], docs: data["docs"],
         colls: data["colls"], args: data["args"],
         userId: request.authenticatedUserId, author: data["author"],
         clientVersion: data["clientVersion"]);
   }
 
-  Future p_performOperation(name, {docs, colls, args, userId, author, clientVersion}) {
+  Future performOperation(name, {docs, colls, args, userId, author, clientVersion}) {
     Completer completer = new Completer();
     String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;

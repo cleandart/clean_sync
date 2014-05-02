@@ -69,6 +69,7 @@ run(count, cache, {failProb: 0}) {
   Subscription subA;
   Subscription subAa;
   Subscription subNoMatch;
+  Subscriber subscriber;
   MongoServer mongoServer;
   MongoClient mongoClient;
 
@@ -119,6 +120,10 @@ run(count, cache, {failProb: 0}) {
         transport = new LoopBackTransportStub(
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
+
+        subscriber = new Subscriber.config(connection, new IdGenerator(), defaultSubscriptionFactory, defaultTransactorFactory,
+            updateLock);
+        subscriber.init('prefix');
 
         subAll = new Subscription('a', 'random', connection, new IdGenerator('a'),
             ftransactorByAuthor('author1'), updateLock)..restart();

@@ -57,20 +57,24 @@ class Subscriber {
    *
    * The method's purpose is to set an unique [idPrefix] that can be used in
    * '_id' generation in the client code. If the [init] is called without the
-   * [idPrefix], it is requested from the server.
+   * [idPrefix], it is requested from the server. If [idPrefix] is provided,
+   * everything is set synchronously and there's no need to wait for the Future returned.
    *
    * This method returns the [Future] that completes when the [idPrefix] is
    * obtained and set.
    */
   Future init([idPrefix = null]) {
-    idPrefix = (idPrefix == null) ?
-        _loadIdPrefix() :
-        new Future.value(idPrefix);
-
-    return idPrefix.then((prefix) {
-      _idPrefix = prefix;
-      _dataIdGenerator.prefix = prefix;
-    });
+    if (idPrefix == null) idPrefix = _loadIdPrefix();
+    if (idPrefix is Future) {
+      return idPrefix.then((prefix) {
+        _idPrefix = prefix;
+        _dataIdGenerator.prefix = prefix;
+      });
+    } else {
+      _idPrefix = idPrefix;
+      _dataIdGenerator.prefix = idPrefix;
+      return new Future.value(idPrefix);
+    }
   }
 
   /**

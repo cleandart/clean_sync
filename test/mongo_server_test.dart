@@ -120,7 +120,7 @@ void run() {
       var id = idgen.next();
       var args = {'_id' : '$id', 'name' : 'sample', 'credit' : 5000};
       return client.connected.then((_) =>
-        client.p_performOperation('save', colls: [testCollectionUser], args: args)
+        client.performOperation('save', colls: [testCollectionUser], args: args)
       )
       .catchError((e,s) => logger.shout("error", e, s))
       .then((_) {
@@ -140,7 +140,7 @@ void run() {
           data['name'] = 'another name';
           data.remove('_id');
           //then
-          expect(client.p_performOperation("set", args: data, docs: [['$id',data[COLLECTION_NAME]]]), completes);
+          expect(client.performOperation("set", args: data, docs: [['$id',data[COLLECTION_NAME]]]), completes);
         });
       });
 
@@ -149,7 +149,7 @@ void run() {
     test("should not perform operation if before throws", () {
       var caught = false;
       return client.connected.then((_) {
-        return client.p_performOperation("throw", args:{'throw':'before'})
+        return client.performOperation("throw", args:{'throw':'before'})
             .then((res){
             print(res);
             expect(res, contains('error'));
@@ -159,7 +159,7 @@ void run() {
 
     test("should not perform after if operation throws", () {
       return client.connected.then((_) {
-        return client.p_performOperation("throw", args:{'throw':'operation'})
+        return client.performOperation("throw", args:{'throw':'operation'})
         .then((res){
           print('tututu ${res}');
           expect(res, contains('error'));
@@ -171,13 +171,13 @@ void run() {
     test("should handle operations sent right after each other", () {
       return client.connected.then((_) {
         expect(Future.wait([
-          client.p_performOperation("dummy", args: {'a':'1'}),
-          client.p_performOperation("dummy", args: {'a':'2'}),
-          client.p_performOperation("dummy", args: {'a':'3'}),
-          client.p_performOperation("dummy", args: {'a':'4'}),
-          client.p_performOperation("dummy", args: {'a':'5'}),
-          client.p_performOperation("dummy", args: {'a':'6'}),
-          client.p_performOperation("dummy", args: {'a':'7'}),
+          client.performOperation("dummy", args: {'a':'1'}),
+          client.performOperation("dummy", args: {'a':'2'}),
+          client.performOperation("dummy", args: {'a':'3'}),
+          client.performOperation("dummy", args: {'a':'4'}),
+          client.performOperation("dummy", args: {'a':'5'}),
+          client.performOperation("dummy", args: {'a':'6'}),
+          client.performOperation("dummy", args: {'a':'7'}),
         ]),completes);
       });
     });
@@ -185,7 +185,7 @@ void run() {
     test("should report error if there was no entry found", () {
       var caught = false;
       return client.connected.then((_) {
-        var operation = client.p_performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
+        var operation = client.performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
         .catchError((e,s) {
           expect(e,isMap);
           expect(e.containsKey('query'), isTrue);
@@ -203,8 +203,8 @@ void run() {
         if (lastOperationRef2.value != "") failureOccured = true;
       });
       return client.connected.then((_) {
-        var future1 = client.p_performOperation("change ref1");
-        var future2 = client.p_performOperation("change ref2");
+        var future1 = client.performOperation("change ref1");
+        var future2 = client.performOperation("change ref2");
         return Future.wait([future1, future2]);
       }).then((_) => new Future(() => expect(failureOccured, isFalse)));
     });
@@ -219,7 +219,7 @@ void run() {
         previousOperation = lastOperationRef1.value;
       });
       return client.connected.then((_) {
-        return client.p_performOperation("change ref1");
+        return client.performOperation("change ref1");
       }).then((_) => new Future(() => expect(failureOccured, isFalse)));
     });
 
