@@ -83,16 +83,15 @@ run(count, cache, {failProb: 0}) {
   ftransactorByAuthor(author) => new Transactor(connection, updateLock,
       author, new IdGenerator('f'));
 
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
-  mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
-
-
   setUp((){
+    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
     updateLock = new DataReference(false);
-    return Future.wait(mongodb.init)
-    .then((_) => mongodb.dropCollection('random'))
+    return mongoServer.start()
+    .then((_) {
+      mongodb = mongoServer.db;
+      mongodb.dropCollection('random');
+    })
     .then((_) => mongodb.removeLocks())
-    .then((_) => mongoServer.start())
     .then((_) {
         mongoClient = new MongoClient("127.0.0.1", 27001);
         pub = new Publisher();
@@ -125,26 +124,25 @@ run(count, cache, {failProb: 0}) {
             updateLock);
         subscriber.init('prefix');
 
-        subAll = new Subscription('a', 'random', connection, new IdGenerator('a'),
-            ftransactorByAuthor('author1'), updateLock)..restart();
+        subAll = subscriber.subscribe('a', 'random')..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', 'random', connection, new IdGenerator('b'),
-            ftransactorByAuthor('author2'), updateLock)..restart();
+        subAll2 = subscriber.subscribe('a', 'random')..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', 'random', connection, new IdGenerator('c'),
-            ftransactorByAuthor('author3'), updateLock)..restart();
+        subA = subscriber.subscribe('b','random')..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', 'random', connection, new IdGenerator('d'),
-            ftransactorByAuthor('author4'), updateLock)..restart();
+        subAa = subscriber.subscribe('c', 'random')..restart();
         colAa = subAa.collection;
-        subNoMatch = new Subscription('d', 'random', connection,
-            new IdGenerator('e'), ftransactorByAuthor('author5'), updateLock)..restart();
+        subNoMatch = subscriber.subscribe('d', 'random')..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
     });
+  });
+
+  tearDown(() {
+    return mongoServer.close();
   });
 
   randomChoice(Iterable iter) {

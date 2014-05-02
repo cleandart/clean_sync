@@ -67,8 +67,7 @@ void run() {
 
     test('id negotiation.', () {
       // given
-      subscriber = new Subscriber.config(connection, dataIdGenerator,
-          subscriptionIdGenerator, null, null, updateLock);
+      subscriber = new Subscriber.config(connection, dataIdGenerator, null, null, updateLock);
 
       // when
       var future = subscriber.init();
@@ -80,8 +79,6 @@ void run() {
       expect(request.args, equals({"action": "get_id_prefix"}));
 
       return future.then((_) {
-        subscriptionIdGenerator
-            .getLogs(callsTo('set prefix', 'prefix')).verify(happenedOnce);
         dataIdGenerator
             .getLogs(callsTo('set prefix', 'prefix')).verify(happenedOnce);
       });
@@ -89,8 +86,7 @@ void run() {
 
     test('obtain prefix from init method argument.', () {
       // given
-      subscriber = new Subscriber.config(connection, dataIdGenerator,
-          subscriptionIdGenerator, null, null, updateLock);
+      subscriber = new Subscriber.config(connection, dataIdGenerator, null, null, updateLock);
 
       // when
       var future = subscriber.init("custom prefix");
@@ -98,8 +94,6 @@ void run() {
       // then
       return future.then((_) {
         connection.getLogs().verify(neverHappened);
-        subscriptionIdGenerator.getLogs(callsTo('set prefix', 'custom prefix'))
-            .verify(happenedOnce);
         dataIdGenerator.getLogs(callsTo('set prefix', 'custom prefix'))
             .verify(happenedOnce);
       });
@@ -107,8 +101,7 @@ void run() {
 
     test('subscribe when _id_prefix was not obtained.', () {
       // given
-      subscriber = new Subscriber.config(connection, subscriptionIdGenerator,
-          dataIdGenerator, subscriptionFactory, transactorFactory, updateLock);
+      subscriber = new Subscriber.config(connection, subscriptionIdGenerator, subscriptionFactory, transactorFactory, updateLock);
 
       // then
       expect(()=> subscriber.subscribe("months"),
@@ -121,8 +114,7 @@ void run() {
       Map args = {'key1': 'val1'};
       subscriptionIdGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
 
-      subscriber = new Subscriber.config(connection, dataIdGenerator,
-          subscriptionIdGenerator, subscriptionFactory, transactorFactory, updateLock);
+      subscriber = new Subscriber.config(connection, dataIdGenerator, subscriptionFactory, transactorFactory, updateLock);
 
       // when
       var future = subscriber.init().then((_) {
@@ -137,8 +129,7 @@ void run() {
 
     test('subscribe without proper initialization.', () {
       // given
-      subscriber = new Subscriber.config(connection, subscriptionIdGenerator,
-          dataIdGenerator, subscriptionFactory, transactorFactory, updateLock);
+      subscriber = new Subscriber.config(connection, subscriptionIdGenerator, subscriptionFactory, transactorFactory, updateLock);
 
       // when
       var when = () {
@@ -179,8 +170,9 @@ void run() {
           changeWasSent = false;
         } else {
           LogEntry log = connection.getLogs().last;
+          print(lastRequest.args);
           changeWasSent = log.methodName == 'send' &&
-              lastRequest.args['args']["_id"] == 'prefix-123';
+              lastRequest.args['args']["data"][0]["_id"] == 'prefix-123';
         }
         if(idWasGenerated && changeWasSent) {
           return true;
@@ -283,7 +275,7 @@ void run() {
       collection.add(elem);
 
       Subscription subs = new Subscription.config('collectionResource','collection',
-          collection, _connection, transactor, mockHandleData, mockHandleDiff, false, updateLock);
+          collection, _connection, idGenerator, transactor, mockHandleData, mockHandleDiff, false, updateLock);
 
       subs.setupListeners();
 
@@ -294,7 +286,7 @@ void run() {
       });
 
       _connection.send(_createDiffRequest).then((val){
-        handleDiff(val['diff'], subs, 'author');
+        handleDiff(val['diff'], subs);
       });
 
       elem['name'] = 'trillian';
@@ -421,12 +413,12 @@ void run() {
         expect(lastRequest, isNotNull);
         expect(lastRequest.type, equals("sync-operation"));
         expect(lastRequest.args, equals({
-          "operation": "add",
-          "collection": "months",
-          "args": january,
+          "operation": "addAll",
+          "colls": ["months"],
+          "args": {"data" : [january]},
           "author": "author",
           "clientVersion": "prefix-1",
-          "docs" : null
+          "docs" : []
          }));
       });
     });
@@ -470,12 +462,12 @@ void run() {
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
         expect(lastRequest.type, equals("sync-operation"));
-        expect(slice(lastRequest.args, ['operation', 'collection', 'author', 'args']),
+        expect(slice(lastRequest.args, ['operation', 'colls', 'author', 'args']),
             equals({
-          "operation": "remove",
-          "collection": "months",
+          "operation": "removeAll",
+          "colls": ["months"],
           "author": "author",
-          "args": {"_id" : "12"}
+          "args": {"ids" : ["12"]}
         }));
       });
     });

@@ -60,7 +60,7 @@ class DocumentNotFoundException implements Exception {
   String toString() => error;
 }
 
-class ServerOperationCall {
+class ServerOperationCall extends CommonOperationCall {
   String name;
   List<DataMap> docs;
   List<MongoProvider> colls;
@@ -233,7 +233,9 @@ class MongoServer {
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: _user, args: opCall.args, author: opCall.author,
           clientVersion: opCall.clientVersion);
-      return Future.forEach(op.before, (opBefore) => opBefore(fOpCall));
+      return Future.forEach(op.before, (opBefore) {
+           if (opBefore(fOpCall) != 'permitted') throw new ValidationException("Operation not permitted");
+      });
     }).then((_) {
       logger.finer('operation - core');
       return op.operation(fOpCall);

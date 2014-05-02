@@ -135,7 +135,6 @@ run() {
     return Future.forEach(itemsToClose, (item) {
       return item.dispose();
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongodb.close())
       .then((_) => mongoServer.close());
   });
 

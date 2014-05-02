@@ -365,7 +365,7 @@ void main() {
       .then((dataDiff) {
          dataStart.forEach((v) => v..remove(COLLECTION_NAME));
          handleDiff(dataDiff['diff'], dataStart);
-         expect(dataStart, unorderedEquals(dataEnd));
+         expect(dataStart..forEach((v) => v..remove(COLLECTION_NAME)), unorderedEquals(dataEnd));
       });
     });
 
@@ -398,7 +398,7 @@ void main() {
           expect(diff['_id'], equals('january'));
           Map strippedData = diff['data'];
           var res = clone(january)..addAll(january2);
-          expect(strippedData, equals(res));
+          expect(strippedData..remove(COLLECTION_NAME), equals(res));
           expect(diff['author'], equals('Michael Smith'));
         });
     });

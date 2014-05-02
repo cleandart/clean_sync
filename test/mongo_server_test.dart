@@ -43,7 +43,10 @@ void run() {
     setUp(() {
       lastOperation = "";
       server = new MongoServer(27001, "mongodb://0.0.0.0/mongoServerTest");
-      return server.start().then((_) {
+      return server.start()
+          .then((_) => server.db.dropCollection(testCollectionUser))
+          .then((_) => server.db.removeLocks())
+          .then((_) {
 
         client = new MongoClient("127.0.0.1", 27001);
 
@@ -61,7 +64,7 @@ void run() {
             before: (ServerOperationCall opCall) {
               if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
               if ((opCall.docs is List) && (opCall.docs.length > 1)) throw new ValidationException("Too many documents");
-
+              return 'permitted';
             },
             operation: (ServerOperationCall opCall) {
               opCall.args.forEach((k,v) => opCall.docs[0][k] = v);
@@ -71,6 +74,7 @@ void run() {
             before: (ServerOperationCall opCall) {
               lastOperation = "before";
               if (opCall.args['throw'] == 'before') throw new ValidationException("Before threw");
+              return 'permitted';
             },
             operation: (ServerOperationCall opCall) {
               lastOperation = "operation";
@@ -85,6 +89,7 @@ void run() {
         server.registerOperation("change ref1",
             before: (ServerOperationCall opCall) {
               lastOperationRef1.value = "before";
+              return 'permitted';
             },
             operation: (ServerOperationCall opCall) {
               lastOperationRef1.value = "operation";
@@ -97,6 +102,7 @@ void run() {
         server.registerOperation("change ref2",
             before: (ServerOperationCall opCall) {
               lastOperationRef2.value = "before";
+              return 'permitted';
             },
             operation: (ServerOperationCall opCall) {
               lastOperationRef2.value = "operation";
@@ -161,7 +167,6 @@ void run() {
       return client.connected.then((_) {
         return client.performOperation("throw", args:{'throw':'operation'})
         .then((res){
-          print('tututu ${res}');
           expect(res, contains('error'));
           expect(lastOperation, equals("operation"));
         });
@@ -186,9 +191,10 @@ void run() {
       var caught = false;
       return client.connected.then((_) {
         var operation = client.performOperation("set", docs: [['1',testCollectionUser]], args:{'x':'y'})
-        .catchError((e,s) {
+        .then((e) {
           expect(e,isMap);
-          expect(e.containsKey('query'), isTrue);
+          expect(e["error"], isMap);
+          expect(e["error"].containsKey('doc_not_found'), isTrue);
           caught = true;
         }).then((_) => expect(caught, isTrue));
       });

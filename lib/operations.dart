@@ -2,6 +2,7 @@ import 'package:clean_sync/server.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
+import 'package:clean_sync/client.dart';
 
 
 class ValidationException implements Exception {
@@ -13,6 +14,12 @@ class ValidationException implements Exception {
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
+abstract class CommonOperationCall {
+  String name;
+  List docs;
+  List colls;
+  Map args;
+}
 
 class ServerOperation {
   String name;
@@ -64,6 +71,7 @@ List<List> incompatibleOperations = [
                if(data['data'].length > 0) {
                  throw new ValidationException("_id given is already used");
                }
+               return 'permitted';
             })
         .catchError((e,s) {
           if (e is ValidationException) throw e;
@@ -75,8 +83,8 @@ List<List> incompatibleOperations = [
       }),
 
     new ClientOperation('add',
-      operation: (ServerOperationCall opCall) {
-        opCall.colls[0].add(opCall.args, '');
+      operation: (ClientOperationCall opCall) {
+        opCall.colls[0].add(opCall.args, author:'');
       })
   ],
   [
@@ -84,6 +92,7 @@ List<List> incompatibleOperations = [
       before: (ServerOperationCall opCall) {
         if (!opCall.args.containsKey("_id")) throw new ValidationException("Args should contain _id");
         return opCall.colls[0].find({"_id": opCall.args["_id"]}).findOne()
+            .then((_) => 'permitted')
             .catchError((e,s) =>
                 // Find one threw => there are no entries with given _id
           throw new ValidationException("No document with given _id found"));
@@ -94,8 +103,8 @@ List<List> incompatibleOperations = [
       }),
 
     new ClientOperation('remove',
-      operation: (ServerOperationCall opCall){
-        opCall.colls[0].remove(opCall.args["_id"], "");
+      operation: (ClientOperationCall opCall){
+        opCall.colls[0].remove(opCall.args["_id"], author:"");
       })
   ],
 
@@ -106,8 +115,8 @@ List<List> incompatibleOperations = [
       }),
 
     new ClientOperation('addAll',
-      operation: (ServerOperationCall opCall){
-        opCall.colls[0].addAll(opCall.args["data"], "");
+      operation: (ClientOperationCall opCall){
+        opCall.colls[0].addAll(opCall.args["data"], author:"");
       })
   ],
 
@@ -118,8 +127,8 @@ List<List> incompatibleOperations = [
       }),
 
     new ClientOperation('removeAll',
-      operation: (ServerOperationCall opCall){
-        opCall.colls[0].remove(opCall.args["_id"], "");
+      operation: (ClientOperationCall opCall){
+        opCall.colls[0].remove(opCall.args["_id"], author:"");
       })
   ]
 
@@ -128,14 +137,15 @@ List<List> incompatibleOperations = [
 
 List<ServerOperation> commonOperations = [
   new ServerOperation('change',
-    before: (ServerOperationCall opCall) {
+    before: (CommonOperationCall opCall) {
       if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
+      return 'permitted';
     },
-    operation: (ServerOperationCall opCall) {
+    operation: (CommonOperationCall opCall) {
       try {
         applyJSON(opCall.args, opCall.docs[0]);
       } catch (e, s){
-        logger.warning("couldn not apply change properly", e, s);
+        logger.warning("could not apply change properly", e, s);
       }
     })
 ];

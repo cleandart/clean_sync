@@ -3,7 +3,7 @@ part of clean_sync.client;
 // Should have the same registered operations as MongoServer
 // Should apply changes to local collection
 
-class ClientOperationCall {
+class ClientOperationCall extends CommonOperationCall {
   String name;
   List<Map> docs;
   List<DataSet> colls;
@@ -68,7 +68,7 @@ class Transactor {
   }
 
   performClientOperation(String name, Map args, {docs, colls, shouldDecorateArgs: true}) {
-    List<DataSet> clientColls = new List.from(colls.map((e) => e[0]));
+    List<DataSet> clientColls = colls != null ? new List.from(colls.map((e) => e[0])) : null;
     ClientOperation op = operations[name];
     if (shouldDecorateArgs) op.argsDecorator.forEach((f) => f(args));
     updateLock.value = true;
