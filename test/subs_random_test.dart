@@ -6,7 +6,7 @@ import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';
 import 'package:clean_sync/client.dart';
-import 'package:unittest/mock.dart';
+import 'package:mock/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';

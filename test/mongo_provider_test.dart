@@ -58,6 +58,7 @@ void main() {
       mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest');
       ready = Future.wait(mongodb.init).then((_) => mongodb.dropCollection('months'))
                     .then((_) => mongodb.removeLocks())
+                    .then((_)=> mongodb.createIndex('months', {'a':1}, unique: true))
                     .then((_) => months = mongodb.collection('months'));
       return ready;
     });
@@ -204,6 +205,23 @@ void main() {
       // then
       expect(shouldThrow, throws);
 
+    });
+
+    solo_test('breaking unique index constraint throws', () {
+      // given
+
+      var data = [];
+      var toWait = [];
+      return ready.then((_) =>
+          months.change("2", {'a': 'a', 'b': 'b', '_id': "2"}, 'dummy', upsert: true))
+       .then((_) =>
+          months.change("1", {'a': 'a', 'b': 'b', '_id': "1"}, 'dummy', upsert: true))
+      .then((_) =>
+          months.change("1", {'a': 'a', 'b': 'bb', '_id': "1"}, 'dummy', upsert: true))
+      .then((_) => months.data())
+      .then((data){
+        print(data);
+      });
     });
 
     test('change data. (T04)', () {
