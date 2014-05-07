@@ -26,6 +26,11 @@ class MongoException implements Exception {
        msg == null ? 'MongoError: $mongoError \n Stack trace: $stackTrace' : '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
 }
 
+class BreakException {
+  final val;
+  BreakException([this.val = null]);
+}
+
 const String QUERY = "\$query";
 const String GT = "\$gt";
 const String LT = "\$lt";
@@ -45,6 +50,9 @@ const String LOCK_COLLECTION_NAME = '__clean_lock';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
+processMongoException(var e){
+
+}
 
 class MongoDatabase {
   Db _db;
@@ -69,10 +77,12 @@ class MongoDatabase {
     Future.wait(init).then((_) => _db.close());
   }
 
-  void create_collection(String collectionName) {
-    init.add(_conn.then((_) =>
-        _db.createIndex(historyCollectionName(collectionName), key: 'version',
-        unique: true)));
+  Future create_collection(String collectionName) {
+    Future res =_conn.then((_) =>
+            _db.createIndex(historyCollectionName(collectionName), key: 'version',
+            unique: true));
+    init.add(res);
+    return res;
   }
 
   /**
@@ -81,7 +91,7 @@ class MongoDatabase {
    * ascending/descending order (same as the map passed to mongo function
    * ensureIndex).
    */
-  void createIndex(String collectionName, Map keys, {unique: false}) {
+  Future createIndex(String collectionName, Map keys, {unique: false}) {
     Map beforeKeys = {};
     Map afterKeys = {};
     keys.forEach((key, val) {
@@ -90,16 +100,20 @@ class MongoDatabase {
     });
     beforeKeys['version'] = 1;
     afterKeys['version'] = 1;
-    init.add(_conn.then((_) =>
+    Future res = _conn.then((_) =>
         _db.createIndex(historyCollectionName(collectionName),
-            keys: beforeKeys)));
-    init.add(_conn.then((_) =>
-        _db.createIndex(historyCollectionName(collectionName),
-            keys: afterKeys)));
-    if (keys.isNotEmpty) {
-      init.add(_conn.then((_) =>
-          _db.createIndex(collectionName, keys: keys, unique: unique)));
-    }
+            keys: beforeKeys))
+    .then((_) => _db.createIndex(historyCollectionName(collectionName),
+                          keys: afterKeys))
+    .then((_) {
+      if (keys.isNotEmpty) {
+        return _db.createIndex(collectionName, keys: keys, unique: unique);
+      } else {
+        return null;
+      }
+    });
+    init.add(res);
+    return res;
   }
 
   MongoProvider collection(String collectionName) {
@@ -234,6 +248,10 @@ class MongoProvider implements DataProvider {
     return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
   }
 
+  Future<DataSet> getDataSet() {
+    return data().then((data) => new DataSet.from(data['data'])..addIndex(['_id']));
+  }
+
   createSelector(Map selector, List fields, List excludeFields) {
     var sel = new SelectorBuilder().raw(selector);
     if (fields.isNotEmpty) {
@@ -248,6 +266,33 @@ class MongoProvider implements DataProvider {
   Future<bool> _clientVersionExists(String clientVersion) =>
       _collectionHistory.find(where.eq('clientVersion', clientVersion).limit(1)).toList()
       .then((data) => !data.isEmpty);
+
+  _checkClientVersion(String clientVersion) {
+    if (clientVersion != null) {
+      return _clientVersionExists(clientVersion).then((exists) {
+        if (exists) throw new BreakException();
+      });
+    }
+  }
+
+  _checkInferredAction(action, inferredAction, upsert){
+    if (action != inferredAction) {
+      if (!(action == 'change' &&
+            inferredAction == 'add' &&
+            upsert == true))
+        throw new BreakException();
+    }
+  }
+
+
+  _processError(var e) {
+    if (e is BreakException) {
+      return e.val;
+    } else {
+      throw e;
+    }
+  }
+
 
   /**
    * Returns data and version of this data.
@@ -298,58 +343,12 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
-  Future deprecatedChange(String _id, Map change, String author) {
-    cache.invalidate();
-    num nextVersion;
-    Map newRecord;
-    return _get_locks().then((_) => collection.findOne({"_id" : _id}))
-      .then((Map record) {
-        if(record == null) {
-          throw new MongoException(null,null,
-              'Change was not applied, document with id $_id does not exist.');
-        } else if (change.containsKey('_id') && change['_id'] != _id) {
-          throw new MongoException(null,null,
-              'New document id ${change['_id']} should be same as old one $_id.');
-        } else {
-          return _maxVersion.then((version) {
-            nextVersion = version + 1;
-            newRecord = new Map.from(record);
-            newRecord.addAll(change);
-            newRecord[VERSION_FIELD_NAME] = nextVersion;
-            return collection.save(newRecord);
-          }).then((_) =>
-            _collectionHistory.insert({
-              "before" : record,
-              "after" : newRecord,
-              "action" : "change",
-              "author" : author,
-              "version" : nextVersion,
-              "timestamp" : new DateTime.now()
-            }));
-        }
-      },
-      onError: (e, s) {
-        // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
-        return _release_locks().then((_) {
-          throw new MongoException(e, s);
-        });
-      }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
-  }
-
   Future writeOperation(String _id, String author, String action, Map newData,
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
     return _get_locks()
-      .then((_){
-          if (clientVersion != null) {
-            return _clientVersionExists(clientVersion).then((exists) {
-              if (exists) throw true;
-            });
-          }
-      })
+      .then((_) => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
 
@@ -359,14 +358,9 @@ class MongoProvider implements DataProvider {
         if (oldData.isNotEmpty && newData.isEmpty) inferredAction = 'remove';
         else if (oldData.isEmpty && newData.isNotEmpty) inferredAction = 'add';
         else if (oldData.isNotEmpty && newData.isNotEmpty) inferredAction = 'change';
-        else throw true;
+        else throw new BreakException();
 
-        if (action != inferredAction) {
-          if (!(action == 'change' &&
-                inferredAction == 'add' &&
-                upsert == true))
-            throw true;
-        }
+        _checkInferredAction(action, inferredAction, upsert);
 
         if (!newData.isEmpty && newData['_id'] != _id) {
           throw new MongoException(null,null,
@@ -395,13 +389,7 @@ class MongoProvider implements DataProvider {
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e) => _release_locks().then((_) {
-        if (e is! Exception){
-          return e;
-        } else {
-          throw e;
-        }
-      }));
+      .catchError((e) => _release_locks().then((_) => _processError(e)));
   }
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
@@ -423,13 +411,7 @@ class MongoProvider implements DataProvider {
 
     num nextVersion;
     return _get_locks()
-      .then((_){
-          if (clientVersion != null) {
-            return _clientVersionExists(clientVersion).then((exists) {
-              if (exists) throw true;
-            });
-          }
-      })
+      .then((_) => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
         if (oldData == null) oldData = {};
@@ -460,13 +442,9 @@ class MongoProvider implements DataProvider {
         if (oldData.isNotEmpty && newData.isEmpty) inferredAction = 'remove';
         else if (oldData.isEmpty && newData.isNotEmpty) inferredAction = 'add';
         else if (oldData.isNotEmpty && newData.isNotEmpty) inferredAction = 'change';
+        else throw new BreakException();
 
-        if (action != inferredAction) {
-          if (!(action == 'change' &&
-                inferredAction == 'add' &&
-                upsert == true))
-            throw true;
-        }
+        _checkInferredAction(action, inferredAction, upsert);
 
         if (!newData.isEmpty && newData['_id'] != _id) {
           throw new MongoException(null,null,
@@ -496,13 +474,7 @@ class MongoProvider implements DataProvider {
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e) => _release_locks().then((_) {
-        if (e is! Exception){
-          return e;
-        } else {
-          throw e;
-        }
-      }));
+      .catchError((e) => _release_locks().then((_) => _processError(e)));
   }
 
   Future update(selector, Map modifier(Map document), String author) {
@@ -689,7 +661,7 @@ class MongoProvider implements DataProvider {
         .then((result) {
           beforeOrAfter = result;
           if (beforeOrAfter.isEmpty){
-            throw [];
+            throw new BreakException([]);
           } else
           return Future.wait([
             _collectionHistory.find(createSelector(beforeSelector, ['_id'], [])).toList(),
@@ -736,16 +708,9 @@ class MongoProvider implements DataProvider {
                 });
               }
             });
-
-
             return _prettify(diff);
-    }).catchError((e){
-     if (e is List) {
-       return e;
-     } else {
-       throw e;
-     }
-    });
+
+    }).catchError((e) => _processError(e));
   }
 
   num _defaultCompare(a, b) {
@@ -883,13 +848,23 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future _get_locks() {
+  Future test_get_locks(){
+    return _get_locks();
+  }
+
+  Future _get_locks({nums: 50}) {
+    if (nums <= 0) {
+      throw new Exception('Could not acquire locks for many many times, gg');
+    }
     return _lock.insert({'_id': collection.collectionName}).then(
       (_) => _lock.insert({'_id': _collectionHistory.collectionName}),
       onError: (e) {
         if(e['code'] == 11000) {
           // duplicate key error index
-          return _get_locks();
+          nums--;
+          return new Future.delayed(new Duration(milliseconds: 100))
+              .then((_) => _get_locks(nums: nums));
+
         } else {
           throw(e);
         }
