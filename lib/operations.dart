@@ -71,7 +71,7 @@ List<List> incompatibleOperations = [
                if(data['data'].length > 0) {
                  throw new ValidationException("_id given is already used");
                }
-               return 'permitted';
+               return null;
             })
         .catchError((e,s) {
           if (e is ValidationException) throw e;
@@ -92,7 +92,7 @@ List<List> incompatibleOperations = [
       before: (ServerOperationCall opCall) {
         if (!opCall.args.containsKey("_id")) throw new ValidationException("Args should contain _id");
         return opCall.colls[0].find({"_id": opCall.args["_id"]}).findOne()
-            .then((_) => 'permitted')
+            .then((_) => null)
             .catchError((e,s) =>
                 // Find one threw => there are no entries with given _id
           throw new ValidationException("No document with given _id found"));
@@ -139,7 +139,7 @@ List<ServerOperation> commonOperations = [
   new ServerOperation('change',
     before: (CommonOperationCall opCall) {
       if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot change _id of document");
-      return 'permitted';
+      return null;
     },
     operation: (CommonOperationCall opCall) {
       try {

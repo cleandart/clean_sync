@@ -37,6 +37,7 @@ void run() {
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
     String lastOperation;
+    String lastBeforeMsg;
     DataReference lastOperationRef1 = new DataReference("");
     DataReference lastOperationRef2 = new DataReference("");
 
@@ -64,7 +65,7 @@ void run() {
             before: (ServerOperationCall opCall) {
               if (opCall.args.containsKey("_id")) throw new ValidationException("Cannot set _id of document");
               if ((opCall.docs is List) && (opCall.docs.length > 1)) throw new ValidationException("Too many documents");
-              return 'permitted';
+              return null;
             },
             operation: (ServerOperationCall opCall) {
               opCall.args.forEach((k,v) => opCall.docs[0][k] = v);
@@ -74,7 +75,7 @@ void run() {
             before: (ServerOperationCall opCall) {
               lastOperation = "before";
               if (opCall.args['throw'] == 'before') throw new ValidationException("Before threw");
-              return 'permitted';
+              return null;
             },
             operation: (ServerOperationCall opCall) {
               lastOperation = "operation";
@@ -89,7 +90,7 @@ void run() {
         server.registerOperation("change ref1",
             before: (ServerOperationCall opCall) {
               lastOperationRef1.value = "before";
-              return 'permitted';
+              return null;
             },
             operation: (ServerOperationCall opCall) {
               lastOperationRef1.value = "operation";
@@ -102,7 +103,7 @@ void run() {
         server.registerOperation("change ref2",
             before: (ServerOperationCall opCall) {
               lastOperationRef2.value = "before";
-              return 'permitted';
+              return null;
             },
             operation: (ServerOperationCall opCall) {
               lastOperationRef2.value = "operation";
@@ -112,6 +113,12 @@ void run() {
             }
         );
         server.registerOperation("dummy", operation: (opCall){});
+
+        server.registerOperation("test returns",
+            operation: (ServerOperationCall opCall) {
+              lastOperation = "operation";
+            }
+        );
 
       });
     });
@@ -227,6 +234,60 @@ void run() {
       return client.connected.then((_) {
         return client.performOperation("change ref1");
       }).then((_) => new Future(() => expect(failureOccured, isFalse)));
+    });
+
+    test("should stop executing before callbacks after explicit result", () {
+      lastOperation = "";
+      lastBeforeMsg = "";
+      List callbacks = [
+        (ServerOperationCall opCall) { lastBeforeMsg = "1"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "2"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "3"; return true;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "4"; return null;},
+      ];
+      callbacks.forEach((c) => server.registerBeforeCallback("test returns", c));
+
+      return client.connected.then((_) => client.performOperation("test returns"))
+      .then((_) {
+          expect(lastOperation, equals("operation"));
+          expect(lastBeforeMsg, equals("3"));
+      });
+    });
+
+    test("should not perform operation if false is returned from callbacks", () {
+      lastOperation = "";
+      lastBeforeMsg = "";
+      List callbacks = [
+        (ServerOperationCall opCall) { lastBeforeMsg = "1"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "2"; return false;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "3"; return true;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "4"; return null;},
+      ];
+      callbacks.forEach((c) => server.registerBeforeCallback("test returns", c));
+
+      return client.connected.then((_) => client.performOperation("test returns"))
+      .then((_) {
+          expect(lastOperation, equals(""));
+          expect(lastBeforeMsg, equals("2"));
+      });
+    });
+
+    test("should perform operation if no explicit result was returned", () {
+      lastOperation = "";
+      lastBeforeMsg = "";
+      List callbacks = [
+        (ServerOperationCall opCall) { lastBeforeMsg = "1"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "2"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "3"; return null;},
+        (ServerOperationCall opCall) { lastBeforeMsg = "4"; return null;},
+      ];
+      callbacks.forEach((c) => server.registerBeforeCallback("test returns", c));
+
+      return client.connected.then((_) => client.performOperation("test returns"))
+      .then((_) {
+          expect(lastOperation, equals("operation"));
+          expect(lastBeforeMsg, equals("4"));
+      });
     });
 
   });

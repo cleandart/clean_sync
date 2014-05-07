@@ -8,6 +8,12 @@ import 'package:clean_data/clean_data.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_sync/operations.dart';
+import 'package:mock/mock.dart';
+
+class SubscriptionMock extends Mock implements Subscription {
+  var mongoCollectionName;
+  var collection;
+}
 
 main() {
   run();
@@ -82,11 +88,14 @@ run() {
     DataMap first = new DataMap.from({"_id":"1", "name":"jozo","credit":5000});
     DataMap second = new DataMap.from({"_id":"2", "name":"fero", "credit":1000});
     DataSet logs = new DataSet();
+    SubscriptionMock sub = new SubscriptionMock();
+    sub.collection = logs;
+    sub.mongoCollectionName = logCollectionName;
     Map args = {"amount":3000};
     return mongoServer.db.collection(collectionName).addAll([first, second],'author')
       .then((_) {
         _addCollectionName([first,second],collectionName);
-        return transactor.operation('send money', args, docs: [first, second], colls:[[logs, logCollectionName]]);
+        return transactor.operation('send money', args, docs: [first, second], colls:[sub]);
       })
       .then((_) {
         expect(first["credit"], equals(2000));
@@ -111,11 +120,14 @@ run() {
     DataMap first = new DataMap.from({"_id":"1", "name":"jozo", "credit":2000});
     DataMap second = new DataMap.from({"_id":"2", "name":"fero", "credit":1000});
     DataSet logs = new DataSet();
+    SubscriptionMock sub = new SubscriptionMock();
+    sub.collection = logs;
+    sub.mongoCollectionName = logCollectionName;
     Map args = {"amount" : 2048};
     return mongoServer.db.collection(collectionName).addAll([first, second], 'author')
       .then((_) {
         _addCollectionName([first, second], collectionName);
-        return transactor.operation('send money', args, docs: [first,second], colls:[[logs, logCollectionName]]);
+        return transactor.operation('send money', args, docs: [first,second], colls:[sub]);
       })
       .then((_) => mongoServer.db.collection(collectionName).find({"_id":"1"}).findOne())
       .then((d) {

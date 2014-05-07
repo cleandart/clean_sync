@@ -233,8 +233,24 @@ class MongoServer {
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: _user, args: opCall.args, author: opCall.author,
           clientVersion: opCall.clientVersion);
-      return Future.forEach(op.before, (opBefore) {
-           if (opBefore(fOpCall) != 'permitted') throw new ValidationException("Operation not permitted");
+      return Future.forEach(op.before, (opBefore) =>
+        // Before callbacks should return either true, false or null
+        // True: OK, False: Not OK, Null: nothing
+        // First explicit result decides if the operation is permitted
+        // Future type return is supported - although not required
+        new Future(() => opBefore(fOpCall)).then((result) {
+          if (result == true) throw true;
+          if (result == false) throw false;
+          return true;
+        })
+      ).then((_) =>
+          // No explicit result was thrown, defaults to Permitted
+          true
+      ).catchError((e,s) {
+        if (e == true) return true;
+        if (e == false) throw new ValidationException('Operation not permitted');
+        // Some other error occured
+        throw e;
       });
     }).then((_) {
       logger.finer('operation - core');

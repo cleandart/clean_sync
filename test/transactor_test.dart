@@ -9,6 +9,10 @@ import 'package:useful/useful.dart';
 
 class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
+class SubscriptionMock extends Mock implements Subscription {
+  var mongoCollectionName;
+  var collection;
+}
 
 void main() {
   run();
@@ -49,9 +53,15 @@ void run() {
       DataSet colors = new DataSet();
       DataSet animals = new DataSet();
       Map args = {'args': 'args'};
-
+      List<Subscription> subs = [];
+      [[colors, 'colors'], [animals, 'animals']].forEach((e) {
+        var s = new SubscriptionMock();
+        s.mongoCollectionName = e[1];
+        s.collection = e[0];
+        subs.add(s);
+      });
       transactor.operation('mockOper', {'args': 'args'}, docs: [january, february],
-          colls: [[colors, 'colors'], [animals, 'animals']]);
+          colls: subs);
       expect(mockOperArgs, equals(args));
       expect(mockOperColls, equals([colors, animals]));
       expect(mockOperDocs, equals([january, february]));
