@@ -21,6 +21,7 @@ stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
+  (new Logger('clean_sync')).level = Level.WARNING;
   setupDefaultLogHandler();
 //  (new Logger('clean_sync')).level = Level.FINEST;
 //  (new Logger('clean_ajax')).level = Level.FINE;
@@ -154,7 +155,7 @@ run() {
     }));
   }
 
-  test('data added to the set is not cloned, if it is already DataMap', () {
+  skip_test('data added to the set is not cloned, if it is already DataMap', () {
     DataMap data = new DataMap.from({'_id': '0', 'a' : 'aa'});
 
     List actions = [
@@ -241,9 +242,14 @@ run() {
       () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello',
          '__clean_collection': 'random'}])),
       () => expect(colAa, unorderedEquals([])),
+//<<<<<<< HEAD
       () => dataA['a'] = {'a': 'hello'},
       () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'},
          '__clean_collection': 'random'}])),
+//=======
+//      () => colA.first['a'] = {'a': 'hello'},
+//      () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'}}])),
+//>>>>>>> master
       () => expect(colA, unorderedEquals([])),
     ];
 
@@ -315,6 +321,23 @@ run() {
 
   });
 
+  test('test subscription restart & dispose', () {
+
+      var sub = subscriber.subscribe('a', 'random')..restart();
+      sub.initialSync.then((_){
+        sub.collection.add({'price':'value'});
+      });
+
+      new Future.delayed(new Duration(milliseconds: 200), () {
+        sub.restart();
+        sub.dispose();
+      });
+
+      return new Future.delayed(new Duration(milliseconds: 5000), () {});
+
+  });
+
+  test('cosi', (){});
 
   test('test data list manipulation', () {
     DataMap morders = new DataMap();

@@ -140,6 +140,33 @@ void run() {
       expect(when, throwsStateError);
     });
 
+    test('dump subscriber', () {
+      Map args = {'key': 'val', 'another key':'yet another value'};
+      subscriber = new Subscriber(connection);
+      subscriber.init().then((_) {
+        subscriber.subscribe("someResource","someCollection")
+          ..collection.addAll(['one','2',{},'that was a map',[],'and that a list'])
+          ..args = args;
+        subscriber.subscribe("anotherResource", "anotherCollection")
+          ..collection.addAll(['first',2,3,{'fourth':'value'}])
+          ..args = {'first key': 1, 'second': ['it','is','a','list']};
+        expect(subscriber.dump(true),
+          equals( 'Subscription(ver: 0)\n'+
+                  'Resource name: someResource \n' +
+                  'Collection name: someCollection \n'+
+                  'Args: {key: val, another key: yet another value} \n'+
+                  'Initial sync completed? false\n'+
+                  'Data: [one, 2, {}, that was a map, [], and that a list] \n\n'+
+                  'Subscription(ver: 0)\n'+
+                  'Resource name: anotherResource \n' +
+                  'Collection name: anotherCollection \n'+
+                  'Args: {first key: 1, second: [it, is, a, list]} \n'+
+                  'Initial sync completed? false\n'+
+                  'Data: [first, 2, 3, {fourth: value}] \n\n'
+                ));
+      });
+    });
+
   });
 
 

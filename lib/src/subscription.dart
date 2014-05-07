@@ -224,6 +224,7 @@ class Subscription {
 
   Stream get onResyncFinished => _onResyncFinishedController.stream;
   Stream get onFullSync => _onFullSyncController.stream;
+  bool get disposed => collection == null;
 
 
   // version exposed only for testing and debugging
@@ -241,6 +242,7 @@ class Subscription {
 
   /// Completes after first request to get data is answered and handled.
   Future get initialSync => _initialSync.future;
+  get initialSyncCompleted => _initialSync.isCompleted;
 
   static _createNewCollection() {
     var collection = new DataSet();
@@ -272,6 +274,12 @@ class Subscription {
   //TODO MOVE resync to Transactor
 
   void _resync() {
+    logger.info("Resyncing subscription ${this}");
+    if (!_initialSync.isCompleted) {
+      logger.finer("Initial sync is not completed, restarting");
+      restart();
+      return;
+    }
     List<Future> actions = [];
     // resend all failed changes
 //    _sentItems.forEach((id, item) {
@@ -292,6 +300,7 @@ class Subscription {
 //    }
 
     if (_periodicDiffRequesting.isPaused) {
+      logger.fine("Resuming periodic diff requesting");
       _periodicDiffRequesting.resume();
     }
 
@@ -301,14 +310,15 @@ class Subscription {
   }
 
   void setupConnectionRecovery() {
-    _connection.onDisconnected.listen((_) {
+    logger.info("Setting up connection recovery for ${this}");
+    _subscriptions.add(_connection.onDisconnected.listen((_) {
       _connected = false;
-    });
+    }));
 
-    _connection.onConnected.listen((_) {
+    _subscriptions.add(_connection.onConnected.listen((_) {
       _connected = true;
       _resync();
-    });
+    }));
   }
 
 
@@ -388,10 +398,19 @@ class Subscription {
     }
   }
 
-  void setupDataRequesting() {
+  Future setupDataRequesting() {
     // request initial data; this is also called when restarting subscription
-    _connection.send(_createDataRequest).then((response) {
+    logger.info("Setting up data requesting for ${this}");
+    /// remember initialSync, that was active in thsi moment. Later, when we get
+    /// initial data, we check, if this completer is already completed - if so,
+    /// it means, the subscription was restarted sooner than initialSync-ed
+    var oldInitialSync =_initialSync;
+    return _connection.send(_createDataRequest).then((response) {
+      if (oldInitialSync.isCompleted) {
+        return;
+      }
       if (response['error'] != null) {
+        logger.warning("Response to 'send' completed with error ${response['error']}");
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
         return;
@@ -410,6 +429,7 @@ class Subscription {
   }
 
   void _setupPeriodicDiffRequesting() {
+    logger.info("Setting up periodic diff requesting for ${this}");
     _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
@@ -446,6 +466,7 @@ class Subscription {
   }
 
   void _start() {
+    _started = true;
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
@@ -459,21 +480,29 @@ class Subscription {
 
 
   Future _closeSubs() {
+    logger.info("Closing all stream subscriptions of ${this}");
     return Future.forEach(_subscriptions, (sub){
       sub.cancel();
     }).then((_) => Future.wait(_sentItems));
   }
 
   Future dispose(){
+    logger.info("Disposing of ${this}");
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
-      .then((_) => collection.dispose());
+      .then((_) {
+        // check to make multiple disposes safe
+        if (collection != null)
+          collection.dispose();
+        collection = null;
+      });
   }
 
   void restart([Map args = const {}]) {
+    logger.info("Restarting ${this} with args: ${args}");
     this.args = args;
     if (!_started) {
-      _started = true;
+      logger.fine("First restart of subscription");
       _start();
     } else {
       if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());

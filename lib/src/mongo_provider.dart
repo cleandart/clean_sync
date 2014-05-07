@@ -5,8 +5,8 @@
 part of clean_sync.server;
 
 class ModifierException implements Exception {
-  final String error;
-  final String stackTrace;
+  final error;
+  final stackTrace;
   ModifierException(this.error, this.stackTrace);
   String toString() => "Modifier Error: $error \n Stack trace: $stackTrace";
 }
@@ -18,7 +18,7 @@ class DiffNotPossibleException implements Exception {
 }
 
 class MongoException implements Exception {
-   final Map mongoError;
+   final mongoError;
    final String msg;
    final String stackTrace;
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
@@ -54,6 +54,8 @@ class MongoDatabase {
   List<Future> init = [];
   DbCollection _lock;
   Cache cache;
+
+  Db get rawDb => _db;
 
   MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -286,6 +288,7 @@ class MongoProvider implements DataProvider {
               "action" : "add",
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
+              "timestamp" : new DateTime.now(),
             }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -322,7 +325,8 @@ class MongoProvider implements DataProvider {
               "after" : stripCollectionName(newRecord),
               "action" : "change",
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now()
             }));
         }
       },
@@ -391,7 +395,8 @@ class MongoProvider implements DataProvider {
               "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now()
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
@@ -496,7 +501,9 @@ class MongoProvider implements DataProvider {
               "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
-              "version" : nextVersion
+              "version" : nextVersion,
+              "timestamp" : new DateTime.now(),
+              "jsonData" : jsonData
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
@@ -529,7 +536,7 @@ class MongoProvider implements DataProvider {
 
         var col = collection.find(selector);
         return col.toList().then((data) {
-          oldData = data;
+          oldData = clone(data);
           return Future.forEach(data,
               (item) => collection.update({'_id': item['_id']},
                   prepare(item))
@@ -544,13 +551,15 @@ class MongoProvider implements DataProvider {
               "after" : stripCollectionName(newItem.single),
               "action" : "change",
               "author" : author,
-              "version" : nextVersion++
+              "version" : nextVersion++,
+              "timestamp" : new DateTime.now()
             }));
           });
         }).then((_) => _release_locks()).then((_) => nextVersion)
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
           // ...
+          logger.shout('error:', e, s);
           return _release_locks().then((_) {
             if (e is ModifierException) {
               throw e;
@@ -566,17 +575,15 @@ class MongoProvider implements DataProvider {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
-        return collection.remove(query).then((_) {
-          if (data.isNotEmpty) {
-            return _collectionHistory.insertAll(data.map((elem) => {
-              "before" : elem,
-              "after" : {},
-              "action" : "remove",
-              "author" : author,
-              "version" : nextVersion++
-            }).toList(growable: false));
-          } else return [];
-        });
+        return collection.remove(query).then((_) =>
+          _collectionHistory.insertAll(data.map((elem) => {
+            "before" : elem,
+            "after" : {},
+            "action" : "remove",
+            "author" : author,
+            "version" : nextVersion++,
+            "timestamp" : new DateTime.now()
+        }).toList(growable: false)));
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -644,6 +651,12 @@ class MongoProvider implements DataProvider {
     Map afterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
     // selects records that fulfill _selector before or after change
     Map beforeOrAfterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
+
+    if (_limit > NOLIMIT || _skip > NOSKIP) {
+      throw new DiffNotPossibleException();
+      //throw new Exception('not correctly implemented');
+//              return _limitedDiffFromVersion(diff);
+    }
 
     // {before: {GT: {}}} to handle selectors like {before.age: null}
     List<Map> _beforeSelector = [{"version" : {GT : version}}, {"before" : {GT: {}}}];
@@ -737,10 +750,6 @@ class MongoProvider implements DataProvider {
               }
             });
 
-            if (_limit > NOLIMIT || _skip > NOSKIP) {
-              //throw new Exception('not correctly implemented');
-              return _limitedDiffFromVersion(diff);
-            }
 
             return _prettify(diff);
     }).catchError((e){

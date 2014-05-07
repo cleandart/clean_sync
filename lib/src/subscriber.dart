@@ -33,6 +33,7 @@ class Subscriber {
   final _createSubscription;
   final _createTransactor;
   DataReference updateLock;
+  final List<Subscription> subscriptions = [];
 
   /**
    * Dependency injection constructor used mainly in tests.
@@ -100,11 +101,33 @@ class Subscriber {
     }
     var subscription = _createSubscription(resourceName, mongoCollectionName,
         _connection, _dataIdGenerator, createTransactor(), updateLock);
+    subscriptions.add(subscription);
     return subscription;
   }
 
   Transactor createTransactor(){
     String author = _dataIdGenerator.next();
     return _createTransactor(this._connection, this.updateLock, author, _dataIdGenerator);
+  }
+
+  _pruneSubscriptions() {
+    subscriptions.removeWhere((sub) => sub.disposed);
+  }
+
+  String dump([bool data = false]) {
+    _pruneSubscriptions();
+    String res = "";
+    for (var i = 0; i < subscriptions.length; i++) {
+      res += subscriptions[i].toString()+"\n";
+      res += "Resource name: ${subscriptions[i].resourceName} \n";
+      res += "Collection name: ${subscriptions[i].mongoCollectionName} \n";
+      res += "Args: ${subscriptions[i].args} \n";
+      res += "Initial sync completed? ${subscriptions[i].initialSyncCompleted}\n";
+      if (data) {
+        res += "Data: ${subscriptions[i].collection} \n";
+      }
+      res += "\n";
+    }
+    return res;
   }
 }
