@@ -575,15 +575,18 @@ class MongoProvider implements DataProvider {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
-        return collection.remove(query).then((_) =>
-          _collectionHistory.insertAll(data.map((elem) => {
-            "before" : elem,
-            "after" : {},
-            "action" : "remove",
-            "author" : author,
-            "version" : nextVersion++,
-            "timestamp" : new DateTime.now()
-        }).toList(growable: false)));
+        return collection.remove(query).then((_) {
+          if (data.isNotEmpty) {
+            return _collectionHistory.insertAll(data.map((elem) => {
+              "before" : elem,
+              "after" : {},
+              "action" : "remove",
+              "author" : author,
+              "version" : nextVersion++,
+              "timestamp" : new DateTime.now()
+            }).toList(growable: false));
+          } else return [];
+        });
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
