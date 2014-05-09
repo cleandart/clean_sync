@@ -210,6 +210,65 @@ void main() {
 
     });
 
+    test('breaking unique index constraint throws', () {
+      var catched = false;
+      //given
+      mongodb.createIndex('months', {'a':1}, unique: true);
+      return ready.then((_) =>
+          months.change("2", {'a': 'a', 'b': 'b', '_id': "2"}, 'dummy', upsert: true))
+       .then((_) =>
+          //when
+          months.change("1", {'a': 'a', 'b': 'b', '_id': "1"}, 'dummy', upsert: true))
+       .catchError((e){
+          //then catch error
+          catched = true;
+        })
+        .then((_) => expect(catched, isTrue));
+    });
+
+
+    test('_get_locks throws, if locks cannot be grabbed for some time', () {
+      var catched = false;
+      //given
+      MongoProvider colAaa = mongodb.collection("aaa");
+      MongoProvider colAaa2 = mongodb.collection("aaa");
+      return colAaa.test_get_locks()
+       //when
+      .then((_) => colAaa2.test_get_locks())
+       //then catch error
+      .catchError((_) => catched = true)
+      .then((_) => expect(catched, isTrue));
+    });
+
+    test('change with upsert', () {
+      var data = [];
+      var toWait = [];
+      for (int i=0; i<10; i++){
+        data.add({'_id': "${i}", 'a': "val${i}"});
+      }
+      data.forEach((elem) => toWait.add(months.change(elem['_id'], elem, 'author', upsert: true)));
+      return Future.wait(toWait).then((_) =>
+        months.data().then((data){
+          expect(data['data'].length, equals(10));
+        })
+      ).then((_){
+        toWait = [];
+        for (int i=0; i<20; i++){
+          data.add({'_id': "${i}", 'a': "newval${i}"});
+        }
+        data.forEach((elem) => toWait.add(months.change(elem['_id'], elem, 'author', upsert: true)));
+        return Future.wait(toWait)
+          .then((_) =>
+              months.getDataSet().then((col){
+                expect(col.findBy('_id', '0').first['a'], equals('newval0'));
+                expect(col.findBy('_id', '19').first['a'], equals('newval19'));
+              })
+          );
+      });
+    });
+
+
+
     test('change data. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
@@ -369,60 +428,7 @@ void main() {
       });
     });
 
-    test('deprecatedChange data. (T10)', () {
-      // given
-      Map january2 = {'name': 'January2', 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(clone(january), 'John Doe'))
-
-      // when
-        .then((_) => months.deprecatedChange('january', clone(january2), 'Michael Smith'))
-        .then((_) => months.data())
-        .then((data){
-
-      // then
-          expect(data['data'].length, equals(1));
-          Map strippedData = data['data'][0];
-          january2.forEach((key, value) {
-            expect(strippedData[key], equals(value));
-          });
-          january.forEach((key, value) {
-            if (!january2.containsKey(key)) expect(strippedData[key], equals(value));
-          });
-          expect(data['version'], equals(2));
-      }).then((_) => months.diffFromVersion(1))
-        .then((dataDiff) {
-          List diffList = dataDiff['diff'];
-          expect(diffList.length, equals(1));
-          Map diff = diffList[0];
-          expect(diff['action'], equals('change'));
-          expect(diff['_id'], equals('january'));
-          Map strippedData = diff['data'];
-          var res = clone(january)..addAll(january2);
-          expect(strippedData..remove(COLLECTION_NAME), equals(res));
-          expect(diff['author'], equals('Michael Smith'));
-        });
-    });
-
-    test('deprecatedChange not existing data. (T11)', () {
-      // when
-      Future shouldThrow =  ready.then((_) => months.deprecatedChange('january', clone(january), 'Michael Smith'));
-
-      //then
-        expect(shouldThrow, throws);
-    });
-
-    test('deprecatedChange data with bad _id. (T12)', () {
-      // given
-      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
-
-      // when
-        .then((_) => months.deprecatedChange('january', clone(february), 'Michael Smith'));
-
-      // then
-        expect(shouldThrow, throws);
-    });
-
-    test('update data. (T13)', () {
+    test('update data 1.', () {
       //when
       return ready
           .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
@@ -454,7 +460,7 @@ void main() {
           });
     });
 
-    test('update data. (T13)', () {
+    test('update data 2.', () {
       //when
       return ready
           .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
