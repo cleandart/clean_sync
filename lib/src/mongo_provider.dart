@@ -40,6 +40,9 @@ const String AND = "\$and";
 const String SET = "\$set";
 const String UNSET = "\$unset";
 const String PUSH = "\$push";
+const String NE = '\$ne';
+const String IN = '\$in';
+
 const num ASC = 1;
 const num DESC = -1;
 const num NOLIMIT = 0;
@@ -49,10 +52,6 @@ const String VERSION_FIELD_NAME = '__clean_version';
 const String LOCK_COLLECTION_NAME = '__clean_lock';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
-
-processMongoException(var e){
-
-}
 
 class MongoDatabase {
   Db _db;
@@ -92,6 +91,7 @@ class MongoDatabase {
    * ensureIndex).
    */
   Future createIndex(String collectionName, Map keys, {unique: false}) {
+    if (keys.isEmpty) return new Future.value(null);
     Map beforeKeys = {};
     Map afterKeys = {};
     keys.forEach((key, val) {
@@ -100,18 +100,12 @@ class MongoDatabase {
     });
     beforeKeys['version'] = 1;
     afterKeys['version'] = 1;
-    Future res = _conn.then((_) =>
-        _db.createIndex(historyCollectionName(collectionName),
+    Future res = _conn
+        .then((_) => _db.createIndex(historyCollectionName(collectionName),
             keys: beforeKeys))
-    .then((_) => _db.createIndex(historyCollectionName(collectionName),
-                          keys: afterKeys))
-    .then((_) {
-      if (keys.isNotEmpty) {
-        return _db.createIndex(collectionName, keys: keys, unique: unique);
-      } else {
-        return null;
-      }
-    });
+        .then((_) => _db.createIndex(historyCollectionName(collectionName),
+            keys: afterKeys))
+        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique));
     init.add(res);
     return res;
   }
@@ -285,10 +279,11 @@ class MongoProvider implements DataProvider {
   }
 
 
-  _processError(var e) {
+  _processError(var e, [var s]) {
     if (e is BreakException) {
       return e.val;
     } else {
+      logger.shout("error", e, s);
       throw e;
     }
   }
@@ -389,7 +384,7 @@ class MongoProvider implements DataProvider {
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e) => _release_locks().then((_) => _processError(e)));
+      .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
   }
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
@@ -474,7 +469,7 @@ class MongoProvider implements DataProvider {
             }));
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e) => _release_locks().then((_) => _processError(e)));
+      .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
   }
 
   Future update(selector, Map modifier(Map document), String author) {
@@ -710,7 +705,7 @@ class MongoProvider implements DataProvider {
             });
             return _prettify(diff);
 
-    }).catchError((e) => _processError(e));
+    }).catchError((e, s) => _processError(e, s));
   }
 
   num _defaultCompare(a, b) {
