@@ -167,7 +167,7 @@ run() {
 
   });
 
-  solo_test('test collection add', () {
+  test('test collection add', () {
     List actions = [
       () => colAll.add(data1),
       () => expect(colAll2, unorderedEquals([data1])),
@@ -179,7 +179,7 @@ run() {
 
   });
 
-  solo_test('test collection change', () {
+  test('test collection change', () {
     List actions = [
       () => colAll.add(data1),
       () => colAll2.first['colAll'] = 'changed from colAll2',
@@ -192,7 +192,7 @@ run() {
 
   });
 
-  solo_test('test collection remove', () {
+  test('test collection remove', () {
     List actions = [
       () => colAll2.add(data1),
       () => colAll2.removeBy('_id', '0'),
@@ -242,14 +242,9 @@ run() {
       () => expect(colA, unorderedEquals([{'_id' : '2', 'a': 'hello',
          '__clean_collection': 'random'}])),
       () => expect(colAa, unorderedEquals([])),
-//<<<<<<< HEAD
       () => dataA['a'] = {'a': 'hello'},
       () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'},
          '__clean_collection': 'random'}])),
-//=======
-//      () => colA.first['a'] = {'a': 'hello'},
-//      () => expect(colAa, unorderedEquals([{'_id' : '2', 'a' : {'a': 'hello'}}])),
-//>>>>>>> master
       () => expect(colA, unorderedEquals([])),
     ];
 

@@ -1,6 +1,7 @@
+library clean_sync.server_operations;
+
 import 'package:clean_sync/mongo_server.dart';
 import 'package:logging/logging.dart';
-import 'package:clean_sync/client.dart';
 import 'package:clean_sync/operations.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
@@ -50,10 +51,5 @@ List operations = [
       operation: (ServerOperationCall opCall) {
         return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
       }),
-
-    new ClientOperation('removeAll',
-      operation: (ClientOperationCall opCall){
-        opCall.colls[0].remove(opCall.args["_id"], author:"");
-      })
 
 ];
