@@ -1,9 +1,9 @@
-import 'package:clean_sync/server.dart';
-import 'package:clean_sync/mongo_server.dart';
+library clean_sync.operations;
+
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
-import 'package:clean_sync/client.dart';
 
+Logger logger = new Logger('mongo_wrapper_logger');
 
 class ValidationException implements Exception {
   final String error;
@@ -11,8 +11,6 @@ class ValidationException implements Exception {
   ValidationException(this.error, [this.stackTrace]);
   String toString() => error;
 }
-
-Logger logger = new Logger('mongo_wrapper_logger');
 
 abstract class CommonOperationCall {
   String name;
@@ -58,82 +56,6 @@ class ClientOperation {
 
   ClientOperation(this.name, {this.operation});
 }
-
-// First element is ServerOperation, second is equivalent ClientOperation
-List<List> incompatibleOperations = [
-  [
-    new ServerOperation('add',
-      before: (ServerOperationCall opCall) {
-        if (!opCall.args.containsKey("_id")) throw new ValidationException("Document does not contain _id");
-
-        return opCall.colls[0].find({"_id": opCall.args["_id"]}).data()
-            .then((data){
-               if(data['data'].length > 0) {
-                 throw new ValidationException("_id given is already used");
-               }
-               return null;
-            })
-        .catchError((e,s) {
-          if (e is ValidationException) throw e;
-        });
-      },
-
-      operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].add(opCall.args, '');
-      }),
-
-    new ClientOperation('add',
-      operation: (ClientOperationCall opCall) {
-        opCall.colls[0].add(opCall.args, author:'');
-      })
-  ],
-  [
-    new ServerOperation('remove',
-      before: (ServerOperationCall opCall) {
-        if (!opCall.args.containsKey("_id")) throw new ValidationException("Args should contain _id");
-        return opCall.colls[0].find({"_id": opCall.args["_id"]}).findOne()
-            .then((_) => null)
-            .catchError((e,s) =>
-                // Find one threw => there are no entries with given _id
-          throw new ValidationException("No document with given _id found"));
-
-      },
-      operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].remove(opCall.args["_id"], "");
-      }),
-
-    new ClientOperation('remove',
-      operation: (ClientOperationCall opCall){
-        opCall.colls[0].remove(opCall.args["_id"], author:"");
-      })
-  ],
-
-  [
-    new ServerOperation('addAll',
-      operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].addAll(opCall.args["data"], "");
-      }),
-
-    new ClientOperation('addAll',
-      operation: (ClientOperationCall opCall){
-        opCall.colls[0].addAll(opCall.args["data"], author:"");
-      })
-  ],
-
-  [
-    new ServerOperation('removeAll',
-      operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
-      }),
-
-    new ClientOperation('removeAll',
-      operation: (ClientOperationCall opCall){
-        opCall.colls[0].remove(opCall.args["_id"], author:"");
-      })
-  ]
-
-
-];
 
 List<ServerOperation> commonOperations = [
   new ServerOperation('change',

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'operations.dart' as ops;
 import 'operations.dart';
+import 'server_operations.dart' as sOps;
 import 'package:clean_data/clean_data.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
@@ -121,7 +122,7 @@ class MongoServer {
 
   MongoServer(this.port, this.mongoUrl, {this.cache}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
-    ops.incompatibleOperations.forEach((o) => operations[o[0].name] = o[0]);
+    sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
   MongoServer.config(this.port, this.mongoUrl, {this.cache});

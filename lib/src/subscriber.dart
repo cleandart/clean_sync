@@ -48,6 +48,9 @@ class Subscriber {
   Subscriber(connection) : this.config(connection, new IdGenerator(),
       defaultSubscriptionFactory, defaultTransactorFactory, new DataReference(false));
 
+  Subscriber.withUpdateLock(connection, updateLock) : this.config(connection, new IdGenerator(),
+      defaultSubscriptionFactory, defaultTransactorFactory, updateLock);
+
   Future _loadIdPrefix() =>_connection.send(
         () => new ClientRequest("sync", {"action" : "get_id_prefix"})
     ).then((response) => response['id_prefix']);

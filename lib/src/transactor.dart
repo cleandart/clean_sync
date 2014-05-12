@@ -21,7 +21,7 @@ class Transactor {
 
   Transactor(this._connection, this.updateLock, this.author, this._idGenerator) {
     defaultOperations.commonOperations.forEach((o) => operations[o.name] = o.toClientOperation());
-    defaultOperations.incompatibleOperations.forEach((o) => operations[o[1].name] = o[1]);
+    clientOperations.operations.forEach((o) => operations[o.name] = o);
     registerArgsDecorator("add", (args) {
        if (!args.containsKey("_id")) args["_id"] = _idGenerator.next();
     });

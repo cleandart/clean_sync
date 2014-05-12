@@ -1,7 +1,6 @@
 library clean_sync.mongo_client;
 
 import 'package:clean_sync/mongo_server.dart';
-import 'package:clean_sync/server.dart';
 import 'dart:io';
 import 'dart:math';
 import 'dart:async';
