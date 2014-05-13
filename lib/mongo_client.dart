@@ -60,7 +60,7 @@ class MongoClient {
           });
         })
         .catchError((e) {
-          print("Unable to connect: $e");
+          logger.shout("Unable to connect: $e");
           exit(1);
         });
 
