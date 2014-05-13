@@ -134,19 +134,15 @@ num handleDiff(List<Map> diff, Subscription subscription) {
           collection.add(change["data"]);
         } else {
           logger.finer('add discarded; same id already present');
-//          assert(author == change['author']);
         }
       }
       else if (action == "change" ) {
         // TODO check if the record is not currently participating in some running operation
         // would be nice although it is not necessary
         if (record != null) {
-
-
            logger.finer('aplying changes (change)');
            res = max(res, change['version']);
            applyChange(change["data"], record);
-
         }
       }
       else if (action == "remove" ) {
@@ -180,21 +176,12 @@ class Subscription {
   DataSet collection;
   Connection _connection;
   Transactor _transactor;
-  // author field is not used anymore; we are keeping it in the DB mainly for debugging
-  // and logging purposes
-//  String _author;
   final Function _handleData;
   final Function _handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
   // requested periodically.
   bool _forceDataRequesting = false;
   Map args = {};
-  // Maps _id of a document to a structure holding the document at the time of sending
-  // along with client version of the change and failed flag. The structure of an
-  // inner map is as: 'data' (DataMap), 'failed' (bool), 'result' (Future that completes
-  // when request completes)
-//  Map<String, Map<String, dynamic>> _sentItems = {};
-
   IdGenerator _idGenerator;
   Set _sentItems = new Set();
   // flag used to prevent subscription to have multiple get_diff requests 'pending'.
@@ -281,23 +268,6 @@ class Subscription {
       return;
     }
     List<Future> actions = [];
-    // resend all failed changes
-//    _sentItems.forEach((id, item) {
-//      if (item["failed"]) {
-//        //actions.add(_send(id, () => item["data"]));
-//        actions.add(item["data"]());
-//      }
-//    });
-//
-//    Needs to be resolved for transactor
-//
-//    if (!this.updateLock) {
-//      for (var key in new List.from(_modifiedItems.changedItems.keys)) {
-//        if (!_sentItems.containsKey(key['_id'])) {
-//          _sendRequest(key);
-//        }
-//      }
-//    }
 
     if (_periodicDiffRequesting.isPaused) {
       logger.fine("Resuming periodic diff requesting");
