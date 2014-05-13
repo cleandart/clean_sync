@@ -120,7 +120,7 @@ class MongoServer {
   // {numl:[int], msg:[String]}
   Map incompleteJson = {};
 
-  MongoServer(this.port, this.mongoUrl, {this.cache}){
+  MongoServer(this.port, this.mongoUrl, {this.cache, this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
@@ -230,9 +230,9 @@ class MongoServer {
     })
     .then((_user){
       logger.finer('operation - before');
-      user = _user;
+      user = new DataMap.from(_user);
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
-          colls: fullColls, user: _user, args: opCall.args, author: opCall.author,
+          colls: fullColls, user: user, args: opCall.args, author: opCall.author,
           clientVersion: opCall.clientVersion);
       return Future.forEach(op.before, (opBefore) =>
         // Before callbacks should return either true, false or null
