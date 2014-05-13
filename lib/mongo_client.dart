@@ -47,8 +47,9 @@ class MongoClient {
             responses.forEach((resp) {
               logger.fine('response obtained: ${resp}');
               Completer completer = reqToResp.remove(resp['operationId']);
+              // Distinguish (un)successful operations by the key
               if (resp.containsKey('result')) {
-                completer.complete(resp['result']);
+                completer.complete(resp);
               } else if (resp.containsKey('error')) {
                 //TODO: think about this
                 completer.complete(resp);

@@ -104,7 +104,7 @@ void run() {
       subscriber = new Subscriber.config(connection, subscriptionIdGenerator, subscriptionFactory, transactorFactory, updateLock);
 
       // then
-      expect(()=> subscriber.subscribe("months"),
+      expect(()=> subscriber.subscribe("months","months"),
           throwsA(new isInstanceOf<MissingIdPrefixException>
             ("MissingIdPrefixException")));
     });

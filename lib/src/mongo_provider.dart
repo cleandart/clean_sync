@@ -390,9 +390,9 @@ class MongoProvider implements DataProvider {
       .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
   }
 
-  stripCollectionName(Map doc){
+  static stripCollectionName(Map doc){
     //modifikuje doc
-    doc.remove(COLLECTION_NAME);
+    if (doc.containsKey(COLLECTION_NAME)) doc.remove(COLLECTION_NAME);
     return doc;
   }
 

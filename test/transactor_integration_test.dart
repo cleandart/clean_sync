@@ -95,7 +95,7 @@ run() {
     return mongoServer.db.collection(collectionName).addAll([first, second],'author')
       .then((_) {
         _addCollectionName([first,second],collectionName);
-        return transactor.operation('send money', args, docs: [first, second], colls:[sub]);
+        return transactor.operation('send money', args, docs: [first, second], subs:[sub]);
       })
       .then((_) {
         expect(first["credit"], equals(2000));
@@ -127,7 +127,7 @@ run() {
     return mongoServer.db.collection(collectionName).addAll([first, second], 'author')
       .then((_) {
         _addCollectionName([first, second], collectionName);
-        return transactor.operation('send money', args, docs: [first,second], colls:[sub]);
+        return transactor.operation('send money', args, docs: [first,second], subs:[sub]);
       })
       .then((_) => mongoServer.db.collection(collectionName).find({"_id":"1"}).findOne())
       .then((d) {

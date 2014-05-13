@@ -338,13 +338,13 @@ class Subscription {
         if (change.addedItems.length > 0) {
           operation = () => _transactor.performServerOperation('addAll',
             {'data': new List.from(change.addedItems)},
-            colls: [this]
+            subs: [this]
           );
         } else if (change.removedItems.length > 0) {
           assert(change.removedItems.length == 1);
           operation = () => _transactor.performServerOperation('removeAll',
             {"ids" : new List.from(change.removedItems.map((e) => e['_id']))},
-            colls: [this]
+            subs: [this]
           );
         } else {
           // Only one item should be changed

@@ -29,23 +29,23 @@ class Transactor {
 
   Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
-  Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> colls}) {
+  Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
     operations[name].argsDecorator.forEach((f) => f(args));
-    performClientOperation(name, args, docs: docs, colls: colls, shouldDecorateArgs: false);
-    return performServerOperation(name, args, docs: docs, colls: colls, shouldDecorateArgs: false);
+    performClientOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
+    return performServerOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
 
   }
 
-  Future performServerOperation(String name, Map args, {docs, List<Subscription> colls, shouldDecorateArgs: true}){
+  Future performServerOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}){
     if (shouldDecorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     List<String> serverColls;
     List<List<String>> serverDocs;
 
 
-    if (colls == null) {
+    if (subs == null) {
       serverColls = [];
     } else {
-      serverColls = new List.from(colls.map((e) => e.mongoCollectionName));
+      serverColls = new List.from(subs.map((e) => e.mongoCollectionName));
     }
 
     if (docs == null) {
@@ -67,8 +67,8 @@ class Transactor {
 
   }
 
-  performClientOperation(String name, Map args, {docs, List<Subscription> colls, shouldDecorateArgs: true}) {
-    List<DataSet> clientColls = colls != null ? new List.from(colls.map((e) => e.collection)) : null;
+  performClientOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}) {
+    List<DataSet> clientColls = subs != null ? new List.from(subs.map((e) => e.collection)) : null;
     ClientOperation op = operations[name];
     if (shouldDecorateArgs) op.argsDecorator.forEach((f) => f(args));
     updateLock.value = true;

@@ -61,7 +61,7 @@ void run() {
         subs.add(s);
       });
       transactor.operation('mockOper', {'args': 'args'}, docs: [january, february],
-          colls: subs);
+          subs: subs);
       expect(mockOperArgs, equals(args));
       expect(mockOperColls, equals([colors, animals]));
       expect(mockOperDocs, equals([january, february]));

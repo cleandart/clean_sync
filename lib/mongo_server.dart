@@ -230,7 +230,7 @@ class MongoServer {
     })
     .then((_user){
       logger.finer('operation - before');
-      user = new DataMap.from(_user);
+      user = _user != null ? new DataMap.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: user, args: opCall.args, author: opCall.author,
           clientVersion: opCall.clientVersion);
