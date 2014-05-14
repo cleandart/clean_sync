@@ -12,7 +12,13 @@ import 'package:clean_data/clean_data.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
-emptyFun(){}
+num decodeLeadingNum(String message) {
+  // Take while it's a digit
+  List codeUnits = message.codeUnits.takeWhile((c) => ((c >= 48) && (c <= 57))).toList();
+  // If there are only digits, the leading number is problably whole
+  if ((codeUnits.length == message.length) || (codeUnits.isEmpty)) return -1;
+  return num.parse(new String.fromCharCodes(codeUnits));
+}
 
 /**
  * Takes a [message] of potentially concatenated JSONs
@@ -21,35 +27,43 @@ emptyFun(){}
  * */
 List<String> getJSONs(String message, [Map incompleteJson]) {
   List<String> jsons = [];
-  int numl = 0;
-  String temp = "";
-  int startPoint = 0;
+  int messageLength = 0;
+  int lastAdditionAt = 0;
   logger.finest("Messages: $message");
   logger.finest("From previous iteration: $incompleteJson");
   if (incompleteJson == null) incompleteJson = {};
-  if (incompleteJson.containsKey("numl")) {
-    numl = incompleteJson["numl"];
+  if (incompleteJson.containsKey("msg")) {
+    // Previous JSON was not sent entirely
     message = incompleteJson["msg"] + message;
-    startPoint = incompleteJson["msg"].length;
-    temp = incompleteJson["msg"];
     logger.finest("New message: $message");
   }
-  int lastAdditionAt = 0;
-  for (int i = startPoint; i < message.length; i++) {
-    temp += message[i];
-    if (message[i] == '{') numl++;
-    if (message[i] == '}') numl--;
-    if (numl == 0) {
-      jsons.add(temp);
-      lastAdditionAt = i;
-      temp = "";
+
+  int i = 0;
+  while (i < message.length) {
+    // Beginning of new message
+    // Performance upgrade, there's not going to be JSON longer than 10 bil chars..
+    // Returns -1 if there are only digits or no digits
+    // Assert = message[i] is a beginning of some valid message => the leading
+    // few characters determine the length of message
+    messageLength = decodeLeadingNum(message.substring(i, i+10));
+    if (messageLength == -1) {
+      // Length of string was not sent entirely
+      break;
     }
+    i += messageLength.toString().length;
+    if (messageLength > message.length - i) {
+      // We want to send more chars than this message contains =>
+      // it was not sent entirely
+      break;
+    }
+    jsons.add(message.substring(i, i+messageLength));
+    lastAdditionAt = i+messageLength;
+    i += messageLength;
   }
   if (lastAdditionAt != message.length-1) {
     // message is incomplete
-    incompleteJson["numl"] = numl;
-    incompleteJson["msg"] = message.substring(lastAdditionAt+1);
-  }
+    incompleteJson["msg"] = message.substring(lastAdditionAt);
+  } else incompleteJson["msg"] = "";
   logger.fine("Jsons: $jsons");
   return jsons;
 }
@@ -117,7 +131,6 @@ class MongoServer {
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
-  // {numl:[int], msg:[String]}
   Map incompleteJson = {};
 
   MongoServer(this.port, this.mongoUrl, {this.cache, this.userColName}){
@@ -132,7 +145,7 @@ class MongoServer {
     if (cache == null) db = new MongoDatabase(mongoUrl);
     else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
-    incompleteJson = {"numl":0, "msg":""};
+    incompleteJson = {};
     var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
         serverSocket = server;
@@ -149,8 +162,18 @@ class MongoServer {
       logger.finer("Incomplete json: $incompleteJson");
       // JSONs could have been sent frequently and therefore concatenated
       List<String> messages = getJSONs(new String.fromCharCodes(data), incompleteJson);
-      var jsons = messages.map((f) => JSON.decode(f));
-      logger.fine("Parsed JSONs: $jsons");
+      logger.finest('Messages: $messages');
+      logger.finest("Incomplete json after: $incompleteJson");
+      var jsons = messages.map((f) {
+        try{
+          JSON.decode(f);
+        } catch (e){
+          print(f);
+          throw e;
+        }
+        return JSON.decode(f);
+      });
+      logger.finer("Parsed JSONs: $jsons");
       List<RawOperationCall> opCalls = new List();
       jsons.forEach((m) {
         var op = new RawOperationCall.fromJson(m);
@@ -158,7 +181,8 @@ class MongoServer {
         queue.add(op);
         op.completer.future.then((Map response){
           response['operationId'] = m['operationId'];
-          socket.write(JSON.encode(response));
+          String responseToSend = JSON.encode(response);
+          socket.write('${responseToSend.length}${responseToSend}');
         });
       });
       _performOne();

@@ -25,7 +25,7 @@ List operations = [
       },
 
       operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].add(opCall.args, '');
+        return opCall.colls[0].add(opCall.args, opCall.author);
       }),
 
     new ServerOperation('remove',
@@ -39,17 +39,17 @@ List operations = [
 
       },
       operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].remove(opCall.args["_id"], "");
+        return opCall.colls[0].remove(opCall.args["_id"], opCall.author);
       }),
 
     new ServerOperation('addAll',
       operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].addAll(opCall.args["data"], "");
+        return opCall.colls[0].addAll(opCall.args["data"], opCall.author);
       }),
 
     new ServerOperation('removeAll',
       operation: (ServerOperationCall opCall) {
-        return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, "");
+        return opCall.colls[0].removeAll({'_id': {'\$in': opCall.args['ids']}}, opCall.author);
       }),
 
 ];

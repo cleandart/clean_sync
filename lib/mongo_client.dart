@@ -79,8 +79,9 @@ class MongoClient {
     String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;
     logger.finer("ReqToResp: ${reqToResp}");
-    socket.write(JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
-      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}));
+    String stringToSend = JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
+      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion});
+    socket.write('${stringToSend.length}${stringToSend}');
     return completer.future;
   }
 }

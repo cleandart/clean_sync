@@ -25,7 +25,7 @@ class IdGenerator {
 
 void main() {
   setupDefaultLogHandler();
-  logger.level = Level.FINER;
+  logger.level = Level.FINE;
   run();
 }
 
@@ -191,6 +191,17 @@ void run() {
           client.performOperation("dummy", args: {'a':'6'}),
           client.performOperation("dummy", args: {'a':'7'}),
         ]),completes);
+      });
+    });
+
+    test("should handle many operations sent right after each other (3000)", () {
+      List<Future> ops = [];
+      return client.connected.then((_) {
+        for (int i = 0; i < 3000; i++) {
+          if (i % 10 == 0) logger.fine("At $i");
+          ops.add(client.performOperation("dummy", args: {"i":'$i'}));
+        }
+        return expect(Future.wait(ops), completes);
       });
     });
 

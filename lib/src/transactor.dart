@@ -8,7 +8,8 @@ class ClientOperationCall extends CommonOperationCall {
   List<Map> docs;
   List<DataSet> colls;
   Map args;
-  ClientOperationCall(this.name, {this.docs, this.colls, this.args});
+  String author;
+  ClientOperationCall(this.name, {this.docs, this.colls, this.args, this.author});
 }
 
 class Transactor {
@@ -73,7 +74,7 @@ class Transactor {
     if (shouldDecorateArgs) op.argsDecorator.forEach((f) => f(args));
     updateLock.value = true;
     op.operation(new ClientOperationCall(name, args: args, colls: clientColls,
-        docs: docs));
+        docs: docs, author: this.author));
     updateLock.value = false;
   }
 
