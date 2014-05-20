@@ -863,6 +863,7 @@ class MongoProvider implements DataProvider {
 
   Future _get_locks({nums: 50}) {
     if (nums <= 0) {
+      logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
     }
     return _lock.insert({'_id': collection.collectionName}).then(
@@ -871,6 +872,7 @@ class MongoProvider implements DataProvider {
         if(e['code'] == 11000) {
           // duplicate key error index
           nums--;
+          logger.warning('Could not obtain lock, retrying ${50-nums}.');
           return new Future.delayed(new Duration(milliseconds: 100))
               .then((_) => _get_locks(nums: nums));
 
