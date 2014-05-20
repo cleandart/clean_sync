@@ -4,10 +4,14 @@
 
 part of clean_sync.client;
 
-final _defaultSubscriptionFactory =
-    (collectionName, connection, author, idGenerator) =>
-        new Subscription(collectionName, connection, author, idGenerator);
+final defaultSubscriptionFactory =
+    (resourceName, mongoCollectionName, connection, idGenerator, transactor, updateLock) =>
+        new Subscription(resourceName, mongoCollectionName, connection,
+            idGenerator, transactor, updateLock);
 
+final defaultTransactorFactory =
+    (connection, updateLock, author, idGenerator) =>
+        new Transactor(connection, updateLock, author, idGenerator);
 /**
  * A control object responsible for managing subscription to server published
  * collections.
@@ -25,22 +29,24 @@ final _defaultSubscriptionFactory =
 class Subscriber {
   Connection _connection;
   String _idPrefix = null;
-  final IdGenerator _subscriptionIdGenerator, _dataIdGenerator;
+  final IdGenerator _dataIdGenerator;
   final _createSubscription;
+  final _createTransactor;
+  DataReference updateLock;
   final List<Subscription> subscriptions = [];
 
   /**
    * Dependency injection constructor used mainly in tests.
    */
-  Subscriber.config(this._connection, this._dataIdGenerator,
-           this._subscriptionIdGenerator, this._createSubscription);
+  Subscriber.config(this._connection, this._dataIdGenerator, this._createSubscription,
+           this._createTransactor, this.updateLock);
 
 
   /**
    * Creates new instance communicating with server using the [connection].
    */
   Subscriber(connection) : this.config(connection, new IdGenerator(),
-      new IdGenerator(), _defaultSubscriptionFactory);
+      defaultSubscriptionFactory, defaultTransactorFactory, new DataReference(false));
 
   Future _loadIdPrefix() =>_connection.send(
         () => new ClientRequest("sync", {"action" : "get_id_prefix"})
@@ -52,21 +58,24 @@ class Subscriber {
    *
    * The method's purpose is to set an unique [idPrefix] that can be used in
    * '_id' generation in the client code. If the [init] is called without the
-   * [idPrefix], it is requested from the server.
+   * [idPrefix], it is requested from the server. If [idPrefix] is provided,
+   * everything is set synchronously and there's no need to wait for the Future returned.
    *
    * This method returns the [Future] that completes when the [idPrefix] is
    * obtained and set.
    */
   Future init([idPrefix = null]) {
-    idPrefix = (idPrefix == null) ?
-        _loadIdPrefix() :
-        new Future.value(idPrefix);
-
-    return idPrefix.then((prefix) {
-      _idPrefix = prefix;
-      _subscriptionIdGenerator.prefix = prefix;
-      _dataIdGenerator.prefix = prefix;
-    });
+    if (idPrefix == null) idPrefix = _loadIdPrefix();
+    if (idPrefix is Future) {
+      return idPrefix.then((prefix) {
+        _idPrefix = prefix;
+        _dataIdGenerator.prefix = prefix;
+      });
+    } else {
+      _idPrefix = idPrefix;
+      _dataIdGenerator.prefix = idPrefix;
+      return new Future.value(idPrefix);
+    }
   }
 
   /**
@@ -85,16 +94,20 @@ class Subscriber {
    * really big collection and want to request only a portion of data specified
    * by args in restart method.
    */
-  Subscription subscribe(String collectionName) {
+  Subscription subscribe(String resourceName, String mongoCollectionName) {
     if(_idPrefix == null) {
       throw new StateError("Subscriber can not be used before the Future"
           " returned by 'init' method has completed.");
     }
-    String author = _subscriptionIdGenerator.next();
-    var subscription = _createSubscription(collectionName, _connection, author,
-      _dataIdGenerator);
+    var subscription = _createSubscription(resourceName, mongoCollectionName,
+        _connection, _dataIdGenerator, createTransactor(), updateLock);
     subscriptions.add(subscription);
     return subscription;
+  }
+
+  Transactor createTransactor(){
+    String author = _dataIdGenerator.next();
+    return _createTransactor(this._connection, this.updateLock, author, _dataIdGenerator);
   }
 
   _pruneSubscriptions() {
@@ -106,7 +119,8 @@ class Subscriber {
     String res = "";
     for (var i = 0; i < subscriptions.length; i++) {
       res += subscriptions[i].toString()+"\n";
-      res += "Collection name: ${subscriptions[i].collectionName} \n";
+      res += "Resource name: ${subscriptions[i].resourceName} \n";
+      res += "Collection name: ${subscriptions[i].mongoCollectionName} \n";
       res += "Args: ${subscriptions[i].args} \n";
       res += "Initial sync completed? ${subscriptions[i].initialSyncCompleted}\n";
       if (data) {

@@ -18,10 +18,10 @@ LIElement createListElement(person, persons) {
   ..onClick.listen((MouseEvent event) {
     LIElement e = event.toElement;
     String _id = e.dataset["_id"];
-    DataMap pers = persons.collection.firstWhere((d) => d["_id"] == _id);
+    DataMap pers = persons.colls.firstWhere((d) => d["_id"] == _id);
 
     if (pers != null) {
-      persons.collection.remove(pers);
+      persons.colls.remove(pers);
     }
   });
   return li;

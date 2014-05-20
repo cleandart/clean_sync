@@ -50,6 +50,8 @@ const num NOSKIP = 0;
 
 const String VERSION_FIELD_NAME = '__clean_version';
 const String LOCK_COLLECTION_NAME = '__clean_lock';
+const String COLLECTION_NAME = '__clean_collection';
+
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
@@ -72,9 +74,7 @@ class MongoDatabase {
       }));
   }
 
-  void close() {
-    Future.wait(init).then((_) => _db.close());
-  }
+  Future close() => Future.wait(init).then((_) => _db.close());
 
   Future create_collection(String collectionName) {
     Future res =_conn.then((_) =>
@@ -303,6 +303,8 @@ class MongoProvider implements DataProvider {
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
       assert(version != null);
+      // Add collection name to document (it's not in database)
+      data.forEach((e) => e[COLLECTION_NAME] = collection.collectionName);
       return {'data': data, 'version': version};
     }).then((result) {
       stopWatch(watchID);
@@ -322,7 +324,7 @@ class MongoProvider implements DataProvider {
         _collectionHistory.insertAll(data.map((elem) =>
             {
               "before" : {},
-              "after" : elem,
+              "after" : stripCollectionName(elem),
               "action" : "add",
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
@@ -338,6 +340,7 @@ class MongoProvider implements DataProvider {
       ).then((_) => _release_locks()).then((_) => nextVersion);
   }
 
+
   Future writeOperation(String _id, String author, String action, Map newData,
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
@@ -345,8 +348,8 @@ class MongoProvider implements DataProvider {
     return _get_locks()
       .then((_) => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
-      .then((Map oldData) {
 
+      .then((Map oldData) {
         if (oldData == null) oldData = {};
         // check that current db state is consistent with required action
         var inferredAction;
@@ -376,7 +379,7 @@ class MongoProvider implements DataProvider {
           }).then((_) =>
             _collectionHistory.insert({
               "before" : oldData,
-              "after" : newData,
+              "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
               "version" : nextVersion,
@@ -385,6 +388,12 @@ class MongoProvider implements DataProvider {
         }
       }).then((_) => _release_locks()).then((_) => nextVersion)
       .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
+  }
+
+  static stripCollectionName(Map doc){
+    //modifikuje doc
+    if (doc.containsKey(COLLECTION_NAME)) doc.remove(COLLECTION_NAME);
+    return doc;
   }
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
@@ -452,15 +461,15 @@ class MongoProvider implements DataProvider {
             } else {
               newData[VERSION_FIELD_NAME] = nextVersion;
               if (inferredAction == 'add') {
-                return collection.insert(newData);
+                return collection.insert(stripCollectionName(newData));
               } else {
-                return collection.save(newData);
+                return collection.save(stripCollectionName(newData));
               }
             }
           }).then((_) =>
             _collectionHistory.insert({
               "before" : oldData,
-              "after" : newData,
+              "after" : stripCollectionName(newData),
               "action" : inferredAction,
               "author" : author,
               "version" : nextVersion,
@@ -504,7 +513,7 @@ class MongoProvider implements DataProvider {
             return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
             _collectionHistory.insert({
               "before" : oldItem,
-              "after" : newItem.single,
+              "after" : stripCollectionName(newItem.single),
               "action" : "change",
               "author" : author,
               "version" : nextVersion++,
@@ -531,15 +540,18 @@ class MongoProvider implements DataProvider {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
-        return collection.remove(query).then((_) =>
-          _collectionHistory.insertAll(data.map((elem) => {
-            "before" : elem,
-            "after" : {},
-            "action" : "remove",
-            "author" : author,
-            "version" : nextVersion++,
-            "timestamp" : new DateTime.now()
-        }).toList(growable: false)));
+        return collection.remove(query).then((_) {
+          if (data.isNotEmpty) {
+            return _collectionHistory.insertAll(data.map((elem) => {
+              "before" : elem,
+              "after" : {},
+              "action" : "remove",
+              "author" : author,
+              "version" : nextVersion++,
+              "timestamp" : new DateTime.now()
+            }).toList(growable: false));
+          } else return [];
+        });
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
@@ -671,6 +683,8 @@ class MongoProvider implements DataProvider {
 
               _stripCleanVersion(record['before']);
               _stripCleanVersion(record['after']);
+              record["after"][COLLECTION_NAME] = this.collection.collectionName;
+              record["before"][COLLECTION_NAME] = this.collection.collectionName;
 
               if(before.contains(record['_id']) && after.contains(record['_id']))
               {
@@ -871,7 +885,10 @@ class MongoProvider implements DataProvider {
   Future _release_locks() {
     return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
     _lock.remove({'_id': collection.collectionName})).then((_) =>
-    true);
+    true)
+    .catchError((e, s) {
+      logger.shout('during releasing locks, error occured', e, s);
+    });
   }
 
   void _stripCleanVersion(dynamic data) {

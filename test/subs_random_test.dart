@@ -1,18 +1,21 @@
 library subs_random_test;
 
 import "package:unittest/unittest.dart";
+import "package:mock/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';
 import 'package:clean_sync/client.dart';
-import 'package:mock/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
+import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/mongo_client.dart';
+
 
 
 Random rng = new Random();
@@ -41,13 +44,14 @@ main() {
   config.timeout = null;
   unittestConfiguration = config;
   hierarchicalLoggingEnabled = true;
+//  (new Logger('clean_ajax')).level = Level.INFO;
   testLogger.level = Level.FINER;
   (new Logger('clean_ajax')).level = Level.FINE;
 //  (new Logger('clean_sync')).level = Level.FINER;
 
 
   setupDefaultLogHandler();
-  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0.05);
+  run(1000000, new Cache(new Duration(milliseconds: 100), 10000), failProb: 0);
 //  run(1000000, new DummyCache(), failProb: 0.05);
 }
 
@@ -66,6 +70,9 @@ run(count, cache, {failProb: 0}) {
   Subscription subA;
   Subscription subAa;
   Subscription subNoMatch;
+  Subscriber subscriber;
+  MongoServer mongoServer;
+  MongoClient mongoClient;
 
   DataMap data1;
   DataMap data2;
@@ -73,13 +80,21 @@ run(count, cache, {failProb: 0}) {
   DataMap data4;
 
   Publisher pub;
-
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest', cache: cache);
+  DataReference updateLock;
+  ftransactorByAuthor(author) => new Transactor(connection, updateLock,
+      author, new IdGenerator('f'));
 
   setUp((){
-    return Future.wait(mongodb.init)
-    .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks()).then((_){
+    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+    updateLock = new DataReference(false);
+    return mongoServer.start()
+    .then((_) {
+      mongodb = mongoServer.db;
+      mongodb.dropCollection('random');
+    })
+    .then((_) => mongodb.removeLocks())
+    .then((_) {
+        mongoClient = new MongoClient("127.0.0.1", 27001);
         pub = new Publisher();
         var versionProvider = mongodb.collection("random");
         pub.publish('a', (_) {
@@ -101,26 +116,34 @@ run(count, cache, {failProb: 0}) {
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
+        requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
         transport = new LoopBackTransportStub(
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
 
-        subAll = new Subscription('a', connection, 'author1', new IdGenerator('a'))..restart();
+        subscriber = new Subscriber.config(connection, new IdGenerator(), defaultSubscriptionFactory, defaultTransactorFactory,
+            updateLock);
+        subscriber.init('prefix');
+
+        subAll = subscriber.subscribe('a', 'random')..restart();
         colAll = subAll.collection;
-        subAll2 = new Subscription('a', connection, 'author2', new IdGenerator('b'))..restart();
+        subAll2 = subscriber.subscribe('a', 'random')..restart();
         colAll2 = subAll2.collection;
-        subA = new Subscription('b', connection, 'author3', new IdGenerator('c'))..restart();
+        subA = subscriber.subscribe('b','random')..restart();
         colA = subA.collection;
-        subAa = new Subscription('c', connection, 'author4', new IdGenerator('d'))..restart();
+        subAa = subscriber.subscribe('c', 'random')..restart();
         colAa = subAa.collection;
-        subNoMatch = new Subscription('d', connection, 'author5',
-            new IdGenerator('e'))..restart();
+        subNoMatch = subscriber.subscribe('d', 'random')..restart();
 
         data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
     });
+  });
+
+  tearDown(() {
+    return mongoServer.close();
   });
 
   randomChoice(Iterable iter) {
@@ -267,9 +290,9 @@ run(count, cache, {failProb: 0}) {
       for (Subscription sub in [subAll]) {
         Subscription newSub;
         res = res
-          .then((_) {
-            newSub = new Subscription(sub.collectionName, connection, 'dummyAuthor', new IdGeneratorMock())..restart();
-           })
+          .then((_) =>
+            newSub = new Subscription(sub.resourceName, 'random', connection,
+                new IdGeneratorMock(), ftransactorByAuthor('dummyAuthor'), updateLock)..restart())
           .then((_) =>
             newSub.initialSync)
           .then((_) =>

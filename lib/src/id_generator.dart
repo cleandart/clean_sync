@@ -6,13 +6,13 @@ part of clean_sync.client;
 
 class IdGenerator {
   int _counter = 0;
-  String prefix = null;
-  
+  String prefix;
+
   /**
    * Creates IdGenerator with [prefix]
    */
-  IdGenerator([this.prefix]);
-  
+  IdGenerator([this.prefix = ""]);
+
   String next() {
     _counter++;
     return prefix + '-' + _counter.toRadixString(36);

@@ -42,7 +42,7 @@ class Resource {
         }
         else {
           beforeRequest = beforeRequest.then((_) => generator(data['args']))
-              .then((dp) => dp.collection.findOne({'_id': data['_id']}))
+              .then((dp) => dp.colls.findOne({'_id': data['_id']}))
               .then((Map data) {
                 applyJSON(value, data);
                 value = data;
@@ -117,8 +117,6 @@ class Publisher {
   }
 
   Future handleSyncRequest(ServerRequest request) {
-//    print(request.type);
-//    print(request.args);
     Map data = request.args;
     logger.finest("REQUEST:  ${data}");
 

@@ -17,10 +17,14 @@ import "package:logging/logging.dart";
 import 'dart:math';
 import 'dart:collection';
 import "dart:convert";
+import 'operations.dart' as defaultOperations;
+import 'operations.dart';
+import 'client_operations.dart' as clientOperations;
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
 part 'src/id_generator.dart';
+part 'src/transactor.dart';
 //part 'src/mongo_comparator.dart';
 
 
