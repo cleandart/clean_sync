@@ -123,7 +123,18 @@ class MongoDatabase {
       _db.collection(historyCollectionName(collectionName)).drop()
     ]));
 
-  Future removeLocks() => _lock.drop();
+  /**
+   * if collectionName is specified, drop locks for this specific collection.
+   * Otherwise, drop all locks in the system.
+   */
+  Future removeLocks({String collectionName}){
+    if (collectionName == null) {
+      return _lock.drop();
+    } else {
+      return this.collection(collectionName)._release_locks();
+    }
+  }
+
 }
 
 List addFieldIfNotEmpty(List fields, String field){
@@ -136,6 +147,7 @@ List addFieldIfNotEmpty(List fields, String field){
 }
 
 MongoProvider mpClone(MongoProvider source){
+
   MongoProvider m = new MongoProvider(source.collection, source._collectionHistory,
       source._lock, source.cache);
   m._selectorList = new List.from(source._selectorList);

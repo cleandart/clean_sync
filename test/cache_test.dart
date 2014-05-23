@@ -1,5 +1,5 @@
 import 'package:unittest/unittest.dart';
-import 'package:unittest/mock.dart';
+import 'package:mock/mock.dart';
 import 'package:clean_sync/server.dart';
 import 'dart:async';
 

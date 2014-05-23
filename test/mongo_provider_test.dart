@@ -393,7 +393,7 @@ void main() {
     test('remove nonexisting data. (T08)', () {
       // when
       Future shouldNotThrow = ready.then((_) => months.remove('january', 'Michael Smith'))
-          .then(expectAsync1((res){
+          .then(expectAsync((res){
           }));
       // then
     });

@@ -3,7 +3,7 @@ library exception_test;
 import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import 'package:clean_sync/client.dart';
-import 'package:unittest/mock.dart';
+import 'package:mock/mock.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
@@ -53,14 +53,14 @@ run() {
 
     skip_test('Exception in initial sync is caught on client-side', () {
       var _idGenerator = new IdGeneratorMock();
-      var callback = expectAsync1((_){});
+      var callback = expectAsync((_){});
       sub = new Subscription('a', 'random', connection, _idGenerator, transactor, updateLock)..restart();
       return sub.initialSync.then((_){}, onError: callback);
     });
 
     skip_test('Exception in beforeRequest is caught on client-side', () {
       var newdata = new DataMap.from({"_id": "id"});
-      var testvalue = expectAsync1((value) {
+      var testvalue = expectAsync((value) {
         expect(value, equals(newdata));
       });
 
@@ -73,7 +73,7 @@ run() {
         return mongodb.collection("random");
       }, beforeRequest: beforeRequest);
       var _idGenerator = new IdGeneratorMock();
-      var callback = expectAsync1((_){});
+      var callback = expectAsync((_){});
 
       sub = new Subscription('b', 'random', connection, _idGenerator, transactor, updateLock)..restart();
       sub.initialSync.then((_) {
