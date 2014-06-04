@@ -4,6 +4,7 @@ import 'package:clean_sync/server.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'package:logging/logging.dart';
 import 'operations.dart' as ops;
 import 'operations.dart';
@@ -45,13 +46,13 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
     // Returns -1 if there are only digits or no digits
     // Assert = message[i] is a beginning of some valid message => the leading
     // few characters determine the length of message
-    messageLength = decodeLeadingNum(message.substring(i, i+10));
+    messageLength = decodeLeadingNum(message.substring(i, min(message.length, i+10)));
     if (messageLength == -1) {
       // Length of string was not sent entirely
       break;
     }
     i += messageLength.toString().length;
-    if (messageLength > message.length - i) {
+    if (messageLength+i > message.length) {
       // We want to send more chars than this message contains =>
       // it was not sent entirely
       break;
