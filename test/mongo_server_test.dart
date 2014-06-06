@@ -10,6 +10,7 @@ import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/operations.dart';
+import 'dart:convert';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 class IdGenerator {
@@ -301,5 +302,15 @@ void run() {
       });
     });
 
+    test("should decode message with accents correctly", () {
+      List<Future> ops = [];
+      return client.connected.then((_) {
+        for (int i = 0; i < 2000; i++) {
+          if (i % 10 == 0) logger.fine("At $i");
+          ops.add(client.performOperation("dummy", args: {"message":'Příšerná ťarcha'}));
+        }
+        return expect(Future.wait(ops), completes);
+      });
+    });
   });
 }

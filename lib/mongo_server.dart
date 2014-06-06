@@ -13,12 +13,18 @@ import 'package:clean_data/clean_data.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
-num decodeLeadingNum(String message) {
+class Tuple {
+  var fst;
+  var snd;
+  Tuple(this.fst, this.snd);
+}
+
+Tuple decodeLeadingNum(String message) {
   // Take while it's a digit
   List codeUnits = message.codeUnits.takeWhile((c) => ((c >= 48) && (c <= 57))).toList();
-  // If there are only digits, the leading number is problably whole
-  if ((codeUnits.length == message.length) || (codeUnits.isEmpty)) return -1;
-  return num.parse(new String.fromCharCodes(codeUnits));
+  // If there are only digits, the leading number is problably not transfered whole
+  if ((codeUnits.length == message.length) || (codeUnits.isEmpty)) return new Tuple(-1, -1);
+  return new Tuple(num.parse(new String.fromCharCodes(codeUnits)), codeUnits.length);
 }
 
 /**
@@ -46,12 +52,13 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
     // Returns -1 if there are only digits or no digits
     // Assert = message[i] is a beginning of some valid message => the leading
     // few characters determine the length of message
-    messageLength = decodeLeadingNum(message.substring(i, min(message.length, i+10)));
+    Tuple messageInfo = decodeLeadingNum(message.substring(i, i+10));
+    messageLength = messageInfo.fst;
     if (messageLength == -1) {
       // Length of string was not sent entirely
       break;
     }
-    i += messageLength.toString().length;
+    i += messageInfo.snd;
     if (messageLength+i > message.length) {
       // We want to send more chars than this message contains =>
       // it was not sent entirely
@@ -159,17 +166,18 @@ class MongoServer {
   handleClient(Socket socket){
     clientSockets.add(socket);
     socket.listen((List<int> data){
-      logger.finer("Received JSON: ${new String.fromCharCodes(data)}");
+      logger.finer("Received JSON: ${UTF8.decode(data)}");
+      logger.finest("Char codes: ${data}");
       logger.finer("Incomplete json: $incompleteJson");
       // JSONs could have been sent frequently and therefore concatenated
-      List<String> messages = getJSONs(new String.fromCharCodes(data), incompleteJson);
+      List<String> messages = getJSONs(UTF8.decode(data), incompleteJson);
       logger.finest('Messages: $messages');
       logger.finest("Incomplete json after: $incompleteJson");
       var jsons = messages.map((f) {
         try{
           JSON.decode(f);
         } catch (e){
-          print(f);
+          logger.shout("Failed to decode JSON from $f",e);
           throw e;
         }
         return JSON.decode(f);
