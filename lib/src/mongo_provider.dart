@@ -20,7 +20,7 @@ class DiffNotPossibleException implements Exception {
 class MongoException implements Exception {
    final mongoError;
    final String msg;
-   final String stackTrace;
+   final StackTrace stackTrace;
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
    String toString() =>
        msg == null ? 'MongoError: $mongoError \n Stack trace: $stackTrace' : '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
