@@ -33,7 +33,9 @@ class BreakException {
 
 const String QUERY = "\$query";
 const String GT = "\$gt";
+const String GTE = "\$gte";
 const String LT = "\$lt";
+const String LTE = "\$lte";
 const String ORDERBY = "\$orderby";
 const String OR = "\$or";
 const String AND = "\$and";
