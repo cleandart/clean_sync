@@ -10,14 +10,15 @@ import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
+import 'package:clean_sync/id_generator.dart';
 
 Logger logger = new Logger('clean_sync');
 
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
-  logger.level = Level.FINER;
   setupDefaultLogHandler();
+  logger.level = Level.FINER;
   run();
 }
 
@@ -28,7 +29,10 @@ run() {
 
   Connection connection;
   LoopBackTransportStub transport;
+  Transactor transactor;
+  DataReference updateLock;
   Subscription subRandom;
+  IdGenerator idgen;
 
   Map dataA;
   Map dataB;
@@ -54,7 +58,12 @@ run() {
         transport = new LoopBackTransportStub(requestHandler.handleLoopBackRequest);
         connection = new Connection.config(transport);
 
-        subRandom = new Subscription('random', connection, 'author_random', new IdGenerator('random'));
+        updateLock = new DataReference(false);
+        idgen = new IdGenerator('random');
+        transactor = new Transactor(connection, updateLock, 'author', idgen);
+
+        subRandom = new Subscription('random', 'author_random', connection,
+            idgen, transactor, updateLock);
         colRandom = subRandom.collection;
 
         dataA = {'name' : 'a', 'age' : 46};

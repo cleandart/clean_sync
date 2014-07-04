@@ -129,7 +129,7 @@ class Publisher {
     var action = data["action"];
 
     if (action == "get_id_prefix") {
-      return new Future(getIdPrefix).then((prefix) => {'id_prefix': prefix});
+      return new Future.value({'id_prefix': getIdPrefix()});
     }
 
     return resource.handleSyncRequest(data).
@@ -142,14 +142,6 @@ class Publisher {
       });
     });
 
-  }
-
-  String getIdPrefix() {
-    String prefix =
-        new DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
-        prefix_random_part.toRadixString(36) + counter.toRadixString(36);
-    counter = (counter + 1) % MAX;
-    return prefix;
   }
 }
 
@@ -164,8 +156,4 @@ bool isPublished(String collection) {
 
 Future handleSyncRequest(request) {
   return PUBLISHER.handleSyncRequest(request);
-}
-
-String getIdPrefix() {
-  return PUBLISHER.getIdPrefix();
 }

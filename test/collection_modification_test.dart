@@ -1,4 +1,4 @@
-library collection_modification_test;
+library clean_sync.test.collection_modification_test;
 
 import "package:unittest/unittest.dart";
 import "dart:async";
@@ -12,7 +12,7 @@ import 'package:clean_sync/client.dart';
 import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/mongo_server.dart';
-
+import 'package:clean_sync/id_generator.dart';
 
 
 stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
@@ -427,7 +427,5 @@ run() {
     ];
     return executeSubscriptionActions(actions);
   });
-
-
 
 }
