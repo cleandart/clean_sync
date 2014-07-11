@@ -1,7 +1,8 @@
-import 'package:unittest/unittest.dart';
-import 'package:mock/mock.dart';
-import 'package:clean_sync/server.dart';
+library clean_sync.test.cache_test;
+
 import 'dart:async';
+import 'package:unittest/unittest.dart';
+import 'package:clean_sync/server.dart';
 
 main(){
 
@@ -48,7 +49,5 @@ main(){
     expect(cache.get('c'), 'C');
     expect(cache.get('d'), 'D');
   });
-
-
 
 }

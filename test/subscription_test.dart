@@ -7,6 +7,7 @@ library client_test;
 import 'package:unittest/unittest.dart';
 import 'package:mock/mock.dart';
 import 'package:clean_sync/client.dart';
+import 'package:clean_sync/id_generator.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/common.dart';
 import 'package:clean_data/clean_data.dart';

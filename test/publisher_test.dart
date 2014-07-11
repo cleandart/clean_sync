@@ -197,13 +197,5 @@ void run() {
       expect(result, completion(isMap));
       expect(result, completion(contains('id_prefix')));
     });
-
-    test("get server prefix returns different values.", () {
-      String prefix1 = publisher.getIdPrefix();
-      String prefix2 = publisher.getIdPrefix();
-
-      //then
-      expect(prefix1 == prefix2, isFalse);
-    });
   });
 }

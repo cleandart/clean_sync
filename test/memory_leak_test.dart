@@ -2,6 +2,7 @@ import "package:unittest/unittest.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'package:clean_sync/client.dart';
+import 'package:clean_sync/id_generator.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';

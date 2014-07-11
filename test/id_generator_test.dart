@@ -5,7 +5,7 @@
 library id_generator_test;
 
 import 'package:unittest/unittest.dart';
-import 'package:clean_sync/client.dart';
+import 'package:clean_sync/id_generator.dart';
 
 void main() {
   group('IdGenerator', () {
@@ -53,5 +53,13 @@ void main() {
       // then
       expect(generator.next(), equals('prefix2-4jkq'));
     });
+  });
+
+  test("Get id prefix returns different values.", () {
+    String prefix1 = getIdPrefix();
+    String prefix2 = getIdPrefix();
+
+    //then
+    expect(prefix1 == prefix2, isFalse);
   });
 }
