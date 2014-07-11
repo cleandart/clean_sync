@@ -150,8 +150,8 @@ List addFieldIfNotEmpty(List fields, String field){
 
 MongoProvider mpClone(MongoProvider source){
 
-  MongoProvider m = new MongoProvider(source.collection, source._collectionHistory,
-      source._lock, source.cache);
+  MongoProvider m = new MongoProvider.config(source.collection,
+      source._collectionHistory, source._lock, source.cache, source.idgen);
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
   m._limit = source._limit;
@@ -170,6 +170,7 @@ class MongoProvider implements DataProvider {
   num _limit = NOLIMIT;
   num _skip = NOSKIP;
   Cache cache;
+  IdGenerator idgen;
 
   //for testing purposes
   Future<int> get maxVersion => _maxVersion;
@@ -182,8 +183,12 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(this.collection, this._collectionHistory, this._lock, this.cache);
+  MongoProvider(collection, collectionHistory, lock, cache) :
+    this.config(collection, collectionHistory, lock, cache,
+        new IdGenerator(getIdPrefix()));
 
+  MongoProvider.config(this.collection, this._collectionHistory, this._lock,
+      this.cache, this.idgen);
 
   Future deleteHistory(num version) {
     return _collectionHistory.remove({'version': {LT: version}});
@@ -328,6 +333,7 @@ class MongoProvider implements DataProvider {
 
 
   Future addAll(List<Map> data, String author) {
+    for (Map d in data) ensureId(d, idgen);
     cache.invalidate();
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
@@ -404,6 +410,10 @@ class MongoProvider implements DataProvider {
       .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
   }
 
+  static ensureId(Map doc, IdGenerator idgen) {
+    if (!doc.containsKey('_id')) doc['_id'] = idgen.next();
+  }
+
   static stripCollectionName(Map doc){
     //modifikuje doc
     if (doc.containsKey(COLLECTION_NAME)) doc.remove(COLLECTION_NAME);
@@ -416,6 +426,7 @@ class MongoProvider implements DataProvider {
   }
 
   Future add(Map data, String author, {clientVersion: null}) {
+    ensureId(data, idgen);
     return writeOperation(data['_id'], author, 'add', data,
         clientVersion: clientVersion);
   }
@@ -439,6 +450,7 @@ class MongoProvider implements DataProvider {
         if(jsonData is List) {
           if(jsonData[0] == CLEAN_UNDEFINED){
             action = 'add';
+            ensureId(jsonData[0], idgen);
           }
           else if(jsonData[1] == CLEAN_UNDEFINED){
             action = 'remove';
