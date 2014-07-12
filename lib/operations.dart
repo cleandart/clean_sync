@@ -36,8 +36,13 @@ class ServerOperation {
   }
 
   ServerOperation(this.name, {before, this.operation, after}) {
-    _before = before != null ? [before] : [];
-    _after = after != null ? [after] : [];
+    if(before != null)
+      _before = before is List ? before : [before];
+    else _before = [];
+
+    if(after != null)
+      _after = after is List ? after : [after];
+    else _after = [];
   }
 
   ClientOperation toClientOperation() =>
