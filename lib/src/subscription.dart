@@ -451,9 +451,8 @@ class Subscription {
 
   Future _closeSubs() {
     logger.info("Closing all stream subscriptions of ${this}");
-    return Future.forEach(_subscriptions, (sub){
-      sub.cancel();
-    }).then((_) => Future.wait(_sentItems));
+    _subscriptions.forEach((sub) => sub.cancel());
+    return Future.wait(_sentItems);
   }
 
   Future dispose(){
