@@ -278,8 +278,8 @@ class MongoServer {
           return true;
         })
       ).then((_) =>
-          // No explicit result was thrown, defaults to Permitted
-          true
+          // No explicit result was thrown, defaults to NOT Permitted
+          throw false
       ).catchError((e,s) {
         if (e == true) return true;
         if (e == false) throw new ValidationException('Operation not permitted');
