@@ -175,7 +175,7 @@ class Subscription {
   String mongoCollectionName;
   DataSet collection;
   Connection _connection;
-  Transactor _transactor;
+  Transactor transactor;
   final Function _handleData;
   final Function _handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
@@ -238,7 +238,7 @@ class Subscription {
   }
 
   Subscription.config(this.resourceName, this.mongoCollectionName, this.collection,
-      this._connection, this._idGenerator, this._transactor, this._handleData,
+      this._connection, this._idGenerator, this.transactor, this._handleData,
       this._handleDiff, this._forceDataRequesting, this.updateLock) {
     _initialSync = createInitialSync();
   }
@@ -306,20 +306,20 @@ class Subscription {
         ChangeSet change = event['change'];
         var operation;
         if (change.addedItems.length > 0) {
-          operation = () => _transactor.performServerOperation('addAll',
+          operation = () => transactor.performServerOperation('addAll',
             {'data': new List.from(change.addedItems)},
             subs: [this]
           );
         } else if (change.removedItems.length > 0) {
           assert(change.removedItems.length == 1);
-          operation = () => _transactor.performServerOperation('removeAll',
+          operation = () => transactor.performServerOperation('removeAll',
             {"ids" : new List.from(change.removedItems.map((e) => e['_id']))},
             subs: [this]
           );
         } else {
           // Only one item should be changed
           assert(change.changedItems.length == 1);
-          operation = () => _transactor.performServerOperation("change",
+          operation = () => transactor.performServerOperation("change",
             change.changedItems.values.first.toJson(),
             docs: [change.changedItems.keys.first]
           );
