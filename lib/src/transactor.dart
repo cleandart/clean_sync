@@ -64,7 +64,14 @@ class Transactor {
         'author': this.author,
         'clientVersion': this._idGenerator.next()
       });
-    });
+    }).then((Map value) {
+      if(value == null || !value.containsKey('result') ||
+          value['result'] != 'ok')
+          logger.warning('Operation "$name" completed with error ($value)');
+      else
+        logger.fine('Operation "$name": completed correctly');
+      return value;
+    });;
 
   }
 

@@ -232,6 +232,11 @@ class MongoServer {
 
   Future _performOperation(RawOperationCall opCall) {
     ServerOperation op = operations[opCall.name];
+    if(op == null) {
+      opCall.completer.complete({'error':{'Unknown operation':'${opCall.name}'}});
+      logger.shout('Unknown operation ${opCall.name}');
+      return new Future(() => null);
+    }
     List fullDocs = [];
     List fullColls = [];
     ServerOperationCall fOpCall;
