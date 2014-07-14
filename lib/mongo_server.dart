@@ -91,8 +91,9 @@ class ServerOperationCall extends CommonOperationCall {
   DataMap user;
   String author;
   String clientVersion;
+  MongoDatabase db;
 
-  ServerOperationCall(this.name, {this.docs, this.colls,
+  ServerOperationCall(this.name, {this.docs, this.colls, this.db,
     this.args, this.user, this.author, this.clientVersion});
 
 }
@@ -270,7 +271,7 @@ class MongoServer {
       logger.finer('operation - before');
       user = _user != null ? new DataMap.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
-          colls: fullColls, user: user, args: opCall.args, author: opCall.author,
+          colls: fullColls, user: user, args: opCall.args, db: db, author: opCall.author,
           clientVersion: opCall.clientVersion);
       return Future.forEach(op.before, (opBefore) =>
         // Before callbacks should return either true, false or null

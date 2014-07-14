@@ -31,6 +31,11 @@ class Transactor {
   Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
   Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
+    if(operations[name] == null) {
+      logger.shout('(transcator) Operation "$name" not found!!!');
+      throw new Exception('Operation "$name" not found!!!');
+    }
+
     operations[name].argsDecorator.forEach((f) => f(args));
     performClientOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
     return performServerOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
@@ -41,7 +46,6 @@ class Transactor {
     if (shouldDecorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     List<String> serverColls;
     List<List<String>> serverDocs;
-
 
     if (subs == null) {
       serverColls = [];
