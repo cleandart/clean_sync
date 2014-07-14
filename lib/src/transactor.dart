@@ -75,7 +75,7 @@ class Transactor {
       else
         logger.fine('Operation "$name": completed correctly');
       return value;
-    });;
+    });
 
   }
 
