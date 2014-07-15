@@ -409,34 +409,31 @@ class Subscription {
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
-          new Future.delayed(new Duration(seconds:2), () {
             diffRequests.add(response);
             requestLock = false;
             if(transactor.operationPerformed == true) {
-              logger.shout('Operation was performed during diff.');
               return false;
             }
-          while(diffRequests.isNotEmpty) {
-            response = diffRequests.first;
-            diffRequests.removeAt(0);
+            while(diffRequests.isNotEmpty) {
+              response = diffRequests.first;
+              diffRequests.removeAt(0);
 
-            // id data and version was sent, diff is set to null
-            if (response['error'] != null) {
-              throw new Exception(response['error']);
-            }
-            if(response['diff'] == null) {
-              _version = response['version'];
-              _handleData(response['data'], this);
-            } else {
-              if(!response['diff'].isEmpty) {
-                _version = max(_version, _handleDiff(response['diff'], this));
+              // id data and version was sent, diff is set to null
+              if (response['error'] != null) {
+                throw new Exception(response['error']);
+              }
+              if(response['diff'] == null) {
+                _version = response['version'];
+                _handleData(response['data'], this);
               } else {
-                  if (response.containsKey('version'))
-                     _version = response['version'];
+                if(!response['diff'].isEmpty) {
+                  _version = max(_version, _handleDiff(response['diff'], this));
+                } else {
+                    if (response.containsKey('version'))
+                       _version = response['version'];
+                }
               }
             }
-          }
-          });
         }, onError: (e, s){
           if (e is CancelError) { /* do nothing */ }
           else if (e is ConnectionError) {
