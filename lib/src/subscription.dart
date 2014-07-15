@@ -103,6 +103,7 @@ void destroyStructure(s){
 num handleDiff(List<Map> diff, Subscription subscription) {
   logger.fine('handleDiff: subscription: $subscription'
               'diffSize: ${diff.length}, diff: $diff');
+
   subscription.updateLock.value = true;
   DataSet collection = subscription.collection;
   var version = subscription._version;
@@ -154,6 +155,7 @@ num handleDiff(List<Map> diff, Subscription subscription) {
     });
   } catch (e) {
     if (e is Exception) {
+      subscription.updateLock.value = false;
       throw e;
     }
   }
@@ -325,6 +327,7 @@ class Subscription {
           );
         }
         Future result;
+        transactor.operationPerformed = true;
         result = operation()
           .then((res) {
             if (res is Map && res['result'] != null) res = res['result'];
@@ -358,6 +361,7 @@ class Subscription {
     } else {
       logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
+      transactor.operationPerformed = false;
 
       return new ClientRequest("sync", {
         "action" : "get_diff",
@@ -398,28 +402,41 @@ class Subscription {
     });
   }
 
+  List diffRequests = new List();
   void _setupPeriodicDiffRequesting() {
     logger.info("Setting up periodic diff requesting for ${this}");
     _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
-          requestLock = false;
-          // id data and version was sent, diff is set to null
-          if (response['error'] != null) {
-            throw new Exception(response['error']);
-          }
-          if(response['diff'] == null) {
-            _version = response['version'];
-            _handleData(response['data'], this);
-          } else {
-            if(!response['diff'].isEmpty) {
-              _version = max(_version, _handleDiff(response['diff'], this));
+          new Future.delayed(new Duration(seconds:2), () {
+            diffRequests.add(response);
+            requestLock = false;
+            if(transactor.operationPerformed == true) {
+              logger.shout('Operation was performed during diff.');
+              return false;
+            }
+          while(diffRequests.isNotEmpty) {
+            response = diffRequests.first;
+            diffRequests.removeAt(0);
+
+            // id data and version was sent, diff is set to null
+            if (response['error'] != null) {
+              throw new Exception(response['error']);
+            }
+            if(response['diff'] == null) {
+              _version = response['version'];
+              _handleData(response['data'], this);
             } else {
-                if (response.containsKey('version'))
-                   _version = response['version'];
+              if(!response['diff'].isEmpty) {
+                _version = max(_version, _handleDiff(response['diff'], this));
+              } else {
+                  if (response.containsKey('version'))
+                     _version = response['version'];
+              }
             }
           }
+          });
         }, onError: (e, s){
           if (e is CancelError) { /* do nothing */ }
           else if (e is ConnectionError) {

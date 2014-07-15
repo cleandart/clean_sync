@@ -17,6 +17,10 @@ class Transactor {
   DataReference<bool> updateLock;
   String author;
   IdGenerator _idGenerator;
+  /**
+   * Number of operations without any respond from server.
+   **/
+  bool operationPerformed = false;
 
   Map<String, ClientOperation> operations = {};
 
@@ -35,11 +39,11 @@ class Transactor {
       logger.shout('(transcator) Operation "$name" not found!!!');
       throw new Exception('Operation "$name" not found!!!');
     }
+    operationPerformed = true;
 
     operations[name].argsDecorator.forEach((f) => f(args));
     performClientOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
     return performServerOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
-
   }
 
   Future performServerOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}){
