@@ -34,8 +34,8 @@ class MongoClient {
 
   //connect
 
-  Future connect() =>
-    Socket.connect(this.url, this.port)
+  Future connect() {
+    return Socket.connect(this.url, this.port)
         .then((Socket _socket) {
           _connected.complete(null);
           socket = _socket;
@@ -63,6 +63,7 @@ class MongoClient {
           logger.shout("Unable to connect: $e");
           exit(1);
         });
+  }
 
 
   Future handleSyncRequest(ServerRequest request) {
@@ -84,6 +85,11 @@ class MongoClient {
     logger.finest("Trying to send string: $stringToSend");
     socket.write('${stringToSend.length}${stringToSend}');
     return completer.future;
+  }
+
+  Future close() {
+    if(socket == null) return new Future.value(null);
+    return socket.close();
   }
 }
 

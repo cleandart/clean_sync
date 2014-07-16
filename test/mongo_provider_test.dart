@@ -63,7 +63,7 @@ void main() {
     });
 
     tearDown(() {
-      mongodb.close();
+      return Future.wait([mongodb.close()]);
     });
 
     test('get data. (T01)', () {
@@ -601,7 +601,7 @@ void main() {
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
         .then((data) => expect(data['data'].length, equals(2)))
-        ;
+        .then((_) => _mongodb.close());
       });
 
     });

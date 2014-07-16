@@ -32,7 +32,7 @@ prob(p) {
   return p > rng.nextDouble();
 }
 
-
+allowOperation(ServerOperationCall) => true;
 
 class BareConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
@@ -90,10 +90,14 @@ run(count, cache, {failProb: 0}) {
     return mongoServer.start()
     .then((_) {
       mongodb = mongoServer.db;
-      mongodb.dropCollection('random');
+      return mongodb.dropCollection('random');
     })
     .then((_) => mongodb.removeLocks())
     .then((_) {
+        mongoServer.registerBeforeCallback('addAll', allowOperation);
+        mongoServer.registerBeforeCallback('change', allowOperation);
+        mongoServer.registerBeforeCallback('removeAll', allowOperation);
+
         mongoClient = new MongoClient("127.0.0.1", 27001);
         pub = new Publisher();
         var versionProvider = mongodb.collection("random");
@@ -139,11 +143,13 @@ run(count, cache, {failProb: 0}) {
         data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
+
+        return Future.wait([mongoClient.connected]);
     });
   });
 
   tearDown(() {
-    return mongoServer.close();
+    return Future.wait([mongoServer.close(), mongoClient.close()]);
   });
 
   randomChoice(Iterable iter) {

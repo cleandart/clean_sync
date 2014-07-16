@@ -24,35 +24,9 @@ class Resource {
 
     var action = data["action"];
     var reqVersion = data['version'];
-    List<String> modifications = ['add', 'change', 'remove', 'jsonChange'];
 
-    Future beforeRequest = new Future.value(null);
-
-    if (beforeRequestCallback != null && modifications.contains(action)) {
-      var value;
-      if (action == 'add') value = data['data'];
-      else if (action == 'change') value = data['change'];
-      else if (action == 'remove') value = {};
-      else if (action == 'jsonChange') {
-        value = data['jsonData'];
-        MongoProvider dpa;
-        if(value is List) {
-          if(value[1] == CLEAN_UNDEFINED) value = {};
-          else value = value[1];
-        }
-        else {
-          beforeRequest = beforeRequest.then((_) => generator(data['args']))
-              .then((dp) => dp.colls.findOne({'_id': data['_id']}))
-              .then((Map data) {
-                applyJSON(value, data);
-                value = data;
-              }, onError: (_){return null;});
-        }
-      }
-      beforeRequest = beforeRequest.then((_) => beforeRequestCallback(value, data['args']));
-    }
     DataProvider dp;
-    return beforeRequest
+    return new Future.value(null)
       .then((_) => generator(data['args']))
       .then((DataProvider _dp) {
         dp = _dp;
@@ -69,38 +43,11 @@ class Resource {
                 return result;
              });
         }
-        else if (action == "add") {
-          return dp.add(data['data'], data['author'], clientVersion: data['clientVersion'])
-          .then((result) {
-            stopWatch(watchID);
-            return result;
-          });
-        }
-        else if (action == "change") {
-          return dp.change(data['_id'], data['change'], data['author'], clientVersion: data['clientVersion'])
-              .then((result) {
-                stopWatch(watchID);
-                return result;
-              });
-        }
-        else if (action == "remove") {
-          return dp.remove(data['_id'], data['author'], clientVersion: data['clientVersion'])
-              .then((result) {
-                stopWatch(watchID);
-                return result;
-              });
-        } else if(action == "jsonChange") {
-          return dp.changeJson(data['_id'], data['jsonData'], data['author'], clientVersion: data['clientVersion'])
-              .then((result) {
-                stopWatch(watchID);
-                return result;
-              });
-        }
       });
 
   }
 
-  Resource(this.generator, this.beforeRequestCallback);
+  Resource(this.generator);
 }
 
 class Publisher {
@@ -108,8 +55,8 @@ class Publisher {
 
   Map<String, Resource> _resources = {};
 
-  void publish(String collection, DataGenerator generator, {beforeRequest: null}) {
-    _resources[collection] = new Resource(generator, beforeRequest);
+  void publish(String collection, DataGenerator generator) {
+    _resources[collection] = new Resource(generator);
   }
 
   bool isPublished(String collection) {
@@ -146,8 +93,8 @@ class Publisher {
 }
 
 final PUBLISHER = new Publisher();
-void publish(String c, DataGenerator dg, {beforeRequest: null}) {
-  PUBLISHER.publish(c, dg, beforeRequest: beforeRequest);
+void publish(String c, DataGenerator dg) {
+  PUBLISHER.publish(c, dg);
 }
 
 bool isPublished(String collection) {

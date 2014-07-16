@@ -24,9 +24,13 @@ class IdGenerator {
   }
 }
 
+allowOperation(ServerOperationCall) => true;
+
+
 void main() {
   setupDefaultLogHandler();
-  logger.level = Level.FINE;
+  logger.level = Level.WARNING;
+
   run();
 }
 
@@ -121,12 +125,26 @@ void run() {
             }
         );
 
+        server.registerBeforeCallback('addAll', allowOperation);
+        server.registerBeforeCallback('change', allowOperation);
+        server.registerBeforeCallback('removeAll', allowOperation);
+        server.registerBeforeCallback('dummy', allowOperation);
+        server.registerBeforeCallback('save', allowOperation);
+        server.registerBeforeCallback('throw', allowOperation);
+        server.registerBeforeCallback('change ref1', allowOperation);
+        server.registerBeforeCallback('change ref2', allowOperation);
+        server.registerBeforeCallback('set', allowOperation);
+
+        return client.connected;
+        //return new Future.delayed(new Duration(minutes: 10), () => null);
+
       });
     });
 
     tearDown(() {
       return Future.wait([server.db.collection(testCollectionUser).collection.drop(),
-          server.db.collection(historyCollectionName(testCollectionUser)).collection.drop()])
+          server.db.collection(historyCollectionName(testCollectionUser)).collection.drop(),
+          client.close()])
           .then((_) => server.close());
     });
 
@@ -284,7 +302,7 @@ void run() {
       });
     });
 
-    test("should perform operation if no explicit result was returned", () {
+    test("should not perform operation if no explicit result was returned", () {
       lastOperation = "";
       lastBeforeMsg = "";
       List callbacks = [
@@ -297,7 +315,7 @@ void run() {
 
       return client.connected.then((_) => client.performOperation("test returns"))
       .then((_) {
-          expect(lastOperation, equals("operation"));
+          expect(lastOperation, equals(""));
           expect(lastBeforeMsg, equals("4"));
       });
     });

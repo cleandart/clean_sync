@@ -48,8 +48,8 @@ run(SimpleConfiguration configuration) {
   mongo_server_test.run();
   publisher_test.run();
   subscription_test.run();
-  subs_random_test.run(100, new DummyCache());
-  subs_random_test.run(100, new Cache(new Duration(milliseconds: 100), 10000));
+  ///subs_random_test.run(100, new DummyCache());
+  ///subs_random_test.run(100, new Cache(new Duration(milliseconds: 100), 10000));
   transactor_integration_test.main();
   transactor_test.main();
 }
