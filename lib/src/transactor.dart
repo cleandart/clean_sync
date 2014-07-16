@@ -17,9 +17,6 @@ class Transactor {
   DataReference<bool> updateLock;
   String author;
   IdGenerator _idGenerator;
-  /**
-   * Number of operations without any respond from server.
-   **/
   bool operationPerformed = false;
 
   Map<String, ClientOperation> operations = {};

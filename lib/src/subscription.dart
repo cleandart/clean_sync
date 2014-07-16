@@ -402,36 +402,30 @@ class Subscription {
     });
   }
 
-  List diffRequests = new List();
   void _setupPeriodicDiffRequesting() {
     logger.info("Setting up periodic diff requesting for ${this}");
     _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
-            diffRequests.add(response);
             requestLock = false;
             if(transactor.operationPerformed == true) {
               return false;
             }
-            while(diffRequests.isNotEmpty) {
-              response = diffRequests.first;
-              diffRequests.removeAt(0);
 
-              // id data and version was sent, diff is set to null
-              if (response['error'] != null) {
-                throw new Exception(response['error']);
-              }
-              if(response['diff'] == null) {
-                _version = response['version'];
-                _handleData(response['data'], this);
+            // id data and version was sent, diff is set to null
+            if (response['error'] != null) {
+              throw new Exception(response['error']);
+            }
+            if(response['diff'] == null) {
+              _version = response['version'];
+              _handleData(response['data'], this);
+            } else {
+              if(!response['diff'].isEmpty) {
+                _version = max(_version, _handleDiff(response['diff'], this));
               } else {
-                if(!response['diff'].isEmpty) {
-                  _version = max(_version, _handleDiff(response['diff'], this));
-                } else {
-                    if (response.containsKey('version'))
-                       _version = response['version'];
-                }
+                  if (response.containsKey('version'))
+                     _version = response['version'];
               }
             }
         }, onError: (e, s){
