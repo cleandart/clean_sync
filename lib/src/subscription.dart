@@ -103,6 +103,7 @@ void destroyStructure(s){
 num handleDiff(List<Map> diff, Subscription subscription) {
   logger.fine('handleDiff: subscription: $subscription'
               'diffSize: ${diff.length}, diff: $diff');
+
   subscription.updateLock.value = true;
   DataSet collection = subscription.collection;
   var version = subscription._version;
@@ -154,6 +155,7 @@ num handleDiff(List<Map> diff, Subscription subscription) {
     });
   } catch (e) {
     if (e is Exception) {
+      subscription.updateLock.value = false;
       throw e;
     }
   }
@@ -175,7 +177,7 @@ class Subscription {
   String mongoCollectionName;
   DataSet collection;
   Connection _connection;
-  Transactor _transactor;
+  Transactor transactor;
   final Function _handleData;
   final Function _handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is
@@ -238,7 +240,7 @@ class Subscription {
   }
 
   Subscription.config(this.resourceName, this.mongoCollectionName, this.collection,
-      this._connection, this._idGenerator, this._transactor, this._handleData,
+      this._connection, this._idGenerator, this.transactor, this._handleData,
       this._handleDiff, this._forceDataRequesting, this.updateLock) {
     _initialSync = createInitialSync();
   }
@@ -306,25 +308,26 @@ class Subscription {
         ChangeSet change = event['change'];
         var operation;
         if (change.addedItems.length > 0) {
-          operation = () => _transactor.performServerOperation('addAll',
+          operation = () => transactor.performServerOperation('addAll',
             {'data': new List.from(change.addedItems)},
             subs: [this]
           );
         } else if (change.removedItems.length > 0) {
           assert(change.removedItems.length == 1);
-          operation = () => _transactor.performServerOperation('removeAll',
+          operation = () => transactor.performServerOperation('removeAll',
             {"ids" : new List.from(change.removedItems.map((e) => e['_id']))},
             subs: [this]
           );
         } else {
           // Only one item should be changed
           assert(change.changedItems.length == 1);
-          operation = () => _transactor.performServerOperation("change",
+          operation = () => transactor.performServerOperation("change",
             change.changedItems.values.first.toJson(),
             docs: [change.changedItems.keys.first]
           );
         }
         Future result;
+        transactor.operationPerformed = true;
         result = operation()
           .then((res) {
             if (res is Map && res['result'] != null) res = res['result'];
@@ -358,6 +361,7 @@ class Subscription {
     } else {
       logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
+      transactor.operationPerformed = false;
 
       return new ClientRequest("sync", {
         "action" : "get_diff",
@@ -404,22 +408,26 @@ class Subscription {
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
         .listen((response) {
-          requestLock = false;
-          // id data and version was sent, diff is set to null
-          if (response['error'] != null) {
-            throw new Exception(response['error']);
-          }
-          if(response['diff'] == null) {
-            _version = response['version'];
-            _handleData(response['data'], this);
-          } else {
-            if(!response['diff'].isEmpty) {
-              _version = max(_version, _handleDiff(response['diff'], this));
-            } else {
-                if (response.containsKey('version'))
-                   _version = response['version'];
+            requestLock = false;
+            if(transactor.operationPerformed == true) {
+              return false;
             }
-          }
+
+            // id data and version was sent, diff is set to null
+            if (response['error'] != null) {
+              throw new Exception(response['error']);
+            }
+            if(response['diff'] == null) {
+              _version = response['version'];
+              _handleData(response['data'], this);
+            } else {
+              if(!response['diff'].isEmpty) {
+                _version = max(_version, _handleDiff(response['diff'], this));
+              } else {
+                  if (response.containsKey('version'))
+                     _version = response['version'];
+              }
+            }
         }, onError: (e, s){
           if (e is CancelError) { /* do nothing */ }
           else if (e is ConnectionError) {
