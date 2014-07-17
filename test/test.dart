@@ -32,6 +32,10 @@ main() {
         return Future.forEach(selectors, (selector) {
             return provider.collectionHistory.find(selector['selector']).toList()
                .then((data) {
+                  if(data.length == 0) {
+                    print('Please try again...');
+                    return;
+                  }
                   print(selector['name']);
                   print('');
 
