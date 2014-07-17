@@ -30,9 +30,7 @@ main() {
       .then((_) {
         mongodb = mongoServer.db;
         MongoProvider provider = mongodb.collection("random");
-        var a = new List.filled(1000, selectors);
-        return Future.forEach(a, (_) =>
-          Future.forEach(selectors, (selector) {
+        return Future.forEach(selectors, (selector) {
             return provider.collectionHistory.find(selector).toList()
                .then((data) {
                   print(selector);
@@ -42,7 +40,7 @@ main() {
 
                   print('');
               });
-        }));
+        });
   }).then((_) => mongoServer.close());
 
 }
