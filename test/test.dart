@@ -15,19 +15,34 @@ import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/id_generator.dart';
 
-var selector = {"\$query":{"\$or":[{"\$and":[{"version":{"\$gt":3501}},{"before":{"\$gt":{}}},{"before.a.a":"hello"}]},{"\$and":[{"version":{"\$gt":3501}},{"after":{"\$gt":{}}},{"after.a.a":"hello"}]}],"version":{"\$gt":3501}},"\$orderby":{"version":1}};
+int ab = 35;
+var selectors = [
+{"\$query":{"\$or":[{"\$and":[{"version":{"\$gt":ab}},{"before":{"\$gt":{}}},{"before.a":"hello"}]},{"\$and":[{"version":{"\$gt":ab}},{"after":{"\$gt":{}}},{"after.a":"hello"}]}],"version":{"\$gt":ab}}},
+{"\$query":{"\$or":[{"\$and":[{"version":{"\$gt":ab}},{"before":{"\$gt":{}}},{"before.a":"hello"}]},{"\$and":[{"version":{"\$gt":ab}},{"after":{"\$gt":{}}},{"after.a":"hello"}]}],"version":{"\$gt":ab}},"\$orderby":{"version":1}}
+];
+
+
 main() {
-  print(selector);
+
   MongoDatabase mongodb;
   MongoServer mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest");
   return mongoServer.start()
       .then((_) {
         mongodb = mongoServer.db;
         MongoProvider provider = mongodb.collection("random");
-        return provider.collectionHistory.find(selector).toList()
-           .then((data) {
-              data.forEach((e) => print(e));
-          });
+        var a = new List.filled(1000, selectors);
+        return Future.forEach(a, (_) =>
+          Future.forEach(selectors, (selector) {
+            return provider.collectionHistory.find(selector).toList()
+               .then((data) {
+                  print(selector);
+                  print('');
+
+                  data.forEach((e) => print(e));
+
+                  print('');
+              });
+        }));
   }).then((_) => mongoServer.close());
 
 }
