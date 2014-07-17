@@ -17,6 +17,7 @@ class Transactor {
   DataReference<bool> updateLock;
   String author;
   IdGenerator _idGenerator;
+  bool operationPerformed = false;
 
   Map<String, ClientOperation> operations = {};
 
@@ -31,17 +32,21 @@ class Transactor {
   Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
   Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
+    if(operations[name] == null) {
+      logger.shout('(transcator) Operation "$name" not found!!!');
+      throw new Exception('Operation "$name" not found!!!');
+    }
+    operationPerformed = true;
+
     operations[name].argsDecorator.forEach((f) => f(args));
     performClientOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
     return performServerOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
-
   }
 
   Future performServerOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}){
     if (shouldDecorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     List<String> serverColls;
     List<List<String>> serverDocs;
-
 
     if (subs == null) {
       serverColls = [];
@@ -64,6 +69,13 @@ class Transactor {
         'author': this.author,
         'clientVersion': this._idGenerator.next()
       });
+    }).then((Map value) {
+      if(value == null || !value.containsKey('result') ||
+          value['result'] != 'ok')
+          logger.warning('Operation "$name" completed with error ($value)');
+      else
+        logger.fine('Operation "$name": completed correctly');
+      return value;
     });
 
   }
