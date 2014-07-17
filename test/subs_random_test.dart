@@ -84,6 +84,7 @@ run(count, cache, {failProb: 0}) {
   ftransactorByAuthor(author) => new Transactor(connection, updateLock,
       author, new IdGenerator('f'));
 
+group('subs_random_test', () {
   setUp((){
     mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
     updateLock = new DataReference(false);
@@ -144,12 +145,12 @@ run(count, cache, {failProb: 0}) {
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
 
-        return Future.wait([mongoClient.connected]);
+        return Future.wait([mongoClient.connected]).then((_) => print('connected'));
     });
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close()]);
+    return Future.wait([mongoServer.close(), mongoClient.close()]).then((_) => print('samozdaty'));
   });
 
   randomChoice(Iterable iter) {
@@ -358,9 +359,12 @@ run(count, cache, {failProb: 0}) {
                   print('author4 $colAa');
                   throw e;
                 }
+                print(e.runtimeType);
+                if(!(e is TestFailure)) throw e;
               });
         });
     }));
 
   });
+});
 }

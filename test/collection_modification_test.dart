@@ -58,6 +58,7 @@ run() {
   MongoClient mongoClient;
   Subscriber subscriber;
 
+group('collection_modification',() {
   setUp((){
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
     mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
@@ -433,5 +434,5 @@ run() {
     ];
     return executeSubscriptionActions(actions);
   });
-
+});
 }

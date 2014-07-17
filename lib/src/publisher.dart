@@ -24,7 +24,6 @@ class Resource {
 
     var action = data["action"];
     var reqVersion = data['version'];
-
     DataProvider dp;
     return new Future.value(null)
       .then((_) => generator(data['args']))
@@ -37,6 +36,8 @@ class Resource {
           });
         }
         else if(action == "get_diff") {
+          assert(reqVersion != null);
+
           return dp.diffFromVersion(reqVersion)
             .then((result) {
                 stopWatch(watchID);

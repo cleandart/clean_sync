@@ -144,7 +144,7 @@ void run() {
     test('dump subscriber', () {
       Map args = {'key': 'val', 'another key':'yet another value'};
       subscriber = new Subscriber(connection);
-      subscriber.init().then((_) {
+      return subscriber.init().then((_) {
         subscriber.subscribe("someResource","someCollection")
           ..collection.addAll(['one','2',{},'that was a map',[],'and that a list'])
           ..args = args;

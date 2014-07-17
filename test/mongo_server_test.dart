@@ -135,9 +135,7 @@ void run() {
         server.registerBeforeCallback('change ref2', allowOperation);
         server.registerBeforeCallback('set', allowOperation);
 
-        return client.connected;
-        //return new Future.delayed(new Duration(minutes: 10), () => null);
-
+        return client.connected.then((_) => print('Pripojeny'));
       });
     });
 
