@@ -163,7 +163,6 @@ MongoProvider mpClone(MongoProvider source){
 
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
-  DbCollection get collectionHistory => _collectionHistory;
   List<Map> _selectorList = [];
   Map _sortParams = {};
   List _excludeFields = [];
@@ -339,12 +338,9 @@ class MongoProvider implements DataProvider {
     num nextVersion;
     return _get_locks().then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
-        data.forEach((elem) {
-          elem[VERSION_FIELD_NAME] = nextVersion;
-          assert(elem[VERSION_FIELD_NAME] != null);
-        });
+        data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
         return collection.insertAll(data);
-      }).then((_) {
+      }).then((_) =>
         _collectionHistory.insertAll(data.map((elem) =>
             {
               "before" : {},
@@ -353,7 +349,7 @@ class MongoProvider implements DataProvider {
               "author" : author,
               "version" : elem[VERSION_FIELD_NAME],
               "timestamp" : new DateTime.now(),
-            }).toList(growable: false)); },
+            }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         // ...
@@ -390,7 +386,6 @@ class MongoProvider implements DataProvider {
         } else {
           return _maxVersion.then((version) {
             nextVersion = version + 1;
-            assert(nextVersion != null);
             if (inferredAction == 'remove' ){
               return collection.remove({'_id': _id});
             } else {
@@ -486,7 +481,6 @@ class MongoProvider implements DataProvider {
               'New document id ${newData['_id']} should be same as old one $_id.');
         } else {
           return _maxVersion.then((version) {
-            assert(nextVersion != null);
             nextVersion = version + 1;
             if (inferredAction == 'remove' ){
               return collection.remove({'_id': _id});
@@ -542,7 +536,6 @@ class MongoProvider implements DataProvider {
       }).then((_) {
         return Future.forEach(oldData,
           (oldItem) {
-            assert(nextVersion != null);
             return collection.find({'_id': oldItem['_id']}).toList().then((newItem) =>
             _collectionHistory.insert({
               "before" : oldItem,
@@ -575,7 +568,6 @@ class MongoProvider implements DataProvider {
       }).then((data) {
         return collection.remove(query).then((_) {
           if (data.isNotEmpty) {
-            assert(nextVersion != null);
             return _collectionHistory.insertAll(data.map((elem) => {
               "before" : elem,
               "after" : {},
@@ -697,13 +689,9 @@ class MongoProvider implements DataProvider {
     if (beforeOrAfterFields.isNotEmpty) {
       beforeOrAfterFields.addAll(['version', '_id', 'author', 'action']);
     }
-      SelectorBuilder selector = createSelector(beforeOrAfterSelector,
-          beforeOrAfterFields, beforeOrAfterExcludedFields);
-      print('selector ${selector.getQueryString().replaceAll('\$', '\\\$')}');
         return _collectionHistory.find(createSelector(beforeOrAfterSelector,
                            beforeOrAfterFields, beforeOrAfterExcludedFields)).toList()
         .then((result) {
-          print(result);
           beforeOrAfter = result;
           if (beforeOrAfter.isEmpty){
             throw new BreakException([]);
@@ -717,8 +705,6 @@ class MongoProvider implements DataProvider {
             diff = [];
 
             beforeOrAfter.forEach((record) {
-              print('Record $record');
-              assert(record['version'] != null);
               assert(record['version']>version);
 
               _stripCleanVersion(record['before']);
@@ -941,5 +927,4 @@ class MongoProvider implements DataProvider {
     }
   }
 }
-
 

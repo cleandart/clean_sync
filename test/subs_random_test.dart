@@ -145,12 +145,12 @@ group('subs_random_test', () {
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
 
-        return Future.wait([mongoClient.connected]).then((_) => print('connected'));
+        return Future.wait([mongoClient.connected]);
     });
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close()]).then((_) => print('samozdaty'));
+    return Future.wait([mongoServer.close(), mongoClient.close()]);
   });
 
   randomChoice(Iterable iter) {
@@ -359,8 +359,6 @@ group('subs_random_test', () {
                   print('author4 $colAa');
                   throw e;
                 }
-                print(e.runtimeType);
-                if(!(e is TestFailure)) throw e;
               });
         });
     }));
