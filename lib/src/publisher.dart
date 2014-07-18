@@ -36,8 +36,6 @@ class Resource {
           });
         }
         else if(action == "get_diff") {
-          assert(reqVersion != null);
-
           return dp.diffFromVersion(reqVersion)
             .then((result) {
                 stopWatch(watchID);

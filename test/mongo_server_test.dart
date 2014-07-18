@@ -135,7 +135,7 @@ void run() {
         server.registerBeforeCallback('change ref2', allowOperation);
         server.registerBeforeCallback('set', allowOperation);
 
-        return client.connected.then((_) => print('Pripojeny'));
+        return client.connected;
       });
     });
 
