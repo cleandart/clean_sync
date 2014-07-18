@@ -35,34 +35,34 @@ class MongoClient {
   //connect
 
   Future connect() =>
-      Socket.connect(this.url, this.port)
-          .then((Socket _socket) {
-            _connected.complete(null);
-            socket = _socket;
-            socket.listen((List <int> data){
-              logger.finer('Raw response: ${new String.fromCharCodes(data)}');
-              // We could have received more JSONs at once
-              var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
-              logger.finer("JSON resp: $responses");
-              responses.forEach((resp) {
-                logger.fine('response obtained: ${resp}');
-                Completer completer = reqToResp.remove(resp['operationId']);
-                // Distinguish (un)successful operations by the key
-                if (resp.containsKey('result')) {
-                  completer.complete(resp);
-                } else if (resp.containsKey('error')) {
-                  //TODO: think about this
-                  completer.complete(resp);
-                } else {
-                  completer.complete('MongoClient - unknown error');
-                }
-              });
+    Socket.connect(this.url, this.port)
+        .then((Socket _socket) {
+          _connected.complete(null);
+          socket = _socket;
+          socket.listen((List <int> data){
+            logger.finer('Raw response: ${new String.fromCharCodes(data)}');
+            // We could have received more JSONs at once
+            var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
+            logger.finer("JSON resp: $responses");
+            responses.forEach((resp) {
+              logger.fine('response obtained: ${resp}');
+              Completer completer = reqToResp.remove(resp['operationId']);
+              // Distinguish (un)successful operations by the key
+              if (resp.containsKey('result')) {
+                completer.complete(resp);
+              } else if (resp.containsKey('error')) {
+                //TODO: think about this
+                completer.complete(resp);
+              } else {
+                completer.complete('MongoClient - unknown error');
+              }
             });
-          })
-          .catchError((e) {
-            logger.shout("Unable to connect: $e");
-            exit(1);
           });
+        })
+        .catchError((e) {
+          logger.shout("Unable to connect: $e");
+          exit(1);
+        });
 
 
   Future handleSyncRequest(ServerRequest request) {
@@ -91,4 +91,3 @@ class MongoClient {
     return socket.close();
   }
 }
-
