@@ -85,5 +85,9 @@ class MongoClient {
     socket.write('${stringToSend.length}${stringToSend}');
     return completer.future;
   }
-}
 
+  Future close() {
+    if(socket == null) return new Future.value(null);
+    return socket.close();
+  }
+}

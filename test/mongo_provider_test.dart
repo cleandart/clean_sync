@@ -39,6 +39,7 @@ void main() {
     List monthsCol;
 
      setUp(() {
+
       january = {'name': 'January', 'days': 31, 'number': 1, '_id': 'january'};
       february = {'name': 'February', 'days': 28, 'number': 2, '_id': 'february'};
       march =  {'name': 'March', 'days': 31, 'number': 3, '_id': 'march'};
@@ -63,7 +64,7 @@ void main() {
     });
 
     tearDown(() {
-      mongodb.close();
+      return Future.wait([mongodb.close()]);
     });
 
     test('get data. (T01)', () {
@@ -601,7 +602,7 @@ void main() {
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
         .then((data) => expect(data['data'].length, equals(2)))
-        ;
+        .then((_) => _mongodb.close());
       });
 
     });

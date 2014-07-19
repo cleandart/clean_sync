@@ -147,9 +147,6 @@ class MongoServer {
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
-  MongoServer.config(this.port, this.mongoUrl, {this.cache});
-
-
   Future start() {
     if (cache == null) db = new MongoDatabase(mongoUrl);
     else db = new MongoDatabase(mongoUrl, cache: cache);
@@ -288,7 +285,7 @@ class MongoServer {
           throw false
       ).catchError((e,s) {
         if (e == true) return true;
-        if (e == false) throw new ValidationException('Operation not permitted');
+        if (e == false) throw new ValidationException('Operation ${op.name} not permitted');
         // Some other error occured
         throw e;
       });

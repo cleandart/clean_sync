@@ -8,12 +8,17 @@ import 'package:clean_data/clean_data.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_sync/operations.dart';
+import 'package:clean_sync/id_generator.dart';
 import 'package:mock/mock.dart';
+import 'dart:async';
+import 'package:logging/logging.dart';
 
 class SubscriptionMock extends Mock implements Subscription {
   var mongoCollectionName;
   var collection;
 }
+
+allowOperation(ServerOperationCall) => true;
 
 main() {
   run();
@@ -39,7 +44,7 @@ run() {
               throw new ValidationException("Documents don't contain credit field");
             if (opCall.docs[0]["credit"] < opCall.args["amount"])
               throw new ValidationException("First document does not have enough credit");
-            return 'permitted';
+            return true;
           },
           operation: (ServerOperationCall opCall) {
             opCall.docs[0]["credit"] -= opCall.args["amount"];
@@ -56,7 +61,7 @@ run() {
    ];
 
   setUp(() {
-    mongoServer = new MongoServer.config(27001, "mongodb://0.0.0.0/mongoProviderTest");
+    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest");
     updateLock = new DataReference(false);
     return mongoServer.start()
     .then((_) => mongoServer.db.dropCollection(collectionName))
@@ -74,12 +79,15 @@ run() {
         mongoServer.operations[e[0].name]= e[0];
         transactor.operations[e[1].name] = e[1];
       });
-
+      mongoServer.registerBeforeCallback('addAll', allowOperation);
+      mongoServer.registerBeforeCallback('change', allowOperation);
+      mongoServer.registerBeforeCallback('removeAll', allowOperation);
+      mongoServer.registerBeforeCallback('send money', allowOperation);
     });
   });
 
   tearDown(() {
-    return mongoServer.close();
+    return Future.wait([mongoServer.close(), mongoClient.close()]);
   });
 
   _addCollectionName(List<Map> docs, collectionName) => docs..forEach((e) => e["__clean_collection"] = collectionName);

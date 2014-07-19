@@ -928,4 +928,3 @@ class MongoProvider implements DataProvider {
   }
 }
 
-

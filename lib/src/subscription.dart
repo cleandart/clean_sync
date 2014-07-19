@@ -429,11 +429,11 @@ class Subscription {
               }
             }
         }, onError: (e, s){
+          requestLock = false;
           if (e is CancelError) { /* do nothing */ }
           else if (e is ConnectionError) {
             // connection failed
             _periodicDiffRequesting.pause();
-            requestLock = false;
           }
           else {
             logger.shout('', e, s);
@@ -459,8 +459,12 @@ class Subscription {
 
   Future _closeSubs() {
     logger.info("Closing all stream subscriptions of ${this}");
-    _subscriptions.forEach((sub) => sub.cancel());
-    return Future.wait(_sentItems);
+    List subToClose = [];
+    _subscriptions.forEach((sub) => subToClose.add(sub.cancel()));
+    _subscriptions.clear();
+    subToClose.retainWhere((e) => e != null);
+
+    return Future.wait(subToClose).then((_) => Future.wait(_sentItems));
   }
 
   Future dispose(){
@@ -486,6 +490,8 @@ class Subscription {
       _initialSync = createInitialSync();
       _closeSubs().then((_) {
         requestLock = false;
+        if(collection == null)
+          collection = _createNewCollection();
         _start();
       });
     }

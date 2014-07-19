@@ -18,6 +18,8 @@ import 'package:clean_sync/id_generator.dart';
 stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
 ..remove('__clean_collection'));
 
+allowOperation(ServerOperationCall) => true;
+
 main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
@@ -56,15 +58,19 @@ run() {
   MongoClient mongoClient;
   Subscriber subscriber;
 
+group('collection_modification',() {
   setUp((){
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
     mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
-
     return mongoServer.start()
       .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
         return mongoClient.connected;
       }).then((_){
+        mongoServer.registerBeforeCallback('addAll', allowOperation);
+        mongoServer.registerBeforeCallback('change', allowOperation);
+        mongoServer.registerBeforeCallback('removeAll', allowOperation);
+
         pub = new Publisher();
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerHandler('sync',pub.handleSyncRequest);
@@ -136,8 +142,9 @@ run() {
     return Future.forEach(itemsToClose, (item) {
       return item.dispose();
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongoServer.close());
-  });
+      .then((_) => mongoServer.close())
+      .then((_) => mongoClient.close());
+    });
 
   executeSubscriptionActions(List actions) {
     return
@@ -328,7 +335,7 @@ run() {
         sub.dispose();
       });
 
-      return new Future.delayed(new Duration(milliseconds: 5000), () {});
+      return new Future.delayed(new Duration(milliseconds: 1000), () {});
 
   });
 
@@ -427,5 +434,5 @@ run() {
     ];
     return executeSubscriptionActions(actions);
   });
-
+});
 }

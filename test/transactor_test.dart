@@ -6,6 +6,7 @@ import 'package:clean_sync/client.dart';
 import 'package:clean_sync/id_generator.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:useful/useful.dart';
+import 'dart:async';
 
 class ConnectionMock extends Mock implements Connection {}
 class IdGeneratorMock extends Mock implements IdGenerator {}
@@ -60,6 +61,8 @@ void run() {
         s.collection = e[0];
         subs.add(s);
       });
+
+      connection.when(callsTo('send')).alwaysReturn(new Future.value(null));
       transactor.operation('mockOper', {'args': 'args'}, docs: [january, february],
           subs: subs);
       expect(mockOperArgs, equals(args));
