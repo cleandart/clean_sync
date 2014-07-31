@@ -121,7 +121,7 @@ group('collection_modification',() {
           colA = subA.collection;
           subAa = subscriber.subscribe('c', 'random')..restart();
           colAa = subAa.collection;
-          subArgs = subscriber.subscribe('withArgs', 'random')..restart({'name': 'aa'});
+          subArgs = subscriber.subscribe('withArgs', 'random')..restart(args: {'name': 'aa'});
           colArgs = subArgs.collection;
 
           data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
@@ -388,7 +388,7 @@ group('collection_modification',() {
   test("restart immediately renews initialSync", (){
     return subArgs.initialSync.then((_){
       Future oldinitialSync = subArgs.initialSync;
-      subArgs.restart(null);
+      subArgs.restart(args: null);
       expect(subArgs.initialSync == oldinitialSync, isFalse);
       return subArgs.initialSync;
     });
@@ -404,7 +404,7 @@ group('collection_modification',() {
       },
       () {colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]);},
       () => expect(stripIds(colArgs), unorderedEquals([{'a': 'aa'}])),
-      () => subArgs.restart({'name': 'bb'}),
+      () => subArgs.restart(args: {'name': 'bb'}),
       () => expect(stripIds(colArgs), unorderedEquals([{'a': 'bb'}])),
       () => colAll.add({'a': 'bb'}),
       () => colAll.add({'a': 'aa'}),
@@ -415,7 +415,7 @@ group('collection_modification',() {
 
   test('changes immediately between restart are still saved correctly', () {
     List actions = [
-      () {colArgs.add({'a': 'aa'}); subArgs.restart({'name': 'bb'});},
+      () {colArgs.add({'a': 'aa'}); subArgs.restart(args: {'name': 'bb'});},
       () => expect(stripIds(colAll), unorderedEquals([{'a': 'aa'}])),
       () => expect(colArgs.isEmpty, isTrue),
     ];
@@ -426,7 +426,7 @@ group('collection_modification',() {
     List actions = [
       () => colAll.addAll([{'a': 'aa'}, {'a': 'bb'}]),
       () {
-        subArgs.restart({'name': 'bb'});
+        subArgs.restart(args: {'name': 'bb'});
         subArgs.initialSync.then((_){
           expect(stripIds(colArgs), unorderedEquals([{'a': 'bb'}]));
         });

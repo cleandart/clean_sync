@@ -21,7 +21,7 @@ Completer createInitialSync(){
 final Logger logger = new Logger('clean_sync.subscription');
 
 void handleData(List<Map> data, Subscription subscription) {
-  logger.fine('handleData: ${data}');
+  logger.fine('handleData for ${subscription.resourceName}: ${data}');
   var collection = subscription.collection;
   subscription.updateLock.value = true;
   collection.clear();
@@ -372,14 +372,26 @@ class Subscription {
     }
   }
 
-  Future setupDataRequesting() {
+  Future setupDataRequesting({initialData}) {
     // request initial data; this is also called when restarting subscription
     logger.info("Setting up data requesting for ${this}");
     /// remember initialSync, that was active in thsi moment. Later, when we get
     /// initial data, we check, if this completer is already completed - if so,
     /// it means, the subscription was restarted sooner than initialSync-ed
     var oldInitialSync =_initialSync;
-    return _connection.send(_createDataRequest).then((response) {
+    Future data;
+
+    if(initialData != null && initialData['data'] != null) {
+      logger.fine('Initiating ${this.resourceName} with data $initialData');
+      data = new Future.value(initialData);
+    }
+    else {
+      data = _connection.send(_createDataRequest);
+      logger.fine('Initiating ${this.resourceName} without data');
+    }
+
+
+    return data.then((response) {
       if (oldInitialSync.isCompleted) {
         return;
       }
@@ -390,10 +402,10 @@ class Subscription {
         return;
       }
       _version = response['version'];
-      _handleData(response['data'], this);
+     _handleData(response['data'], this);
       _connected = true;
 
-      logger.info("Got initial data, synced to version ${_version}");
+      logger.info("Got initial data for $resourceName, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
@@ -443,7 +455,7 @@ class Subscription {
     _subscriptions.add(_periodicDiffRequesting);
   }
 
-  void _start() {
+  void _start({initialData}) {
     _started = true;
     logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
@@ -453,7 +465,7 @@ class Subscription {
     });
     setupConnectionRecovery();
     setupListeners();
-    setupDataRequesting();
+    setupDataRequesting(initialData: initialData);
   }
 
 
@@ -479,12 +491,12 @@ class Subscription {
       });
   }
 
-  void restart([Map args = const {}]) {
+  void restart({Map args: const {}, initialData}) {
     logger.info("Restarting ${this} with args: ${args}");
     this.args = args;
     if (!_started) {
       logger.fine("First restart of subscription");
-      _start();
+      _start(initialData: initialData);
     } else {
       if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
       _initialSync = createInitialSync();
@@ -492,7 +504,7 @@ class Subscription {
         requestLock = false;
         if(collection == null)
           collection = _createNewCollection();
-        _start();
+        _start(initialData: initialData);
       });
     }
   }
