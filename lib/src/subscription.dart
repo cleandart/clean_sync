@@ -379,26 +379,19 @@ class Subscription {
     /// initial data, we check, if this completer is already completed - if so,
     /// it means, the subscription was restarted sooner than initialSync-ed
     var oldInitialSync =_initialSync;
+    Future data;
+
     if(initialData != null && initialData['data'] != null) {
       logger.fine('Initiating ${this.resourceName} with data $initialData');
-
-       _version = initialData['version'];
-
-       _handleData(initialData['data'], this);
-       _connected = true;
-
-       logger.info("Loaded initial data, synced to version ${_version}");
-
-       // TODO remove the check? (restart/dispose should to sth about initialSynd)
-       if (!_initialSync.isCompleted) _initialSync.complete();
-
-       _setupPeriodicDiffRequesting();
-       return new Future.value(null);
+      data = new Future.value(initialData);
     }
-    logger.fine('Initiating ${this.resourceName} without data $initialData');
+    else {
+      data = _connection.send(_createDataRequest);
+      logger.fine('Initiating ${this.resourceName} without data');
+    }
 
 
-    return _connection.send(_createDataRequest).then((response) {
+    return data.then((response) {
       if (oldInitialSync.isCompleted) {
         return;
       }
@@ -412,7 +405,7 @@ class Subscription {
      _handleData(response['data'], this);
       _connected = true;
 
-      logger.warning("Got initial data for $resourceName, synced to version ${_version}");
+      logger.info("Got initial data for $resourceName, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
