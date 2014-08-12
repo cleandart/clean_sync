@@ -114,20 +114,36 @@ class Subscriber {
     subscriptions.removeWhere((sub) => sub.disposed);
   }
 
-  String dump([bool data = false]) {
+  String toString({data: false}) {
     _pruneSubscriptions();
     String res = "";
-    for (var i = 0; i < subscriptions.length; i++) {
-      res += subscriptions[i].toString()+"\n";
-      res += "Resource name: ${subscriptions[i].resourceName} \n";
-      res += "Collection name: ${subscriptions[i].mongoCollectionName} \n";
-      res += "Args: ${subscriptions[i].args} \n";
-      res += "Initial sync completed? ${subscriptions[i].initialSyncCompleted}\n";
+    subscriptions.forEach((sub) {
+      res += sub.toString()+"\n";
+      res += "Resource name: ${sub.resourceName} \n";
+      res += "Collection name: ${sub.mongoCollectionName} \n";
+      res += "Args: ${sub.args} \n";
+      res += "Initial sync completed? ${sub.initialSyncCompleted}\n";
       if (data) {
-        res += "Data: ${subscriptions[i].collection} \n";
+        res += "Data: ${sub.collection} \n";
       }
-      res += "\n";
-    }
+
+    });
+    return res;
+  }
+
+  toJson({data: false}) {
+    Map res = {};
+    subscriptions.forEach((sub) {
+      res[sub.resourceName] = {
+        'name': sub.resourceName,
+        'collectionName': sub.mongoCollectionName,
+        'args': sub.args,
+        'initialSyncCompleted': sub.initialSyncCompleted,
+      };
+      if (data) {
+        res[sub.resourceName]['data'] = sub.collection;
+      }
+    });
     return res;
   }
 }
