@@ -887,7 +887,7 @@ class MongoProvider implements DataProvider {
     return _get_locks('test_get_locks', nums: nums);
   }
 
-  Future _get_locks(author, {nums: 500}) {
+  Future _get_locks(author, {nums: 100}) {
     if (nums <= 0) {
       logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
