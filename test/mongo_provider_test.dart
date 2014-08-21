@@ -233,9 +233,9 @@ void main() {
       //given
       MongoProvider colAaa = mongodb.collection("aaa");
       MongoProvider colAaa2 = mongodb.collection("aaa");
-      return colAaa.test_get_locks()
+      return colAaa.test_get_locks(50)
        //when
-      .then((_) => colAaa2.test_get_locks())
+      .then((_) => colAaa2.test_get_locks(50))
        //then catch error
       .catchError((_) => catched = true)
       .then((_) => expect(catched, isTrue));

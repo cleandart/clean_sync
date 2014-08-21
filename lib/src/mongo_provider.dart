@@ -336,7 +336,7 @@ class MongoProvider implements DataProvider {
     for (Map d in data) ensureId(d, idgen);
     cache.invalidate();
     num nextVersion;
-    return _get_locks().then((_) => _maxVersion).then((version) {
+    return _get_locks(author).then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
         data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
         return collection.insertAll(data);
@@ -365,7 +365,7 @@ class MongoProvider implements DataProvider {
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks()
+    return _get_locks(author)
       .then((_) => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
 
@@ -439,7 +439,7 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
 
     num nextVersion;
-    return _get_locks()
+    return _get_locks(author)
       .then((_) => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
@@ -511,7 +511,7 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
     num nextVersion;
     List oldData;
-    return _get_locks().then((_) => _maxVersion).then((version) {
+    return _get_locks(author).then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
         num versionUpdate = nextVersion;
 
@@ -562,7 +562,7 @@ class MongoProvider implements DataProvider {
   Future removeAll(query, String author) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks().then((_) => _maxVersion).then((version) {
+    return _get_locks(author).then((_) => _maxVersion).then((version) {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
@@ -883,25 +883,32 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future test_get_locks(){
-    return _get_locks();
+  Future test_get_locks(nums) {
+    return _get_locks('test_get_locks', nums: nums);
   }
 
-  Future _get_locks({nums: 50}) {
+  Future _get_locks(author, {nums: 100}) {
     if (nums <= 0) {
       logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
     }
-    return _lock.insert({'_id': collection.collectionName}).then(
-      (_) => _lock.insert({'_id': _collectionHistory.collectionName}),
+    return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
+      (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
       onError: (e) {
         if(e['code'] == 11000) {
           // duplicate key error index
           nums--;
-          logger.warning('Could not obtain lock, retrying ${50-nums}.');
-          return new Future.delayed(new Duration(milliseconds: 100))
-              .then((_) => _get_locks(nums: nums));
+          return _lock.find({'_id': collection.collectionName}).toList()
+              .then((locks) {
+            var lockingAuthor = 'unknown, locks are released by now';
+            if (locks.isNotEmpty) lockingAuthor = locks[0]['author'];
+            logger.warning('Could not obtain lock, retrying $nums more times. '
+                           'Locking author is $lockingAuthor. '
+                           'Current author is $author.');
 
+            return new Future.delayed(new Duration(milliseconds: 100))
+                .then((_) => _get_locks(author, nums: nums));
+          });
         } else {
           throw(e);
         }
