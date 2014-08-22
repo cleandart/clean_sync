@@ -108,6 +108,11 @@ class RawOperationCall {
   String author;
   String clientVersion;
 
+  @override
+  String toString(){
+    return "RawOperationCall $name ${super.toString()}";
+  }
+
   RawOperationCall(this.name, this.completer, {this.docs, this.colls,
     this.args, this.userId, this.author, this.clientVersion});
 
@@ -220,7 +225,7 @@ class MongoServer {
   _performOne() {
     if (running) return;
     if (queue.isEmpty) return;
-    logger.fine('server: perform one');
+    logger.finer('server: perform one');
     running = true;
     _performOperation(queue.removeAt(0)).then((_) {
       running = false;
@@ -245,7 +250,7 @@ class MongoServer {
       fullColls.add(db.collection(col));
     }
 
-    logger.finer('fetching docs');
+    logger.finest('fetching docs ($opCall)');
     int i = -1;
     return Future.forEach(opCall.docs, (doc){
       i++;
@@ -253,8 +258,8 @@ class MongoServer {
           .catchError((e,s) => throw new DocumentNotFoundException('$e','$s'))
           .then((fullDoc) => fullDocs.add(fullDoc));
     }).then((_){
-      logger.finer('Docs received: ${fullDocs}');
-      logger.finer('fetching user');
+      logger.finest('Docs received: ${fullDocs} ($opCall)');
+      logger.finest('fetching user ($opCall)');
       if (opCall.userId != null) {
         if (userColName == null) {
           throw new Exception('userColName is not set!');
@@ -265,7 +270,7 @@ class MongoServer {
       }
     })
     .then((_user){
-      logger.finer('operation - before');
+      logger.finer('operation - before ($opCall)');
       user = _user != null ? new DataMap.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: user, args: opCall.args, db: db, author: opCall.author,
@@ -285,12 +290,14 @@ class MongoServer {
           throw false
       ).catchError((e,s) {
         if (e == true) return true;
-        if (e == false) throw new ValidationException('Operation ${op.name} not permitted');
+        if (e == false) throw new ValidationException('Operation ${op.name} not'
+        'permitted; user: ${fOpCall.user}, author: ${fOpCall.author}, docs: ${fOpCall.docs},'
+        'colls: ${fOpCall.colls}');
         // Some other error occured
         throw e;
       });
     }).then((_) {
-      logger.finer('operation - core');
+      logger.finer('operation - core ($opCall)');
       return op.operation(fOpCall);
     }).then((_) {
       return Future.forEach(fullDocs, (d) {
@@ -298,7 +305,7 @@ class MongoServer {
             opCall.author, clientVersion: opCall.clientVersion);
       });
     }).then((_) {
-      logger.fine('operation - after');
+      logger.finer('operation - after ($opCall)');
       return Future.forEach(op.after, (opAfter) => opAfter(fOpCall));
     }).then((_) {
       opCall.completer.complete({'result': 'ok'});
