@@ -109,8 +109,8 @@ class RawOperationCall {
 
   @override
   String toString(){
-    return 'RawOperationCall name: $name author: $author docs: $docs '
-           'colls: $colls args: $args userId: $userId';
+    return 'RawOperationCall name: $name, author: $author, docs: $docs, '
+           'colls: $colls, args: $args, userId: $userId';
   }
 
   RawOperationCall(this.name, this.completer, {this.docs, this.colls,
@@ -227,7 +227,6 @@ class MongoServer {
     if (queue.isEmpty) return;
     _logger.finer('server: perform one');
     running = true;
-//    _performOperation(queue.removeAt(0)).then((_) {
     _performOperationZoned(queue.removeAt(0)).then((_) {
       running = false;
       _performOne();
@@ -244,8 +243,8 @@ class MongoServer {
         int elapsedAll = (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).elapsedMilliseconds;
 
         if(elapsed > 200) {
-          _logger.warning('Operaration ${opCall.name} (${opCall.userId})'
-                          'lasted $elapsed milliseconds (totaly $elapsedAll).');
+          _logger.warning('Operaration lasted $elapsed milliseconds (totaly $elapsedAll)'
+              '${opCall}');
         }
         return result;
       });
@@ -311,9 +310,6 @@ class MongoServer {
       ).catchError((e,s) {
         if (e == true) return true;
         if (e == false) {
-          _logger.warning('Validation failed: Operation ${op.name} not'
-                  'permitted; user: ${fOpCall.user}, author: ${fOpCall.author},'
-                  'docs: ${fOpCall.docs}, colls: ${fOpCall.colls}', e,  s);
           throw new ValidationException('Validation failed');
         }
         // Some other error occured
@@ -334,6 +330,9 @@ class MongoServer {
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {
       if (e is ValidationException) {
+        _logger.warning('Validation failed: Operation ${op.name} not'
+                'permitted; user: ${fOpCall.user}, author: ${fOpCall.author},'
+                'docs: ${fOpCall.docs}, colls: ${fOpCall.colls}', e,  s);
         opCall.completer.complete({'error':{'validation':'$e'}});
       } else if (e is DocumentNotFoundException) {
         _logger.warning('Document not found', e, s);

@@ -350,7 +350,7 @@ class MongoProvider implements DataProvider {
             }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        logger.shout('MP update error:', e, s);
+        logger.warning('MP update error:', e, s);
         return _release_locks().then((_) {
           throw new MongoException(e,s);
         });
@@ -548,7 +548,7 @@ class MongoProvider implements DataProvider {
         }).then((_) => _release_locks()).then((_) => nextVersion)
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
-          logger.shout('MP update error:', e, s);
+          logger.warning('MP update error:', e, s);
           return _release_locks().then((_) {
             if (e is ModifierException) {
               throw e;
@@ -579,7 +579,7 @@ class MongoProvider implements DataProvider {
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        logger.shout('MP removeAll error:', e, s);
+        logger.warning('MP removeAll error:', e, s);
         return _release_locks().then((_) {
           throw new MongoException(e,s);
         });
