@@ -4,7 +4,7 @@ library mongo_server_test;
 import 'package:unittest/unittest.dart';
 import 'dart:async';
 import 'package:clean_sync/mongo_server.dart';
-import 'package:clean_sync/profiling.dart';
+import 'package:clean_sync/server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';

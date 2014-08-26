@@ -1,7 +1,7 @@
 library mongo_provider_random_test;
 
 import "package:unittest/unittest.dart";
-import "package:clean_sync/profiling.dart";
+import "package:clean_sync/server.dart";
 import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';

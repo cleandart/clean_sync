@@ -1,6 +1,6 @@
 library clean_sync.mongo_server;
 
-import 'package:clean_sync/profiling.dart';
+import 'package:clean_sync/server.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -227,10 +227,18 @@ class MongoServer {
     if (queue.isEmpty) return;
     _logger.finer('server: perform one');
     running = true;
-    _performOperation(queue.removeAt(0)).then((_) {
+//    _performOperation(queue.removeAt(0)).then((_) {
+    _performOperationZoned(queue.removeAt(0)).then((_) {
       running = false;
       _performOne();
     });
+  }
+
+  Future _performOperationZoned(RawOperationCall opCall){
+    return runZoned((){
+      return _performOperation(opCall);
+    }, onError: (e) => print('HUHUHU $e'));
+
   }
 
   Future _performOperation(RawOperationCall opCall) {

@@ -9,7 +9,7 @@ import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_sync/client.dart';
-import "package:clean_sync/profiling.dart";
+import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/id_generator.dart';
@@ -148,9 +148,7 @@ group('collection_modification',() {
     });
 
   executeSubscriptionActions(List actions) {
-    return
-    runZoned((){
-    mongodb.dropCollection('random')
+    return mongodb.dropCollection('random')
     .catchError((e, s){
       print('cannot drop collection, ignoring the error');
     })
@@ -166,7 +164,6 @@ group('collection_modification',() {
       action();
       return new Future.delayed(new Duration(milliseconds: 200));
     }));
-  }, onError: (e, s) => print("kokokot"));
   }
 
   skip_test('data added to the set is not cloned, if it is already DataMap', () {
@@ -345,8 +342,6 @@ group('collection_modification',() {
       return new Future.delayed(new Duration(milliseconds: 1000), () {});
 
   });
-
-  test('cosi', (){});
 
   test('test data list manipulation', () {
     DataMap morders = new DataMap();

@@ -7,7 +7,7 @@ library publisher_test;
 
 import "package:unittest/unittest.dart";
 import "package:mock/mock.dart";
-import "package:clean_sync/profiling.dart";
+import "package:clean_sync/server.dart";
 import "dart:async";
 import 'package:clean_ajax/server.dart';
 

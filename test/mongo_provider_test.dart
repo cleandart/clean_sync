@@ -5,7 +5,7 @@
 library mongo_provider_test;
 
 import "package:unittest/unittest.dart";
-import "package:clean_sync/profiling.dart";
+import "package:clean_sync/server.dart";
 import "package:useful/useful.dart";
 import "dart:async";
 import 'package:clean_data/clean_data.dart';

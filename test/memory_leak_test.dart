@@ -1,5 +1,5 @@
 import "package:unittest/unittest.dart";
-import "package:clean_sync/profiling.dart";
+import "package:clean_sync/server.dart";
 import "dart:async";
 import 'package:clean_sync/client.dart';
 import 'package:clean_sync/id_generator.dart';

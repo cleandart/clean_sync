@@ -2,7 +2,7 @@ library clean_sync.test.cache_test;
 
 import 'dart:async';
 import 'package:unittest/unittest.dart';
-import 'package:clean_sync/profiling.dart';
+import 'package:clean_sync/server.dart';
 
 main(){
 
