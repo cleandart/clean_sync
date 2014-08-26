@@ -247,6 +247,7 @@ class MongoServer {
           _logger.warning('Operaration ${opCall.name} (${opCall.userId})'
                           'lasted $elapsed milliseconds (totaly $elapsedAll).');
         }
+        return result;
       });
     }, zoneValues: {#db_lock: {'count': 0, 'stopwatch': new Stopwatch()..start(), 'stopwatchAll': new Stopwatch()..start()}});
 
