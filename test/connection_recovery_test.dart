@@ -1,7 +1,7 @@
 library connection_recovery_test;
 
 import "package:unittest/unittest.dart";
-import "package:clean_sync/server.dart";
+import "package:clean_sync/profiling.dart";
 import "dart:async";
 import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';

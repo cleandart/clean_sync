@@ -2,8 +2,8 @@ library benchmark_diff;
 
 import 'dart:async';
 import 'dart:core';
-import 'package:clean_sync/server.dart' as sync;
-import 'package:clean_sync/server.dart';
+import 'package:clean_sync/profiling.dart' as sync;
+import 'package:clean_sync/profiling.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
 

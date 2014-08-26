@@ -2,7 +2,7 @@ library subs_random_test;
 
 import "package:unittest/unittest.dart";
 import "package:mock/mock.dart";
-import "package:clean_sync/server.dart";
+import "package:clean_sync/profiling.dart";
 import "dart:async";
 import 'dart:math';
 import './mongo_provider_test.dart';

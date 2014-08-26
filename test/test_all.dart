@@ -6,7 +6,7 @@ import 'package:unittest/unittest.dart';
 import 'package:unittest/vm_config.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
-import 'package:clean_sync/server.dart';
+import 'package:clean_sync/profiling.dart';
 
 import 'cache_test.dart' as cache_test;
 import 'collection_modification_test.dart' as collection_modification_test;

@@ -38,9 +38,10 @@ num startWatch(identifier) {
   return watchID;
 }
 stopWatch(watchID) {
-  var watch = watches[watchID][0];
+  Stopwatch watch = watches[watchID][0];
   var identifier = watches[watchID][1];
-  _profilingLogger.finer('$watchID Processing request ($identifier) took ${watch.elapsed}.');
+  var logging_fn = watch.elapsedMilliseconds > 100 ? _profilingLogger.warning : _profilingLogger.finer;
+  logging_fn('$watchID Processing request ($identifier) took ${watch.elapsed}.');
   watch.stop();
   watches.remove(watchID);
 }

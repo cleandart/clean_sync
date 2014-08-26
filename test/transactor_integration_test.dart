@@ -2,7 +2,7 @@ library transactor_integration_test;
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/client.dart';
-import 'package:clean_sync/server.dart';
+import 'package:clean_sync/profiling.dart';
 import 'package:unittest/unittest.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_ajax/server.dart';

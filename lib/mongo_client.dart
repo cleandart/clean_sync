@@ -40,12 +40,12 @@ class MongoClient {
           _connected.complete(null);
           socket = _socket;
           socket.listen((List <int> data){
-            logger.finer('Raw response: ${new String.fromCharCodes(data)}');
+            logger.finest('MC got response: ${new String.fromCharCodes(data)}');
             // We could have received more JSONs at once
             var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
-            logger.finer("JSON resp: $responses");
+            logger.finest("MC got JSON response: $responses");
             responses.forEach((resp) {
-              logger.fine('response obtained: ${resp}');
+              logger.finer('MC response obtained: ${resp}');
               Completer completer = reqToResp.remove(resp['operationId']);
               // Distinguish (un)successful operations by the key
               if (resp.containsKey('result')) {
@@ -78,7 +78,6 @@ class MongoClient {
     Completer completer = new Completer();
     String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;
-    logger.finer("ReqToResp: ${reqToResp}");
     String stringToSend = JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
       'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion});
     logger.finest("Trying to send string: $stringToSend");

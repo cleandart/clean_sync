@@ -1,7 +1,7 @@
 library exception_test;
 
 import "package:unittest/unittest.dart";
-import "package:clean_sync/server.dart";
+import "package:clean_sync/profiling.dart";
 import 'package:clean_sync/client.dart';
 import 'package:clean_sync/id_generator.dart';
 import 'package:mock/mock.dart';

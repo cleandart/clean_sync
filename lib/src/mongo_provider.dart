@@ -302,7 +302,7 @@ class MongoProvider implements DataProvider {
     if (e is BreakException) {
       return e.val;
     } else {
-      logger.shout("error", e, s);
+      logger.shout("MP _processError", e, s);
       throw e;
     }
   }
@@ -317,12 +317,10 @@ class MongoProvider implements DataProvider {
                                .limit(_limit).skip(_skip);
     return collection.find(selector).toList().then((data) {
       num watchID = startWatch('MP data ${collection.collectionName}');
-      // TODO _data should also return version!
-      //return _maxVersion.then((version) => {'data': data, 'version': version});
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
       assert(version != null);
-      // Add collection name to document (it's not in database)
+      // Add collection name to document (it's not in the database!)
       data.forEach((e) => e[COLLECTION_NAME] = collection.collectionName);
       return {'data': data, 'version': version};
     }).then((result) {
@@ -352,7 +350,7 @@ class MongoProvider implements DataProvider {
             }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
+        logger.shout('MP update error:', e, s);
         return _release_locks().then((_) {
           throw new MongoException(e,s);
         });
@@ -422,7 +420,8 @@ class MongoProvider implements DataProvider {
 
   Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
     return writeOperation(_id, author, 'change', newData,
-        clientVersion: clientVersion, upsert: upsert);
+        clientVersion: clientVersion, upsert: upsert);      //return _maxVersion.then((version) => {'data': data, 'version': version});
+
   }
 
   Future add(Map data, String author, {clientVersion: null}) {
@@ -549,8 +548,7 @@ class MongoProvider implements DataProvider {
         }).then((_) => _release_locks()).then((_) => nextVersion)
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
-          // ...
-          logger.shout('error:', e, s);
+          logger.shout('MP update error:', e, s);
           return _release_locks().then((_) {
             if (e is ModifierException) {
               throw e;
@@ -581,7 +579,7 @@ class MongoProvider implements DataProvider {
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        // ...
+        logger.shout('MP removeAll error:', e, s);
         return _release_locks().then((_) {
           throw new MongoException(e,s);
         });
@@ -648,8 +646,6 @@ class MongoProvider implements DataProvider {
 
     if (_limit > NOLIMIT || _skip > NOSKIP) {
       throw new DiffNotPossibleException();
-      //throw new Exception('not correctly implemented');
-//              return _limitedDiffFromVersion(diff);
     }
 
     // {before: {GT: {}}} to handle selectors like {before.age: null}
@@ -894,7 +890,7 @@ class MongoProvider implements DataProvider {
     }
     return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
       (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
-      onError: (e) {
+      onError: (e, s) {
         if(e['code'] == 11000) {
           // duplicate key error index
           nums--;
@@ -910,6 +906,7 @@ class MongoProvider implements DataProvider {
                 .then((_) => _get_locks(author, nums: nums));
           });
         } else {
+          logger.shout('MP _get_locks error', e, s);
           throw(e);
         }
       }).then((_) => true);
