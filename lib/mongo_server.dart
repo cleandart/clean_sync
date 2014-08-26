@@ -236,8 +236,19 @@ class MongoServer {
 
   Future _performOperationZoned(RawOperationCall opCall){
     return runZoned((){
-      return _performOperation(opCall);
-    }, onError: (e) => print('HUHUHU $e'));
+      return _performOperation(opCall).then((result) {
+        (Zone.current[#db_lock]['stopwatch'] as Stopwatch).stop();
+        (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).stop();
+
+        int elapsed = (Zone.current[#db_lock]['stopwatch'] as Stopwatch).elapsedMilliseconds;
+        int elapsedAll = (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).elapsedMilliseconds;
+
+        if(elapsed > 50) {
+          _logger.warning('Operaration ${opCall.name} (${opCall.userId})'
+                          'lasted $elapsed milliseconds (totaly $elapsedAll).');
+        }
+      });
+    }, zoneValues: {#db_lock: {'count': 0, 'stopwatch': new Stopwatch()..start(), 'stopwatchAll': new Stopwatch()..start()}});
 
   }
 

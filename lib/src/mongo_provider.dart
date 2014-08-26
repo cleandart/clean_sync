@@ -888,6 +888,8 @@ class MongoProvider implements DataProvider {
       logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
     }
+    waitingForLocks();
+
     return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
       (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
       onError: (e, s) {
@@ -909,7 +911,7 @@ class MongoProvider implements DataProvider {
           logger.shout('MP _get_locks error', e, s);
           throw(e);
         }
-      }).then((_) => true);
+      }).then((_) { gotLocks(); return true; });
   }
 
   Future _release_locks() {
@@ -932,3 +934,18 @@ class MongoProvider implements DataProvider {
   }
 }
 
+waitingForLocks() {
+  if(Zone.current[#db_lock] == null) return;
+  Zone.current[#db_lock]['count']++;
+  if(Zone.current[#db_lock]['count'] == 1) {
+    (Zone.current[#db_lock]['stopwatch'] as Stopwatch).stop();
+  }
+}
+
+gotLocks() {
+  if(Zone.current[#db_lock] == null) return;
+  Zone.current[#db_lock]['count']--;
+  if(Zone.current[#db_lock]['count'] == 1) {
+    (Zone.current[#db_lock]['stopwatch'] as Stopwatch).start();
+  }
+}
