@@ -234,7 +234,6 @@ class MongoServer {
   }
 
   Future _performOperation(RawOperationCall opCall) {
-    return runZoned((){
     ServerOperation op = operations[opCall.name];
     if(op == null) {
       opCall.completer.complete({'error':{'Unknown operation':'${opCall.name}'}});
@@ -298,7 +297,6 @@ class MongoServer {
           throw new ValidationException('Validation failed');
         }
         // Some other error occured
-        print("tututu");
         throw e;
       });
     }).then((_) {
@@ -325,6 +323,5 @@ class MongoServer {
         opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
     });
-  }, onError: (e,s) => _logger.shout("MS _performOperation error",e,s));
   }
 }

@@ -152,7 +152,7 @@ group('collection_modification',() {
     runZoned((){
     mongodb.dropCollection('random')
     .catchError((e, s){
-      print('hohoho');
+      print('cannot drop collection, ignoring the error');
     })
     .then((_) {
       return mongodb.removeLocks();}).then((_) =>
