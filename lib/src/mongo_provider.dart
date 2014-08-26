@@ -945,7 +945,7 @@ waitingForLocks() {
 gotLocks() {
   if(Zone.current[#db_lock] == null) return;
   Zone.current[#db_lock]['count']--;
-  if(Zone.current[#db_lock]['count'] == 1) {
+  if(Zone.current[#db_lock]['count'] == 0) {
     (Zone.current[#db_lock]['stopwatch'] as Stopwatch).start();
   }
 }

@@ -243,7 +243,7 @@ class MongoServer {
         int elapsed = (Zone.current[#db_lock]['stopwatch'] as Stopwatch).elapsedMilliseconds;
         int elapsedAll = (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).elapsedMilliseconds;
 
-        if(elapsed > 50) {
+        if(elapsed > 200) {
           _logger.warning('Operaration ${opCall.name} (${opCall.userId})'
                           'lasted $elapsed milliseconds (totaly $elapsedAll).');
         }
