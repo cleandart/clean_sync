@@ -7,16 +7,19 @@ environment:
   sdk: '>=0.8.10+6 <2.0.0'
 documentation: http://cleandart.github.io/clean_sync/
 dependencies:
-  clean_ajax:
-    path: /home/brandys11/VacuumLabs/clean_ajax
-  clean_data:
-    path: /home/brandys11/VacuumLabs/clean_data
+  clean_ajax: any
+  clean_data: any
   logging: '>=0.9.0 <0.10.0'
   mock: any
   mongo_dart: '>=0.1.36 <0.2.00'
   useful: '>=1.0.5 <2.0.0'
 dev_dependencies:
-  clean_backend:
-    path: /home/brandys11/VacuumLabs/clean_backend
+  clean_backend: any
   hop: any
   unittest: '>=0.9.3'
+
+dependency_overrides:
+  clean_data:
+    git:
+      url: https://github.com/cleandart/clean_data.git
+      ref: removeChangeSet
