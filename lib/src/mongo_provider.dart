@@ -884,11 +884,18 @@ class MongoProvider implements DataProvider {
   }
 
   Future _get_locks(author, {nums: 100}) {
+    waitingForLocks();
+    return __get_locks(author, nums: nums).then((value) {
+      gotLocks();
+      return value;
+    });
+  }
+
+  Future __get_locks(author, {nums: 100}) {
     if (nums <= 0) {
       logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
     }
-    waitingForLocks();
 
     return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
       (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
@@ -911,7 +918,7 @@ class MongoProvider implements DataProvider {
           logger.shout('MP _get_locks error', e, s);
           throw(e);
         }
-      }).then((_) { gotLocks(); return true; });
+      }).then((_) => true);
   }
 
   Future _release_locks() {
