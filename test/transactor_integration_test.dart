@@ -16,6 +16,7 @@ import 'package:logging/logging.dart';
 class SubscriptionMock extends Mock implements Subscription {
   var mongoCollectionName;
   var collection;
+  noSuchMethod(inv) => super.noSuchMethod(inv);
 }
 
 allowOperation(ServerOperationCall) => true;

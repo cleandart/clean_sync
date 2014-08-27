@@ -84,6 +84,7 @@ class DummyCache implements Cache {
   get(key) => null;
   clear(){}
   invalidate(){}
+  noSuchMethod(inv) => super.noSuchMethod(inv);
 }
 
 const dummyCache = const DummyCache();

@@ -13,8 +13,8 @@ import 'package:useful/useful.dart';
 import 'dart:async';
 
 
-class IdGeneratorMock extends Mock implements IdGenerator {}
-class TransactorMock extends Mock implements Transactor {}
+class IdGeneratorMock extends Mock implements IdGenerator { noSuchMethod(inv) => super.noSuchMethod(inv); }
+class TransactorMock extends Mock implements Transactor { noSuchMethod(inv) => super.noSuchMethod(inv); }
 
 main(){
   setupDefaultLogHandler();
@@ -72,7 +72,7 @@ run() {
 
       pub.publish('b', (_) {
         return mongodb.collection("random");
-      }, beforeRequest: beforeRequest);
+      });
       var _idGenerator = new IdGeneratorMock();
       var callback = expectAsync((_){});
 

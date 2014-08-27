@@ -298,7 +298,7 @@ void main() {
         });
     });
 
-    test('change data with jsonChange. (T04)', () {
+    skip_test('change data with jsonChange. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
       return ready.then((_) => months.add(clone(january), 'John Doe'))

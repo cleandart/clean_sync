@@ -26,6 +26,8 @@ void handleData(List<Map> data, Subscription subscription) {
   subscription.updateLock.value = true;
   collection.clear();
   collection.addAll(data);
+  subscription.oldCollection = cleanClone(collection);
+  subscription.oldCollection.addIndex(['_id']);
   subscription.updateLock.value = false;
 }
 
@@ -106,6 +108,7 @@ num handleDiff(List<Map> diff, Subscription subscription) {
 
   subscription.updateLock.value = true;
   DataSet collection = subscription.collection;
+  DataSet oldCollection = subscription.oldCollection;
   var version = subscription._version;
   num res = -1;
 
@@ -133,6 +136,7 @@ num handleDiff(List<Map> diff, Subscription subscription) {
         if (record == null) {
           logger.finer('aplying changes (add)');
           collection.add(change["data"]);
+          oldCollection.add(change['data']);
         } else {
           logger.finer('add discarded; same id already present');
         }
@@ -144,12 +148,14 @@ num handleDiff(List<Map> diff, Subscription subscription) {
            logger.finer('aplying changes (change)');
            res = max(res, change['version']);
            applyChange(change["data"], record);
+           applyChange(change['data'], oldCollection.findBy("_id", change["_id"]).first);
         }
       }
       else if (action == "remove" ) {
         logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
+        oldCollection.removeWhere((e) => e['_id'] == change['_id']);
       }
       logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
     });
@@ -175,7 +181,7 @@ class Subscription {
   // constructor arguments:
   String resourceName;
   String mongoCollectionName;
-  DataSet collection;
+  DataSet collection, oldCollection;
   Connection _connection;
   Transactor transactor;
   final Function _handleData;
@@ -243,6 +249,8 @@ class Subscription {
       this._connection, this._idGenerator, this.transactor, this._handleData,
       this._handleDiff, this._forceDataRequesting, this.updateLock) {
     _initialSync = createInitialSync();
+    this.oldCollection = cleanClone(collection);
+    this.oldCollection.addIndex(['_id']);
   }
 
   Subscription(resourceName, mongoCollectionName, connection, idGenerator,
@@ -295,7 +303,6 @@ class Subscription {
 
 
   void setupListeners() {
-    var change = new ChangeSet();
     // TODO assign ID to document added
     _subscriptions.add(collection.onBeforeAdd.listen((dataObj) {
       assert(dataObj is Map);
@@ -305,27 +312,46 @@ class Subscription {
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (this.updateLock.value == false) {
-        ChangeSet change = event['change'];
+        Set change = event['change'];
         var operation;
-        if (change.addedItems.length > 0) {
+
+        var id = change.first['_id'];
+        bool contains = collection.where((e) => e['_id'] == id).length == 1;
+        bool containsOld = oldCollection.where((e) => e['_id'] == id).length == 1;
+        if(contains && !containsOld) {
+          change.forEach((e) => oldCollection.add(cleanClone(e)));
           operation = () => transactor.performServerOperation('addAll',
-            {'data': new List.from(change.addedItems)},
+            {'data': new List.from(change)},
             subs: [this]
-          );
-        } else if (change.removedItems.length > 0) {
-          assert(change.removedItems.length == 1);
-          operation = () => transactor.performServerOperation('removeAll',
-            {"ids" : new List.from(change.removedItems.map((e) => e['_id']))},
-            subs: [this]
-          );
-        } else {
-          // Only one item should be changed
-          assert(change.changedItems.length == 1);
-          operation = () => transactor.performServerOperation("change",
-            change.changedItems.values.first.toJson(),
-            docs: [change.changedItems.keys.first]
           );
         }
+        else if(contains && containsOld) {
+          var diff = calcJSONDiff(
+              collection.firstWhere((e) => e['_id'] == id),
+              oldCollection.firstWhere((e) => e['_id'] == id));
+          if(diff == null) {
+            diff = {};
+            //throw new Exception('Ty mantak $collection $oldCollection');
+          }
+
+          oldCollection.removeWhere((e) => e['_id'] == id);
+          oldCollection.add(cleanClone(change.first));
+          operation = () => transactor.performServerOperation("change",
+            diff,
+            docs: [change.single]
+          );
+        }
+        else if(!contains && containsOld) {
+          oldCollection.removeWhere((e) => e['_id'] == id);
+          operation = () => transactor.performServerOperation('removeAll',
+            {"ids" : new List.from([id])},
+            subs: [this]
+          );
+        }
+        else {
+          throw new Exception('This should not happen');
+        }
+
         Future result;
         transactor.operationPerformed = true;
         result = operation()
@@ -485,9 +511,12 @@ class Subscription {
     return _closeSubs()
       .then((_) {
         // check to make multiple disposes safe
-        if (collection != null)
+        if (collection != null) {
           collection.dispose();
+          oldCollection.dispose();
+        }
         collection = null;
+        oldCollection = null;
       });
   }
 
@@ -502,8 +531,10 @@ class Subscription {
       _initialSync = createInitialSync();
       _closeSubs().then((_) {
         requestLock = false;
-        if(collection == null)
+        if(collection == null) {
           collection = _createNewCollection();
+          oldCollection = _createNewCollection();
+        }
         _start(initialData: initialData);
       });
     }

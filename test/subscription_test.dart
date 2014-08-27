@@ -14,7 +14,7 @@ import 'package:clean_data/clean_data.dart';
 import 'package:useful/useful.dart';
 import 'dart:async';
 
-class BareConnectionMock extends Mock implements Connection {}
+class BareConnectionMock extends Mock implements Connection {noSuchMethod(inv) => super.noSuchMethod(inv);}
 
 var lastRequest;
 
@@ -30,16 +30,18 @@ class ConnectionMock extends Mock implements Connection {
       }
     });
   }
+  noSuchMethod(inv) => super.noSuchMethod(inv);
 }
-class IdGeneratorMock extends Mock implements IdGenerator {}
-class FunctionMock extends Mock implements Function {}
+class IdGeneratorMock extends Mock implements IdGenerator {noSuchMethod(inv) => super.noSuchMethod(inv);}
+class FunctionMock extends Mock implements Function {noSuchMethod(inv) => super.noSuchMethod(inv);}
 class SubscriptionMock extends Mock implements Subscription {
   SubscriptionMock(value) {
     this.when(callsTo('get initialSync')).alwaysReturn(new Future.value(value));
   }
+  noSuchMethod(inv) => super.noSuchMethod(inv);
 }
 
-class TransactorMock extends Mock implements Transactor {}
+class TransactorMock extends Mock implements Transactor {noSuchMethod(inv) => super.noSuchMethod(inv);}
 
 void main(){
   unittestConfiguration.timeout = new Duration(seconds: 5);
