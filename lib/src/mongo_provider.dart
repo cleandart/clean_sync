@@ -63,8 +63,16 @@ class MongoDatabase {
   List<Future> init = [];
   DbCollection _lock;
   Cache cache;
-
+  Map <String, Completer> requesters;
   Db get rawDb => _db;
+
+  // For communication with mongo server
+  Socket _mongoServerSocket;
+  num _lockIdCounter;
+  String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
+  String mongoServerUrl;
+  int mongoServerPort;
+  Map _incompleteJson = {};
 
   MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -74,6 +82,20 @@ class MongoDatabase {
       _lock = _db.collection(LOCK_COLLECTION_NAME);
       return true;
       }));
+    init.add(Socket.connect(mongoServerUrl, mongoServerPort).then((Socket socket) {
+      _mongoServerSocket = socket;
+      _mongoServerSocket.listen((data) {
+        List<Map> responses = getJSONs(new String.fromCharCodes(data), _incompleteJson).map((m) => JSON.decode(m));
+        responses.forEach((resp) {
+          Completer completer = requesters.remove(resp["id"]);
+          if (resp.containsKey("error")) {
+            completer.completeError(resp["error"]);
+          } else if (resp.containsKey("result")) {
+            completer.complete();
+          }
+        });
+      });
+    }));
   }
 
   Future close() => Future.wait(init).then((_) => _db.close());
@@ -125,6 +147,21 @@ class MongoDatabase {
       _db.collection(historyCollectionName(collectionName)).drop()
     ]));
 
+  Future getLock(String collectionName) {
+    var id = "$prefix--$_lockIdCounter";
+    _lockIdCounter++;
+    Completer completer = new Completer();
+    requesters[id] = completer;
+    String stringToSend = JSON.encode({"operation" : "get", "id":id, "collection":collectionName});
+    _mongoServerSocket.write("${stringToSend.length}${stringToSend}");
+    return completer.future;
+  }
+
+  releaseLock(String collectionName) {
+    String stringToSend = JSON.encode({"operation" : "release", "collection":collectionName});
+    _mongoServerSocket.write("${stringToSend.length}${stringToSend}");
+  }
+
   /**
    * if collectionName is specified, drop locks for this specific collection.
    * Otherwise, drop all locks in the system.
@@ -163,6 +200,7 @@ MongoProvider mpClone(MongoProvider source){
 
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
+  MongoDatabase mongodb;
   List<Map> _selectorList = [];
   Map _sortParams = {};
   List _excludeFields = [];

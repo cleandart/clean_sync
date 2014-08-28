@@ -42,7 +42,7 @@ class MongoClient {
           socket.listen((List <int> data){
             logger.finer('Raw response: ${new String.fromCharCodes(data)}');
             // We could have received more JSONs at once
-            var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
+            var responses = getJSONs(UTF8.decode(data), incompleteJson).map((m) => JSON.decode(m));
             logger.finer("JSON resp: $responses");
             responses.forEach((resp) {
               logger.fine('response obtained: ${resp}');

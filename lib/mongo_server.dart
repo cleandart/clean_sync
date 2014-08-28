@@ -138,6 +138,7 @@ class RawOperationCall {
 class MongoServer {
   int port;
   String mongoUrl;
+  int mongodbPort;
   Cache cache;
   Map <String, ServerOperation> operations = {};
   MongoDatabase db;
@@ -145,7 +146,12 @@ class MongoServer {
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
+  ServerSocket mongodbSocket;
   Map incompleteJson = {};
+  Map mongodbIncompleteJson = {};
+
+  Map<String, Map> locks = {};
+  Map<String, List> requestors = {};
 
   MongoServer(this.port, this.mongoUrl, {this.cache, this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
@@ -163,7 +169,51 @@ class MongoServer {
         server.listen(handleClient);
       }
     );
+    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", mongodbPort)
+        .then((ServerSocket mdbServer) {
+      mongodbSocket = mdbServer;
+      mongodbSocket.listen(handleMongodbClient);
+    });
     return Future.wait(db.init..add(socketFuture));
+  }
+
+  checkLockRequestors() {
+    requestors.forEach((coll, req) {
+      if (!locks.containsKey(coll)) {
+        // Nobody has lock for this coll
+        if (requestors[coll].isNotEmpty) {
+          // Somebody is waiting for this lock
+          locks[coll] = requestors[coll].removeAt(0);
+          String stringToSend = JSON.encode({"result": "ok", "id": locks[coll]["id"]});
+          (locks[coll]["socket"] as Socket).write("${stringToSend.length}${stringToSend}");
+        }
+      }
+    });
+  }
+
+  _addRequestor(String requestor, String collectionName, Socket socket) {
+    if (!requestors.containsKey(collectionName)) requestors[collectionName] = [];
+    requestors[collectionName].add({"id":requestor, "socket":socket});
+    checkLockRequestors();
+  }
+
+  // Releases lock for collectionName and returns the id that held the lock
+  String _releaseLock(String collectionName) {
+    if (!locks.containsKey(collectionName)) return null;
+    String id = locks.remove(collectionName)["id"];
+    checkLockRequestors();
+    return id;
+  }
+
+  handleMongodbClient(Socket socket) {
+    clientSockets.add(socket);
+    socket.listen((List<int> data) {
+      Iterable<Map> jsons = getJSONs(UTF8.decode(data), mongodbIncompleteJson).map((msg) => JSON.decode(msg));
+      jsons.forEach((json) {
+        if (json["operation"] == "get") _addRequestor(json["id"], json["collectionName"], socket);
+        if (json["operation"] == "release") _releaseLock(json["collectionName"]);
+      });
+    });
   }
 
   handleClient(Socket socket){
