@@ -1,3 +1,5 @@
+library clean_sync.clean_stream;
+
 import 'dart:io';
 import 'dart:async';
 import 'package:logging/logging.dart';
