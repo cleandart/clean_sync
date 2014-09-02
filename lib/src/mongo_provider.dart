@@ -81,7 +81,10 @@ class MongoDatabase {
   Future create_collection(String collectionName) {
     Future res =_conn.then((_) =>
             _db.createIndex(historyCollectionName(collectionName), key: 'version',
-            unique: true));
+            unique: true)).then((_) =>
+            _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
+            unique: true, sparse: true));
+
     init.add(res);
     return res;
   }
