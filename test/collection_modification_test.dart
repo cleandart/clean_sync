@@ -60,8 +60,10 @@ run() {
 
 group('collection_modification',() {
   setUp((){
+    var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+    MongoDatabase serverDb = new MongoDatabase(mongoUrl, new NoLocker(), cache: cache);
+    mongoServer = new MongoServer(27001, serverDb);
     return mongoServer.start()
       .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
@@ -81,10 +83,10 @@ group('collection_modification',() {
             updateLock);
       })
       .then((_) => subscriber.init("prefix"))
-      .then((_) {
-        mongodb = mongoServer.db;
-        mongodb.dropCollection('random');
-      })
+      .then((_) => MongoServerLocker.connect("127.0.0.1", 27001))
+      .then((MongoServerLocker locker) => mongodb = new MongoDatabase(mongoUrl, locker))
+      .then((_) => Future.wait(mongodb.init))
+      .then((_) => mongodb.dropCollection('random'))
       .then((_) => mongodb.removeLocks())
       .then((_){
 
@@ -142,7 +144,9 @@ group('collection_modification',() {
     return Future.forEach(itemsToClose, (item) {
       return item.dispose();
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongoServer.close())
+      .then((_) => mongoServer.close()
+      .catchError((e,s) =>
+          print("$e, $s")))
       .then((_) => mongoClient.close());
     });
 

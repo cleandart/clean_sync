@@ -75,43 +75,36 @@ class RawOperationCall {
 class MongoServer {
   int port;
   String mongoUrl;
-  int locksPort = 27002;
-  Cache cache;
   Map <String, ServerOperation> operations = {};
   MongoDatabase db;
   String userColName;
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
-  ServerSocket locksSocket;
 
   Map<String, Map> locks = {};
   Map<String, List> requestors = {};
 
-  MongoServer(this.port, this.mongoUrl, {this.cache, this.userColName}){
+  MongoServer(this.port, this.db, {this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
   Future start() {
-    if (cache == null) db = new MongoDatabase(mongoUrl);
-    else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
     var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
         serverSocket = server;
-        server.listen(handleClient);
+        serverSocket.listen(handleClient);
       }
     ).catchError((e,s) =>
         print("Caught error: $e, $s"));
-    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", locksPort)
-        .then((ServerSocket mdbServer) {
-      locksSocket = mdbServer;
-      locksSocket.listen(handleLocksClient);
-    });
-    return Future.wait(db.init..addAll([socketFuture, mongodbSocketFuture]));
+    return socketFuture;
   }
 
+  /**
+   * Checks if somebody from requestors can receive a lock
+   */
   checkLockRequestors() {
     requestors.forEach((coll, req) {
       if (!locks.containsKey(coll)) {
@@ -119,8 +112,7 @@ class MongoServer {
         if (requestors[coll].isNotEmpty) {
           // Somebody is waiting for this lock
           locks[coll] = requestors[coll].removeAt(0);
-          String stringToSend = JSON.encode({"result": "ok", "id": locks[coll]["id"]});
-          (locks[coll]["socket"] as Socket).write("${stringToSend.length}${stringToSend}");
+          writeJSON(locks[coll]["socket"], JSON.encode({"result": "ok", "id": locks[coll]["id"], "collection":coll, "action":"get"}));
         }
       }
     });
@@ -132,34 +124,48 @@ class MongoServer {
     checkLockRequestors();
   }
 
-  // Releases lock for collectionName and returns the id that held the lock
-  String _releaseLock(String collectionName) {
-    if (!locks.containsKey(collectionName)) return null;
-    String id = locks.remove(collectionName)["id"];
+  _releaseLock(String id, String collectionName, Socket socket) {
+    if (locks.containsKey(collectionName)) {
+      locks.remove(collectionName);
+    }
+    writeJSON(socket, JSON.encode({"id": id, "collection": collectionName, "result":"ok"}));
+    _performOne();
     checkLockRequestors();
-    return id;
   }
 
-  handleLocksClient(Socket socket) {
-    clientSockets.add(socket);
-    toJsonStream(socket).listen((Map req) {
-      if (req["operation"] == "get") _addRequestor(req["id"], req["collection"], socket);
-      if (req["operation"] == "release") _releaseLock(req["collection"]);
-    });
+  _releaseAllLocks(String id, String collectionName, Socket socket) {
+    locks.clear();
+    writeJSON(socket, JSON.encode({"id": id, "collection": collectionName, "result":"ok"}));
+    _performOne();
+    checkLockRequestors();
+  }
+
+  handleLock(Socket socket, Map req) =>
+    (){
+        switch(req["action"]) {
+          case "get": return _addRequestor;
+          case "release": return _releaseLock;
+          case "releaseAll": return _releaseAllLocks;
+        }
+      }()(req["id"], req["collection"], socket);
+
+  handleOperation(Socket socket, Map req) {
+      List<RawOperationCall> opCalls = new List();
+        var op = new RawOperationCall.fromJson(req);
+        opCalls.add(op);
+        queue.add(op);
+        op.completer.future.then((Map response){
+          response['operationId'] = req['operationId'];
+          writeJSON(socket, JSON.encode(response));
+        });
+      _performOne();
   }
 
   handleClient(Socket socket){
     clientSockets.add(socket);
-    toJsonStream(socket).listen((Map json) {
-      List<RawOperationCall> opCalls = new List();
-        var op = new RawOperationCall.fromJson(json);
-        opCalls.add(op);
-        queue.add(op);
-        op.completer.future.then((Map response){
-          response['operationId'] = json['operationId'];
-          writeJSON(socket, JSON.encode(response));
-        });
-      _performOne();
+    toJsonStream(socket).listen((Map req) {
+      if (req["type"] == "operation") return handleOperation(socket, req["data"]);
+      if (req["type"] == "lock") return handleLock(socket, req["data"]);
     });
   }
 
@@ -169,7 +175,6 @@ class MongoServer {
        db.close(),
        Future.wait(clientSockets.map((socket) => socket.close())),
        serverSocket.close(),
-       locksSocket.close(),
     ]).then((_) => print("closed"));
   }
 
@@ -187,12 +192,14 @@ class MongoServer {
   bool running = false;
 
   _performOne() {
+    if (locks.isNotEmpty) return;
     if (running) return;
     if (queue.isEmpty) return;
     logger.finer('server: perform one');
     running = true;
     _performOperation(queue.removeAt(0)).then((_) {
       running = false;
+      checkLockRequestors();
       _performOne();
     });
   }

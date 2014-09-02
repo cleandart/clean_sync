@@ -57,23 +57,91 @@ const String COLLECTION_NAME = '__clean_collection';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
+abstract class Locker {
+
+  Future getLock(String collectionName);
+
+  Future releaseLock(String collectionName);
+
+  Future releaseAllLocks();
+
+  Future close();
+
+}
+
+class NoLocker extends Locker {
+
+  Future close() => new Future.value(null);
+
+  Future getLock(String collectionName) => new Future.value(null);
+
+  Future releaseAllLocks() => new Future.value(null);
+
+  Future releaseLock(String collectionName) => new Future.value(null);
+
+}
+
+class MongoServerLocker extends Locker {
+
+  Map <String, Completer> requestors = {};
+  Socket _mongoLocksSocket;
+  num _lockIdCounter = 0;
+  String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
+  String url = "127.0.0.1";
+  int port = 27001;
+
+  MongoServerLocker(this._mongoLocksSocket) {
+    toJsonStream(_mongoLocksSocket).listen((Map resp) {
+      Completer completer = requestors.remove(resp["id"]);
+      if (resp.containsKey("error")) {
+        completer.completeError(resp["error"]);
+      } else if (resp.containsKey("result")) {
+        completer.complete();
+      }
+    });
+  }
+
+  static Future<MongoServerLocker> connect(url, port) =>
+    Socket.connect(url, port).then((Socket socket) => new MongoServerLocker(socket));
+
+  Future getLock(String collectionName) {
+    Completer completer = _sendRequest("get", collectionName);
+    return completer.future;
+  }
+
+  Future releaseLock(String collectionName) {
+    Completer completer = _sendRequest("release", collectionName);
+    return completer.future;
+  }
+
+  Future releaseAllLocks() {
+    Completer completer = _sendRequest("releaseAll", "");
+    return completer.future;
+  }
+
+  _sendRequest(String action, String collectionName) {
+    var id = "$prefix--$_lockIdCounter";
+    _lockIdCounter++;
+    Completer completer = new Completer();
+    requestors[id] = completer;
+    writeJSON(_mongoLocksSocket, JSON.encode({"type": "lock", "data" : {"action" : action, "id": id, "collection":collectionName}}));
+    return completer;
+  }
+
+  Future close() => _mongoLocksSocket.close();
+
+}
+
 class MongoDatabase {
   Db _db;
   Future _conn;
   List<Future> init = [];
   DbCollection _lock;
   Cache cache;
-  Map <String, Completer> requesters;
   Db get rawDb => _db;
+  Locker _locker;
 
-  // For communication with mongo server
-  Socket _mongoLocksSocket;
-  num _lockIdCounter;
-  String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
-  String mongoServerUrl = "127.0.0.1";
-  int mongoServerLocksPort = 27002;
-
-  MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
+  MongoDatabase(String url, Locker this._locker, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
     _conn = _db.open(); // open connection to database
     init.add(_conn);
@@ -81,21 +149,10 @@ class MongoDatabase {
       _lock = _db.collection(LOCK_COLLECTION_NAME);
       return true;
       }));
-    init.add(Socket.connect(mongoServerUrl, mongoServerLocksPort).then((Socket socket) {
-      _mongoLocksSocket = socket;
-      toJsonStream(_mongoLocksSocket).listen((Map resp) {
-        Completer completer = requesters.remove(resp["id"]);
-        if (resp.containsKey("error")) {
-          completer.completeError(resp["error"]);
-        } else if (resp.containsKey("result")) {
-          completer.complete();
-        }
-      });
-    }));
   }
 
   Future close() => Future.wait(init)
-      .then((_) => Future.wait([_db.close(), _mongoLocksSocket.close()]));
+      .then((_) => Future.wait([_db.close(), _locker.close()]));
 
   Future create_collection(String collectionName) {
     Future res =_conn.then((_) =>
@@ -135,7 +192,7 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    return new MongoProvider(collection, collectionHistory, _lock, cache);
+    return new MongoProvider(this, collection, collectionHistory, _lock, cache);
   }
 
   Future dropCollection(String collectionName) =>
@@ -144,31 +201,21 @@ class MongoDatabase {
       _db.collection(historyCollectionName(collectionName)).drop()
     ]));
 
-  Future getLock(String collectionName) {
-    var id = "$prefix--$_lockIdCounter";
-    _lockIdCounter++;
-    Completer completer = new Completer();
-    requesters[id] = completer;
-    writeJSON(_mongoLocksSocket, JSON.encode({"operation" : "get", "id":id, "collection":collectionName}));
-    return completer.future;
-  }
-
-  releaseLock(String collectionName) {
-    String stringToSend = JSON.encode({"operation" : "release", "collection":collectionName});
-    _mongoLocksSocket.write("${stringToSend.length}${stringToSend}");
-  }
-
   /**
-   * if collectionName is specified, drop locks for this specific collection.
-   * Otherwise, drop all locks in the system.
-   */
-  Future removeLocks({String collectionName}){
-    if (collectionName == null) {
-      return _lock.drop();
-    } else {
-      return this.collection(collectionName)._release_locks();
-    }
-  }
+    * if collectionName is specified, drop locks for this specific collection.
+    * Otherwise, drop all locks in the system.
+    */
+   Future removeLocks({String collectionName}){
+     if (collectionName == null) {
+       return _locker.releaseAllLocks();
+     } else {
+       return this.collection(collectionName)._release_locks();
+     }
+   }
+
+   getLock(String collectionName) => _locker.getLock(collectionName);
+
+   releaseLock(String collectionName) => _locker.releaseLock(collectionName);
 
 }
 
@@ -183,7 +230,7 @@ List addFieldIfNotEmpty(List fields, String field){
 
 MongoProvider mpClone(MongoProvider source){
 
-  MongoProvider m = new MongoProvider.config(source.collection,
+  MongoProvider m = new MongoProvider.config(source.mongodb, source.collection,
       source._collectionHistory, source._lock, source.cache, source.idgen);
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
@@ -217,11 +264,11 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(collection, collectionHistory, lock, cache) :
-    this.config(collection, collectionHistory, lock, cache,
+  MongoProvider(mongodb, collection, collectionHistory, lock, cache) :
+    this.config(mongodb, collection, collectionHistory, lock, cache,
         new IdGenerator(getIdPrefix()));
 
-  MongoProvider.config(this.collection, this._collectionHistory, this._lock,
+  MongoProvider.config(this.mongodb, this.collection, this._collectionHistory, this._lock,
       this.cache, this.idgen);
 
   Future deleteHistory(num version) {
@@ -917,45 +964,49 @@ class MongoProvider implements DataProvider {
     });
   }
 
-  Future test_get_locks(nums) {
-    return _get_locks('test_get_locks', nums: nums);
+  Future test_get_locks() {
+    return _get_locks('test_get_locks');
   }
+
+  Future test_release_locks() => _release_locks();
 
   Future _get_locks(author, {nums: 100}) {
     if (nums <= 0) {
       logger.shout('Could not acquire locks for many many times, gg');
       throw new Exception('Could not acquire locks for many many times, gg');
     }
-    return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
-      (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
-      onError: (e) {
-        if(e['code'] == 11000) {
-          // duplicate key error index
-          nums--;
-          return _lock.find({'_id': collection.collectionName}).toList()
-              .then((locks) {
-            var lockingAuthor = 'unknown, locks are released by now';
-            if (locks.isNotEmpty) lockingAuthor = locks[0]['author'];
-            logger.warning('Could not obtain lock, retrying $nums more times. '
-                           'Locking author is $lockingAuthor. '
-                           'Current author is $author.');
-
-            return new Future.delayed(new Duration(milliseconds: 100))
-                .then((_) => _get_locks(author, nums: nums));
-          });
-        } else {
-          throw(e);
-        }
-      }).then((_) => true);
+    return Future.wait([mongodb.getLock(_collectionHistory.collectionName), mongodb.getLock(collection.collectionName)]);
+//    return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
+//      (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
+//      onError: (e) {
+//        if(e['code'] == 11000) {
+//          // duplicate key error index
+//          nums--;
+//          return _lock.find({'_id': collection.collectionName}).toList()
+//              .then((locks) {
+//            var lockingAuthor = 'unknown, locks are released by now';
+//            if (locks.isNotEmpty) lockingAuthor = locks[0]['author'];
+//            logger.warning('Could not obtain lock, retrying $nums more times. '
+//                           'Locking author is $lockingAuthor. '
+//                           'Current author is $author.');
+//
+//            return new Future.delayed(new Duration(milliseconds: 100))
+//                .then((_) => _get_locks(author, nums: nums));
+//          });
+//        } else {
+//          throw(e);
+//        }
+//      }).then((_) => true);
   }
 
   Future _release_locks() {
-    return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
-    _lock.remove({'_id': collection.collectionName})).then((_) =>
-    true)
-    .catchError((e, s) {
-      logger.shout('during releasing locks, error occured', e, s);
-    });
+    return Future.wait([mongodb.releaseLock(_collectionHistory.collectionName), mongodb.releaseLock(collection.collectionName)]);
+//    return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
+//    _lock.remove({'_id': collection.collectionName})).then((_) =>
+//    true)
+//    .catchError((e, s) {
+//      logger.shout('during releasing locks, error occured', e, s);
+//    });
   }
 
   void _stripCleanVersion(dynamic data) {

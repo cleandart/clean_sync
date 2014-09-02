@@ -141,7 +141,7 @@ void run() {
       expect(when, throwsStateError);
     });
 
-    test('dump subscriber', () {
+    skip_test('dump subscriber', () {
       Map args = {'key': 'val', 'another key':'yet another value'};
       subscriber = new Subscriber(connection);
       return subscriber.init().then((_) {

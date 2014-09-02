@@ -7,6 +7,7 @@ import 'dart:math';
 import './mongo_provider_test.dart';
 import 'package:useful/useful.dart';
 import 'package:logging/logging.dart';
+import 'package:clean_sync/mongo_server.dart';
 
 
 Random rng = new Random();
@@ -35,16 +36,18 @@ run(count) {
   MongoProvider currCollection;
   MongoProvider wholeCollection;
   MongoDatabase mongodb;
+  MongoServer mongoServer;
 
   setup(selector) {
-    mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest');
-    return Future.wait(mongodb.init)
-    .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks())
-    .then((_){
-      wholeCollection = mongodb.collection('random');
-      currCollection = selector(mongodb.collection('random'));
-    });
+    mongoServer = new MongoServer(27001, 'mongodb://127.0.0.1/mongoProviderTest');
+    return mongoServer.start()
+      .then((_) => mongodb = mongoServer.db)
+      .then((_) => mongodb.dropCollection('random'))
+      .then((_) => mongodb.removeLocks())
+      .then((_){
+        wholeCollection = mongodb.collection('random');
+        currCollection = selector(mongodb.collection('random'));
+      });
   }
 
     randomChoice(Iterable iter) {
@@ -140,7 +143,7 @@ run(count) {
     }
 
     _teardown() {
-      mongodb.close();
+      mongoServer.close();
     };
 
    _test(){
