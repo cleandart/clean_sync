@@ -75,7 +75,7 @@ class RawOperationCall {
 class MongoServer {
   int port;
   String mongoUrl;
-  int mongodbPort;
+  int locksPort = 27002;
   Cache cache;
   Map <String, ServerOperation> operations = {};
   MongoDatabase db;
@@ -83,9 +83,7 @@ class MongoServer {
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
-  ServerSocket mongodbSocket;
-  Map incompleteJson = {};
-  Map mongodbIncompleteJson = {};
+  ServerSocket locksSocket;
 
   Map<String, Map> locks = {};
   Map<String, List> requestors = {};
@@ -99,19 +97,19 @@ class MongoServer {
     if (cache == null) db = new MongoDatabase(mongoUrl);
     else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
-    incompleteJson = {};
-//    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
-//      (ServerSocket server) {
-//        serverSocket = server;
-//        server.listen(handleClient);
-//      }
-//    );
-    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", port)
+    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
+      (ServerSocket server) {
+        serverSocket = server;
+        server.listen(handleClient);
+      }
+    ).catchError((e,s) =>
+        print("Caught error: $e, $s"));
+    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", locksPort)
         .then((ServerSocket mdbServer) {
-      mongodbSocket = mdbServer;
-      mongodbSocket.listen(handleMongodbClient);
+      locksSocket = mdbServer;
+      locksSocket.listen(handleLocksClient);
     });
-    return Future.wait(db.init..add(mongodbSocketFuture));
+    return Future.wait(db.init..addAll([socketFuture, mongodbSocketFuture]));
   }
 
   checkLockRequestors() {
@@ -142,14 +140,11 @@ class MongoServer {
     return id;
   }
 
-  handleMongodbClient(Socket socket) {
+  handleLocksClient(Socket socket) {
     clientSockets.add(socket);
-    socket.listen((List<int> data) {
-      Iterable<Map> jsons = getJSONs(UTF8.decode(data), mongodbIncompleteJson).map((msg) => JSON.decode(msg));
-      jsons.forEach((json) {
-        if (json["operation"] == "get") _addRequestor(json["id"], json["collectionName"], socket);
-        if (json["operation"] == "release") _releaseLock(json["collectionName"]);
-      });
+    toJsonStream(socket).listen((Map req) {
+      if (req["operation"] == "get") _addRequestor(req["id"], req["collection"], socket);
+      if (req["operation"] == "release") _releaseLock(req["collection"]);
     });
   }
 
@@ -169,11 +164,13 @@ class MongoServer {
   }
 
   Future close() {
+    print("trying to close");
     return Future.wait([
        db.close(),
        Future.wait(clientSockets.map((socket) => socket.close())),
-       serverSocket.close()
-    ]);
+       serverSocket.close(),
+       locksSocket.close(),
+    ]).then((_) => print("closed"));
   }
 
   registerOperation(name, {operation, before, after}){

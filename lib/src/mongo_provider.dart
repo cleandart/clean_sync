@@ -67,12 +67,11 @@ class MongoDatabase {
   Db get rawDb => _db;
 
   // For communication with mongo server
-  Socket _mongoServerSocket;
+  Socket _mongoLocksSocket;
   num _lockIdCounter;
   String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
-  String mongoServerUrl;
-  int mongoServerPort;
-  Map _incompleteJson = {};
+  String mongoServerUrl = "127.0.0.1";
+  int mongoServerLocksPort = 27002;
 
   MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -82,23 +81,21 @@ class MongoDatabase {
       _lock = _db.collection(LOCK_COLLECTION_NAME);
       return true;
       }));
-    init.add(Socket.connect(mongoServerUrl, mongoServerPort).then((Socket socket) {
-      _mongoServerSocket = socket;
-      _mongoServerSocket.listen((data) {
-        List<Map> responses = getJSONs(new String.fromCharCodes(data), _incompleteJson).map((m) => JSON.decode(m));
-        responses.forEach((resp) {
-          Completer completer = requesters.remove(resp["id"]);
-          if (resp.containsKey("error")) {
-            completer.completeError(resp["error"]);
-          } else if (resp.containsKey("result")) {
-            completer.complete();
-          }
-        });
+    init.add(Socket.connect(mongoServerUrl, mongoServerLocksPort).then((Socket socket) {
+      _mongoLocksSocket = socket;
+      toJsonStream(_mongoLocksSocket).listen((Map resp) {
+        Completer completer = requesters.remove(resp["id"]);
+        if (resp.containsKey("error")) {
+          completer.completeError(resp["error"]);
+        } else if (resp.containsKey("result")) {
+          completer.complete();
+        }
       });
     }));
   }
 
-  Future close() => Future.wait(init).then((_) => _db.close());
+  Future close() => Future.wait(init)
+      .then((_) => Future.wait([_db.close(), _mongoLocksSocket.close()]));
 
   Future create_collection(String collectionName) {
     Future res =_conn.then((_) =>
@@ -152,14 +149,13 @@ class MongoDatabase {
     _lockIdCounter++;
     Completer completer = new Completer();
     requesters[id] = completer;
-    String stringToSend = JSON.encode({"operation" : "get", "id":id, "collection":collectionName});
-    _mongoServerSocket.write("${stringToSend.length}${stringToSend}");
+    writeJSON(_mongoLocksSocket, JSON.encode({"operation" : "get", "id":id, "collection":collectionName}));
     return completer.future;
   }
 
   releaseLock(String collectionName) {
     String stringToSend = JSON.encode({"operation" : "release", "collection":collectionName});
-    _mongoServerSocket.write("${stringToSend.length}${stringToSend}");
+    _mongoLocksSocket.write("${stringToSend.length}${stringToSend}");
   }
 
   /**
