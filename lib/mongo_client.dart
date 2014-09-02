@@ -75,6 +75,7 @@ class MongoClient {
     logger.finer("ReqToResp: ${reqToResp}");
     String stringToSend = JSON.encode({"type": "operation", "data": {'name': name, 'docs': docs, 'colls': colls, 'args': args,
       'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}});
+
     logger.finest("Trying to send string: $stringToSend");
     writeJSON(socket, stringToSend);
     return completer.future;

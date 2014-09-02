@@ -41,6 +41,8 @@ class Resource {
                 stopWatch(watchID);
                 return result;
              });
+        } else {
+          throw new Exception('Publisher: action ${action} not known');
         }
       });
 

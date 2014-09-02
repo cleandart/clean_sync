@@ -39,6 +39,9 @@ void main() {
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
     List monthsCol;
+    var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
+    var url = "127.0.0.1";
+    var port = 27001;
 
      setUp(() {
 
@@ -58,11 +61,15 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      mongoServer = new MongoServer(27001, 'mongodb://127.0.0.1/mongoProviderTest');
-      ready = mongoServer.start().then((_) => mongodb = mongoServer.db)
-            .then((_) => mongodb.dropCollection('months'))
-            .then((_) => mongodb.removeLocks())
-            .then((_) => months = mongodb.collection('months'));
+      MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker());
+      mongoServer = new MongoServer(27001, msDb);
+      ready = mongoServer.start()
+          .then((_) => MongoServerLocker.connect(url, port))
+          .then((locker) => mongodb = new MongoDatabase(mongoUrl, locker))
+          .then((_) => Future.wait(mongodb.init))
+          .then((_) => mongodb.dropCollection('months'))
+          .then((_) => mongodb.removeLocks())
+          .then((_) => months = mongodb.collection('months'));
       return ready;
     });
 
@@ -599,13 +606,15 @@ void main() {
     });
 
     test('cache should invalidate when changing the collection', () {
-      var _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest',
-          cache: new Cache(new Duration(seconds: 1), 1000));
-      ready = Future.wait(_mongodb.init)
-                    .then((_) => _mongodb.dropCollection('months'))
-                    .then((_) => _mongodb.removeLocks())
-                    .then((_) => months = _mongodb.collection('months'))
-                    ;
+      MongoDatabase _mongodb;
+      ready = MongoServerLocker.connect(url, port)
+                .then((locker) => _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest', locker,
+                                      cache: new Cache(new Duration(seconds: 1), 1000)))
+                .then((_) => Future.wait(_mongodb.init))
+                .then((_) => _mongodb.dropCollection('months'))
+                .then((_) => _mongodb.removeLocks())
+                .then((_) => months = _mongodb.collection('months'));
+
       return ready.then((_){
         months = _mongodb.collection('months');
         return months.add({'a': 'aa'}, '')

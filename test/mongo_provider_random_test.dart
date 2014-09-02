@@ -39,9 +39,15 @@ run(count) {
   MongoServer mongoServer;
 
   setup(selector) {
-    mongoServer = new MongoServer(27001, 'mongodb://127.0.0.1/mongoProviderTest');
+    var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
+    var url = "127.0.0.1";
+    var port = 27001;
+    MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker());
+    mongoServer = new MongoServer(27001, msDb);
     return mongoServer.start()
-      .then((_) => mongodb = mongoServer.db)
+      .then((_) => MongoServerLocker.connect(url, port))
+      .then((locker) => mongodb = new MongoDatabase(mongoUrl, locker))
+      .then((_) => Future.wait(mongodb.init))
       .then((_) => mongodb.dropCollection('random'))
       .then((_) => mongodb.removeLocks())
       .then((_){

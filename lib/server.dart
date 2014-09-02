@@ -9,6 +9,7 @@
 
 library clean_sync.server;
 
+import 'dart:core';
 import 'dart:async';
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:clean_ajax/server.dart';
@@ -27,31 +28,6 @@ part 'src/publisher.dart';
 part 'src/data_provider.dart';
 part 'src/mongo_provider.dart';
 part 'src/cache.dart';
+part 'src/profiling.dart';
 
-// profiling
-Logger _profilingLogger = new Logger('clean_sync.profiling');
 
-Map watches = {};
-var watchID = 0;
-
-num startWatch(identifier) {
-  watchID++;
-  watches[watchID] = [new Stopwatch()..start(), identifier];
-  _profilingLogger.finer('$watchID Started processing request ($identifier).');
-  return watchID;
-}
-stopWatch(watchID) {
-  var watch = watches[watchID][0];
-  var identifier = watches[watchID][1];
-  _profilingLogger.finer('$watchID Processing request ($identifier) took ${watch.elapsed}.');
-  watch.stop();
-  watches.remove(watchID);
-}
-
-logElapsedTime(watchID) {
-  var watch = watches[watchID][0];
-  var identifier = watches[watchID][1];
-  _profilingLogger.finer('$watchID Processing request ($identifier) currently elapsed '
-              '${watch.elapsed}.');
-}
-// end profiling

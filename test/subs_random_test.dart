@@ -86,20 +86,24 @@ run(count, cache, {failProb: 0}) {
 
 group('subs_random_test', () {
   setUp((){
-    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+    var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
+    var url = "127.0.0.1";
+    var port = 27001;
+    MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker(), cache: cache);
+    mongoServer = new MongoServer(27001, msDb);
     updateLock = new DataReference(false);
     return mongoServer.start()
-    .then((_) {
-      mongodb = mongoServer.db;
-      return mongodb.dropCollection('random');
-    })
+    .then((_) => MongoServerLocker.connect(url, port))
+    .then((locker) =>  mongodb = new MongoDatabase(mongoUrl, locker))
+    .then((_) => Future.wait(mongodb.init))
+    .then((_) => mongodb.dropCollection('random'))
     .then((_) => mongodb.removeLocks())
     .then((_) {
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);
         mongoServer.registerBeforeCallback('removeAll', allowOperation);
 
-        mongoClient = new MongoClient("127.0.0.1", 27001);
+        mongoClient = new MongoClient(url, port);
         pub = new Publisher();
         var versionProvider = mongodb.collection("random");
         pub.publish('a', (_) {

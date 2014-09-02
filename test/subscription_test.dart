@@ -141,6 +141,7 @@ void run() {
       expect(when, throwsStateError);
     });
 
+    // not_yet_implemented
     skip_test('dump subscriber', () {
       Map args = {'key': 'val', 'another key':'yet another value'};
       subscriber = new Subscriber(connection);

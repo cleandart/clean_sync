@@ -2,7 +2,6 @@ library benchmark_diff;
 
 import 'dart:async';
 import 'dart:core';
-import 'package:clean_sync/server.dart' as sync;
 import 'package:clean_sync/server.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
@@ -73,7 +72,7 @@ main() {
     createRequest() {
       if(stop) return;
 //      collection.maxVersion.then((_){ countRequest++; createRequest();});
-      sync.handleSyncRequest(request).then((_) { countRequest++; createRequest(); });
+      handleSyncRequest(request).then((_) { countRequest++; createRequest(); });
     }
     for(int i=0; i < CLIENTS; i++) {
       createRequest();

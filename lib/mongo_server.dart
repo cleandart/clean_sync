@@ -11,7 +11,7 @@ import 'server_operations.dart' as sOps;
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/clean_stream.dart';
 
-Logger logger = new Logger('mongo_wrapper_logger');
+Logger _logger = new Logger('mongo_wrapper_logger');
 
 class DocumentNotFoundException implements Exception {
   final String error;
@@ -47,7 +47,8 @@ class RawOperationCall {
 
   @override
   String toString(){
-    return "RawOperationCall $name ${super.toString()}";
+    return 'RawOperationCall name: $name, author: $author, docs: $docs, '
+           'colls: $colls, args: $args, userId: $userId';
   }
 
   RawOperationCall(this.name, this.completer, {this.docs, this.colls,
@@ -99,7 +100,7 @@ class MongoServer {
       }
     ).catchError((e,s) =>
         print("Caught error: $e, $s"));
-    return socketFuture;
+    return Future.wait(db.init..add(socketFuture));
   }
 
   /**
@@ -150,15 +151,15 @@ class MongoServer {
       }()(req["id"], req["collection"], socket);
 
   handleOperation(Socket socket, Map req) {
-      List<RawOperationCall> opCalls = new List();
-        var op = new RawOperationCall.fromJson(req);
-        opCalls.add(op);
-        queue.add(op);
-        op.completer.future.then((Map response){
-          response['operationId'] = req['operationId'];
-          writeJSON(socket, JSON.encode(response));
-        });
-      _performOne();
+    List<RawOperationCall> opCalls = new List();
+      var op = new RawOperationCall.fromJson(req);
+      opCalls.add(op);
+      queue.add(op);
+      op.completer.future.then((Map response){
+        response['operationId'] = req['operationId'];
+        writeJSON(socket, JSON.encode(response));
+      });
+    _performOne();
   }
 
   handleClient(Socket socket){
@@ -179,7 +180,7 @@ class MongoServer {
   }
 
   registerOperation(name, {operation, before, after}){
-    logger.fine("registering operation $name");
+    _logger.fine("registering operation $name");
     operations[name] = new ServerOperation(name, operation: operation,
         before: before, after: after);
 //        before: before == null ? [] : [before], after: after == null ? [] : [after]);
@@ -195,20 +196,39 @@ class MongoServer {
     if (locks.isNotEmpty) return;
     if (running) return;
     if (queue.isEmpty) return;
-    logger.finer('server: perform one');
+    _logger.finer('server: perform one');
     running = true;
-    _performOperation(queue.removeAt(0)).then((_) {
+    _performOperationZoned(queue.removeAt(0)).then((_) {
       running = false;
       checkLockRequestors();
       _performOne();
     });
   }
 
+  Future _performOperationZoned(RawOperationCall opCall){
+    return runZoned((){
+      return _performOperation(opCall).then((result) {
+        (Zone.current[#db_lock]['stopwatch'] as Stopwatch).stop();
+        (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).stop();
+
+        int elapsed = (Zone.current[#db_lock]['stopwatch'] as Stopwatch).elapsedMilliseconds;
+        int elapsedAll = (Zone.current[#db_lock]['stopwatchAll'] as Stopwatch).elapsedMilliseconds;
+
+        if(elapsed > 200) {
+          _logger.warning('Operaration lasted $elapsed milliseconds (totaly $elapsedAll)'
+              '${opCall}');
+        }
+        return result;
+      });
+    }, zoneValues: {#db_lock: {'count': 0, 'stopwatch': new Stopwatch()..start(), 'stopwatchAll': new Stopwatch()..start()}});
+
+  }
+
   Future _performOperation(RawOperationCall opCall) {
     ServerOperation op = operations[opCall.name];
     if(op == null) {
       opCall.completer.complete({'error':{'Unknown operation':'${opCall.name}'}});
-      logger.shout('Unknown operation ${opCall.name}');
+      _logger.shout('Unknown operation ${opCall.name}');
       return new Future(() => null);
     }
     List fullDocs = [];
@@ -221,7 +241,7 @@ class MongoServer {
       fullColls.add(db.collection(col));
     }
 
-    logger.finest('fetching docs ($opCall)');
+    _logger.finest('fetching docs ($opCall)');
     int i = -1;
     return Future.forEach(opCall.docs, (doc){
       i++;
@@ -229,8 +249,8 @@ class MongoServer {
           .catchError((e,s) => throw new DocumentNotFoundException('$e','$s'))
           .then((fullDoc) => fullDocs.add(fullDoc));
     }).then((_){
-      logger.finest('Docs received: ${fullDocs} ($opCall)');
-      logger.finest('fetching user ($opCall)');
+      _logger.finest('Docs received: ${fullDocs} ($opCall)');
+      _logger.finest('fetching user ($opCall)');
       if (opCall.userId != null) {
         if (userColName == null) {
           throw new Exception('userColName is not set!');
@@ -241,7 +261,7 @@ class MongoServer {
       }
     })
     .then((_user){
-      logger.finer('operation - before ($opCall)');
+      _logger.finer('MS operation - before ($opCall)');
       user = _user != null ? new DataMap.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: user, args: opCall.args, db: db, author: opCall.author,
@@ -261,14 +281,14 @@ class MongoServer {
           throw false
       ).catchError((e,s) {
         if (e == true) return true;
-        if (e == false) throw new ValidationException('Operation ${op.name} not'
-        'permitted; user: ${fOpCall.user}, author: ${fOpCall.author}, docs: ${fOpCall.docs},'
-        'colls: ${fOpCall.colls}');
+        if (e == false) {
+          throw new ValidationException('Validation failed');
+        }
         // Some other error occured
         throw e;
       });
     }).then((_) {
-      logger.finer('operation - core ($opCall)');
+      _logger.finer('MS operation - core ($opCall)');
       return op.operation(fOpCall);
     }).then((_) {
       return Future.forEach(fullDocs, (d) {
@@ -276,22 +296,23 @@ class MongoServer {
             opCall.author, clientVersion: opCall.clientVersion);
       });
     }).then((_) {
-      logger.finer('operation - after ($opCall)');
+      _logger.finer('MS operation - after ($opCall)');
       return Future.forEach(op.after, (opAfter) => opAfter(fOpCall));
     }).then((_) {
       opCall.completer.complete({'result': 'ok'});
     }).catchError((e, s) {
       if (e is ValidationException) {
-        logger.warning('Validation failed', e,  s);
+        _logger.warning('Validation failed: Operation ${op.name} not'
+                'permitted; user: ${fOpCall.user}, author: ${fOpCall.author},'
+                'docs: ${fOpCall.docs}, colls: ${fOpCall.colls}', e,  s);
         opCall.completer.complete({'error':{'validation':'$e'}});
       } else if (e is DocumentNotFoundException) {
-        logger.warning('Document not found', e, s);
+        _logger.warning('Document not found', e, s);
         opCall.completer.complete({'error':{'doc_not_found':'$e'}});
       } else {
-        logger.shout("Some other error occured !",e,s);
+        _logger.shout("Some other error occured !",e,s);
         opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
     });
   }
-
 }

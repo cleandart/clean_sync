@@ -24,6 +24,7 @@ main(){
   hierarchicalLoggingEnabled = true;
   unittestConfiguration.timeout = null;
   (new Logger('clean_sync')).level = Level.WARNING;
+  (new Logger('mongo_wrapper_logger')).level = Level.FINER;
   setupDefaultLogHandler();
 //  (new Logger('clean_sync')).level = Level.FINEST;
 //  (new Logger('clean_ajax')).level = Level.FINE;
@@ -151,8 +152,11 @@ group('collection_modification',() {
     });
 
   executeSubscriptionActions(List actions) {
-    return
-    mongodb.dropCollection('random').then((_) {
+    return mongodb.dropCollection('random')
+    .catchError((e, s){
+      print('cannot drop collection, ignoring the error');
+    })
+    .then((_) {
       return mongodb.removeLocks();}).then((_) =>
       mongoClient.connected).then((_) {
       return subAll.initialSync;}).then((_) {
@@ -162,7 +166,7 @@ group('collection_modification',() {
     subArgs.initialSync).then((_) =>
     Future.forEach(actions, (action) {
       action();
-      return new Future.delayed(new Duration(milliseconds: 300));
+      return new Future.delayed(new Duration(milliseconds: 200));
     }));
   }
 
@@ -193,9 +197,9 @@ group('collection_modification',() {
   test('test collection change', () {
     List actions = [
       () => colAll.add(data1),
-      () => colAll2.first['colAll'] = 'changed from colAll2',
+      () => colAll2.first['colAll'] = 'brave new world',
       () => expect(stripIds(colAll), unorderedEquals([
-        {'colAll' : 'changed from colAll2'}
+        {'colAll' : 'brave new world'}
       ])),
     ];
 
@@ -343,8 +347,6 @@ group('collection_modification',() {
 
   });
 
-  test('cosi', (){});
-
   test('test data list manipulation', () {
     DataMap morders = new DataMap();
     DataList orders = new DataList();
@@ -356,19 +358,6 @@ group('collection_modification',() {
       () {orders.add(1); orders.add(2); orders.add(3); orders.add(4);},
       () {orders.remove(2); orders.remove(3); orders.remove(4);},
       () => expect(orders, equals([1])),
-    ];
-
-    return executeSubscriptionActions(actions);
-
-  });
-
-  skip_test('wtf', (){
-    List actions = [
-      ()  { colAll.add(data1); colAll.removeBy('_id', data1['_id']); colAll.add(data1);},
-//      ()  { colAll.add(data1);},
-//      ()  { colAll.remove(data1);},
-//      ()  { colAll.add(data1);},
-      () => expect(colAll.first == data1, isTrue),
     ];
 
     return executeSubscriptionActions(actions);
