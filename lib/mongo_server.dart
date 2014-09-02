@@ -164,6 +164,7 @@ class MongoServer {
 
   handleClient(Socket socket){
     clientSockets.add(socket);
+    socket.done.then((_) => clientSockets.remove(socket));
     toJsonStream(socket).listen((Map req) {
       if (req["type"] == "operation") return handleOperation(socket, req["data"]);
       if (req["type"] == "lock") return handleLock(socket, req["data"]);

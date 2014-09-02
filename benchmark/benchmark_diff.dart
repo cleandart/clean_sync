@@ -16,7 +16,7 @@ final TIME = new Duration(seconds: 10);
 MongoDatabase mongodb;
 setup() {
   Cache cache = new Cache(new Duration(milliseconds: 200), 10000);
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', cache: cache);
+  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', new NoLocker(), cache: cache);
 
   return mongodb.dropCollection('benchmark')
   .then((_) => mongodb.removeLocks())
