@@ -159,7 +159,6 @@ void run() {
     });
 
     test("collection name should be included in document", () {
-      print(server.operations['set'].before);
       // given
       var id = idgen.next();
       var data = {'_id' : '$id', 'name' : 'some name', 'credit' : 5000};
