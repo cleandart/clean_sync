@@ -163,18 +163,18 @@ class MongoServer {
     else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
     incompleteJson = {};
-    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
-      (ServerSocket server) {
-        serverSocket = server;
-        server.listen(handleClient);
-      }
-    );
-    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", mongodbPort)
+//    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
+//      (ServerSocket server) {
+//        serverSocket = server;
+//        server.listen(handleClient);
+//      }
+//    );
+    var mongodbSocketFuture = ServerSocket.bind("127.0.0.1", port)
         .then((ServerSocket mdbServer) {
       mongodbSocket = mdbServer;
       mongodbSocket.listen(handleMongodbClient);
     });
-    return Future.wait(db.init..add(socketFuture));
+    return Future.wait(db.init..add(mongodbSocketFuture));
   }
 
   checkLockRequestors() {
