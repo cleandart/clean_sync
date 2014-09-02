@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:clean_ajax/server.dart';
-
+import 'package:clean_sync/clean_stream.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
@@ -39,24 +39,18 @@ class MongoClient {
         .then((Socket _socket) {
           _connected.complete(null);
           socket = _socket;
-          socket.listen((List <int> data){
-            logger.finer('Raw response: ${new String.fromCharCodes(data)}');
-            // We could have received more JSONs at once
-            var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
-            logger.finer("JSON resp: $responses");
-            responses.forEach((resp) {
-              logger.fine('response obtained: ${resp}');
-              Completer completer = reqToResp.remove(resp['operationId']);
-              // Distinguish (un)successful operations by the key
-              if (resp.containsKey('result')) {
-                completer.complete(resp);
-              } else if (resp.containsKey('error')) {
-                //TODO: think about this
-                completer.complete(resp);
-              } else {
-                completer.complete('MongoClient - unknown error');
-              }
-            });
+          toJsonStream(socket).listen((Map json){
+            logger.fine("Response: $json");
+            Completer completer = reqToResp.remove(json['operationId']);
+            // Distinguish (un)successful operations by the key
+            if (json.containsKey('result')) {
+              completer.complete(json);
+            } else if (json.containsKey('error')) {
+              //TODO: think about this
+              completer.complete(json);
+            } else {
+              completer.complete('MongoClient - unknown error');
+            }
           });
         })
         .catchError((e) {
@@ -82,7 +76,7 @@ class MongoClient {
     String stringToSend = JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
       'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion});
     logger.finest("Trying to send string: $stringToSend");
-    socket.write('${stringToSend.length}${stringToSend}');
+    writeJSON(socket, stringToSend);
     return completer.future;
   }
 
