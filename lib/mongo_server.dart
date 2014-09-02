@@ -105,7 +105,7 @@ class MongoServer {
 
   handleClient(Socket socket){
     clientSockets.add(socket);
-    transformStream(socket).listen((Map json) {
+    toJsonStream(socket).listen((Map json) {
       List<RawOperationCall> opCalls = new List();
         var op = new RawOperationCall.fromJson(json);
         opCalls.add(op);

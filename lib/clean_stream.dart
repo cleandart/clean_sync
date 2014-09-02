@@ -73,7 +73,7 @@ List<String> getJSONs(String message, [Map incompleteJson]) {
 writeJSON(IOSink iosink, String json) =>
     iosink.write("${json.length}${json}");
 
-Stream transformStream(Stream stream) =>
+Stream toJsonStream(Stream stream) =>
     stream.transform(new StreamTransformer(
         (Stream input, bool cancelOnError) {
           StreamController sc = new StreamController.broadcast();
