@@ -152,13 +152,13 @@ class MongoServer {
 
   handleOperation(Socket socket, Map req) {
     List<RawOperationCall> opCalls = new List();
-      var op = new RawOperationCall.fromJson(req);
-      opCalls.add(op);
-      queue.add(op);
-      op.completer.future.then((Map response){
-        response['operationId'] = req['operationId'];
-        writeJSON(socket, JSON.encode(response));
-      });
+    var op = new RawOperationCall.fromJson(req);
+    opCalls.add(op);
+    queue.add(op);
+    op.completer.future.then((Map response){
+      response['operationId'] = req['operationId'];
+      writeJSON(socket, JSON.encode(response));
+    });
     _performOne();
   }
 
@@ -172,12 +172,11 @@ class MongoServer {
   }
 
   Future close() {
-    print("trying to close");
     return Future.wait([
        db.close(),
        Future.wait(clientSockets.map((socket) => socket.close())),
        serverSocket.close(),
-    ]).then((_) => print("closed"));
+    ]);
   }
 
   registerOperation(name, {operation, before, after}){
