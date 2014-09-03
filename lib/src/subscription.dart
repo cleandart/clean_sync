@@ -476,7 +476,8 @@ class Subscription {
     _subscriptions.clear();
     subToClose.retainWhere((e) => e != null);
 
-    return Future.wait(subToClose).then((_) => Future.wait(_sentItems));
+    return Future.wait(subToClose).then(
+        (_) => Future.wait(_sentItems));
   }
 
   Future dispose(){

@@ -10,6 +10,7 @@ import "package:useful/useful.dart";
 import "dart:async";
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/locker.dart';
 
 
 void handleDiff(List<Map> diff, List collection) {
@@ -36,6 +37,8 @@ void main() {
     Future ready;
     MongoDatabase mongodb;
     MongoServer mongoServer;
+    Locker locker;
+    LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
     List monthsCol;
@@ -61,12 +64,10 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker());
-      mongoServer = new MongoServer(27001, msDb);
-      ready = mongoServer.start()
-          .then((_) => MongoServerLocker.connect(url, port))
-          .then((locker) => mongodb = new MongoDatabase(mongoUrl, locker))
-          .then((_) => Future.wait(mongodb.init))
+      ready = MongoDatabase.noLocking(mongoUrl)
+          .then((MongoDatabase mdb) => mongodb = mdb)
+          .then((_) => mongoServer = new MongoServer(27001, mongodb))
+          .then((_) => mongoServer.start())
           .then((_) => mongodb.dropCollection('months'))
           .then((_) => mongodb.removeLocks())
           .then((_) => months = mongodb.collection('months'));
@@ -251,12 +252,25 @@ void main() {
       .then((_) => expect(catched, isTrue));
     });
 
-    test('get_locks should aquire lock on mongo server', () {
+    skip_test('get_locks should aquire lock on mongo server', () {
       MongoProvider colAaa = mongodb.collection("aaa");
       return colAaa.test_get_locks()
         .then((_) => expect(mongoServer.locks.containsKey("aaa"), isTrue))
         .then((_) => colAaa.test_release_locks())
         .then((_) => expect(mongoServer.locks.containsKey("aaa"), isFalse));
+    });
+
+    test("withLock should throw if callback is not waiting for futures", () {
+      var callback = () {
+        Future lateFuture = new Future.delayed(new Duration(milliseconds:300),
+            () => mongodb.withLock(() {}));
+        return new Future.value(null);
+      };
+      bool caughtError = false;
+      runZoned(() {
+          mongodb.withLock(callback);
+      }, onError: (e) => caughtError = true);
+      return new Future.delayed(new Duration(milliseconds:800), () => expect(caughtError,isTrue));
     });
 
     test('change with upsert', () {
@@ -607,11 +621,12 @@ void main() {
 
     test('cache should invalidate when changing the collection', () {
       MongoDatabase _mongodb;
-      ready = MongoServerLocker.connect(url, port)
+      ready = LockRequestor.connect(url, 27005)
                 .then((locker) => _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest', locker,
                                       cache: new Cache(new Duration(seconds: 1), 1000)))
                 .then((_) => Future.wait(_mongodb.init))
-                .then((_) => _mongodb.dropCollection('months'))
+                .then((_) =>
+                    _mongodb.dropCollection('months'))
                 .then((_) => _mongodb.removeLocks())
                 .then((_) => months = _mongodb.collection('months'));
 
@@ -622,7 +637,8 @@ void main() {
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
         .then((data) => expect(data['data'].length, equals(2)))
-        .then((_) => _mongodb.close());
+        .then((_) =>
+            _mongodb.close());
       });
 
     });

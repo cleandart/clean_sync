@@ -64,13 +64,11 @@ run() {
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
     var url = "127.0.0.1";
     var port = 27001;
-    MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker());
-    mongoServer = new MongoServer(27001, msDb);
     updateLock = new DataReference(false);
-    return mongoServer.start()
-    .then((_) => MongoServerLocker.connect(url, port))
-    .then((locker) => mongodb = new MongoDatabase(mongoUrl, locker))
-    .then((_) => Future.wait(mongodb.init))
+    return MongoDatabase.noLocking(mongoUrl)
+    .then((MongoDatabase mdb) => mongodb = mdb)
+    .then((_) => mongoServer = new MongoServer(port, mongodb))
+    .then((_) => mongoServer.start())
     .then((_) => mongodb.dropCollection(collectionName))
     .then((_) => mongodb.removeLocks())
     .then((_) {

@@ -50,9 +50,9 @@ void run() {
       lastOperation = "";
       var port = 27001;
       var mongoUrl = "mongodb://0.0.0.0/mongoServerTest";
-      MongoDatabase msDb = new MongoDatabase(mongoUrl, new NoLocker());
-      server = new MongoServer(port, msDb);
-      return server.start()
+      return MongoDatabase.noLocking(mongoUrl)
+          .then((MongoDatabase mdb) => server = new MongoServer(port, mdb))
+          .then((_) => server.start())
           .then((_) => server.db.dropCollection(testCollectionUser))
           .then((_) => server.db.removeLocks())
           .then((_) {
