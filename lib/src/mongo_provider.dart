@@ -952,60 +952,6 @@ class MongoProvider implements DataProvider {
       });
     });
   }
-//
-//  Future test_get_locks() {
-//    return _get_locks('test_get_locks');
-//  }
-//
-//  Future test_release_locks() => _release_locks();
-//
-//  Future _get_locks(author, {nums: 100}) {
-//    waitingForLocks();
-//    return __get_locks(author, nums: nums).then((value) {
-//      gotLocks();
-//      return value;
-//    });
-//  }
-//
-//  Future __get_locks(author, {nums: 100}) {
-//    if (nums <= 0) {
-//      logger.shout('Could not acquire locks for many many times, gg');
-//      throw new Exception('Could not acquire locks for many many times, gg');
-//    }
-//    return mongodb.getLock();
-//  }
-
-//    return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
-//      (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
-//      onError: (e, s) {
-//        if(e['code'] == 11000) {
-//          // duplicate key error index
-//          nums--;
-//          return _lock.find({'_id': collection.collectionName}).toList()
-//              .then((locks) {
-//            var lockingAuthor = 'unknown, locks are released by now';
-//            if (locks.isNotEmpty) lockingAuthor = locks[0]['author'];
-//            logger.warning('Could not obtain lock, retrying $nums more times. '
-//                           'Locking author is $lockingAuthor. '
-//                           'Current author is $author.');
-//
-//            return new Future.delayed(new Duration(milliseconds: 100))
-//                .then((_) => _get_locks(author, nums: nums));
-//          });
-//        } else {
-//          logger.shout('MP _get_locks error', e, s);
-//          throw(e);
-//        }
-//      }).then((_) => true);
-
-//  Future _release_locks() => mongodb.releaseLock();
-
-//    return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
-//    _lock.remove({'_id': collection.collectionName})).then((_) =>
-//    true)
-//    .catchError((e, s) {
-//      logger.shout('during releasing locks, error occured', e, s);
-//    });
 
   void _stripCleanVersion(dynamic data) {
     if (data is Iterable) {
