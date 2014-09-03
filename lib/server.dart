@@ -23,6 +23,7 @@ import 'package:clean_sync/id_generator.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:clean_sync/clean_stream.dart';
+import 'package:clean_sync/locker.dart';
 
 part 'src/publisher.dart';
 part 'src/data_provider.dart';

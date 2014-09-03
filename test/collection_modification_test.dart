@@ -63,13 +63,14 @@ group('collection_modification',() {
   setUp((){
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-    MongoDatabase serverDb = new MongoDatabase(mongoUrl, new NoLocker(), cache: cache);
-    mongoServer = new MongoServer(27001, serverDb);
-    return mongoServer.start()
+    return MongoDatabase.noLocking(mongoUrl, cache: cache)
+      .then((MongoDatabase mdb) => mongoServer = new MongoServer(27001, mdb))
+      .then((_) => mongoServer.start())
+      .then((_) => mongodb = mongoServer.db)
       .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
         return mongoClient.connected;
-      }).then((_){
+      }).catchError((e,s) => print("$e, $s")).then((_){
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);
         mongoServer.registerBeforeCallback('removeAll', allowOperation);
@@ -84,13 +85,9 @@ group('collection_modification',() {
             updateLock);
       })
       .then((_) => subscriber.init("prefix"))
-      .then((_) => MongoServerLocker.connect("127.0.0.1", 27001))
-      .then((MongoServerLocker locker) => mongodb = new MongoDatabase(mongoUrl, locker))
-      .then((_) => Future.wait(mongodb.init))
       .then((_) => mongodb.dropCollection('random'))
       .then((_) => mongodb.removeLocks())
       .then((_){
-
           pub.publish('a', (_) {
             return mongodb.collection("random").find({});
           });
@@ -143,11 +140,9 @@ group('collection_modification',() {
     ];
 
     return Future.forEach(itemsToClose, (item) {
-      return item.dispose();
+      return item.dispose().catchError((e,s) => print("$e, $s"));
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongoServer.close()
-      .catchError((e,s) =>
-          print("$e, $s")))
+      .then((_) => mongoServer.close())
       .then((_) => mongoClient.close());
     });
 
@@ -165,7 +160,9 @@ group('collection_modification',() {
     subAa.initialSync).then((_) =>
     subArgs.initialSync).then((_) =>
     Future.forEach(actions, (action) {
+      try {
       action();
+      } catch (e) { print(e); }
       return new Future.delayed(new Duration(milliseconds: 200));
     }));
   }
@@ -183,9 +180,11 @@ group('collection_modification',() {
   });
 
   test('test collection add', () {
+    print("first test");
     List actions = [
       () => colAll.add(data1),
       () => expect(colAll2, unorderedEquals([data1])),
+      () => print("HEREEEE"),
       () {colAll2.add(data2); colAll.add(dataA);},
       () => expect(colAll, unorderedEquals(colAll2)),
     ];
