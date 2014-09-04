@@ -1,0 +1,12 @@
+description "Mongo lock server"
+author      "Vacuumlabs"
+
+start on (filesystem and started mongodb)
+
+stop on stopped mongodb
+
+respawn limit 5 5
+
+script
+  dart __PATH_TO_LOCKER__ 127.0.0.1 27002
+end script
