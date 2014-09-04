@@ -39,6 +39,7 @@ void run() {
 
     MongoServer server;
     MongoClient client;
+    MongoDatabase mongodb;
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
     String lastOperation;
@@ -50,14 +51,17 @@ void run() {
       lastOperation = "";
       var port = 27001;
       var mongoUrl = "mongodb://0.0.0.0/mongoServerTest";
-      return MongoDatabase.noLocking(mongoUrl)
-          .then((MongoDatabase mdb) => server = new MongoServer(port, mdb))
+      var lockerPort = 27002;
+      var host = "127.0.0.1";
+      return LockRequestor.connect(host, lockerPort)
+          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
+          .then((_) => server = new MongoServer(port, mongodb))
           .then((_) => server.start())
           .then((_) => server.db.dropCollection(testCollectionUser))
           .then((_) => server.db.removeLocks())
           .then((_) {
 
-        client = new MongoClient("127.0.0.1", 27001);
+        client = new MongoClient(host, 27001);
 
         server.registerOperation("save",
             operation: (ServerOperationCall opCall){

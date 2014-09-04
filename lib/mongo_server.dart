@@ -120,14 +120,12 @@ class MongoServer {
     });
   }
 
-  Future close() {
-    print("ms closing");
-    return Future.wait([
-       db.close(),
-       Future.wait(clientSockets.map((socket) => socket.close())),
-       serverSocket.close(),
-    ]).then((_) => print("ms closed"));
-  }
+  Future close() =>
+      Future.wait([
+         db.close(),
+         Future.wait(clientSockets.map((socket) => socket.close())),
+         serverSocket.close(),
+      ]);
 
   registerOperation(name, {operation, before, after}){
     _logger.fine("registering operation $name");

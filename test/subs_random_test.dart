@@ -89,9 +89,10 @@ group('subs_random_test', () {
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
     var url = "127.0.0.1";
     var port = 27001;
+    var lockerPort = 27002;
     updateLock = new DataReference(false);
-    return MongoDatabase.noLocking(mongoUrl)
-    .then((MongoDatabase mdb) => mongodb = mdb)
+    return LockRequestor.connect(url, lockerPort)
+    .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
     .then((_) => mongoServer = new MongoServer(port, mongodb))
     .then((_) => mongoServer.start())
     .then((_) => mongodb.dropCollection('random'))

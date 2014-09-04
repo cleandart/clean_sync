@@ -40,10 +40,11 @@ run(count) {
 
   setup(selector) {
     var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
-    var url = "127.0.0.1";
-    var port = 27001;
-    return MongoDatabase.noLocking(mongoUrl)
-      .then((MongoDatabase mdb) => mongodb = mdb)
+    var host = "127.0.0.1";
+    var msPort = 27001;
+    var lockerPort = 27002;
+    return LockRequestor.connect(host, lockerPort)
+      .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
       .then((_) => mongoServer = new MongoServer(27001, mongodb))
       .then((_) => mongoServer.start())
       .then((_) => mongodb.dropCollection('random'))

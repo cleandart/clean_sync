@@ -62,9 +62,13 @@ run() {
 group('collection_modification',() {
   setUp((){
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
+    var host = "127.0.0.1";
+    var lockerPort = 27002;
+    var msPort = 27001;
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-    return MongoDatabase.noLocking(mongoUrl, cache: cache)
-      .then((MongoDatabase mdb) => mongoServer = new MongoServer(27001, mdb))
+    return LockRequestor.connect(host, lockerPort)
+      .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor, cache: cache))
+      .then((_) => mongoServer = new MongoServer(27001, mongodb))
       .then((_) => mongoServer.start())
       .then((_) => mongodb = mongoServer.db)
       .then((_){
@@ -180,11 +184,9 @@ group('collection_modification',() {
   });
 
   test('test collection add', () {
-    print("first test");
     List actions = [
       () => colAll.add(data1),
       () => expect(colAll2, unorderedEquals([data1])),
-      () => print("HEREEEE"),
       () {colAll2.add(data2); colAll.add(dataA);},
       () => expect(colAll, unorderedEquals(colAll2)),
     ];

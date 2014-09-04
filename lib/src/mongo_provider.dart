@@ -78,7 +78,8 @@ class LockRequestor {
   }
 
   static Future<LockRequestor> connect(url, port) =>
-    Socket.connect(url, port).then((Socket socket) => new LockRequestor(socket));
+    Socket.connect(url, port).then((Socket socket) => new LockRequestor(socket))
+      .catchError((e,s) => throw new Exception("LockRequestor was unable to connect to url: $url, port: $port, (is Locker running?)"));
 
   Future getLock() {
     Completer completer = _sendRequest("get");
@@ -189,7 +190,6 @@ class MongoDatabase {
     * Otherwise, drop all locks in the system.
     */
    Future removeLocks({String collectionName}){
-     print("removing locks");
      return _lockRequestor.releaseLock();
    }
 

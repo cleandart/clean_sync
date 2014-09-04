@@ -43,8 +43,9 @@ void main() {
         august, september, october, november, december;
     List monthsCol;
     var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
-    var url = "127.0.0.1";
-    var port = 27001;
+    var host = "127.0.0.1";
+    var msPort = 27001;
+    var lockerPort = 27002;
 
      setUp(() {
 
@@ -64,8 +65,8 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      ready = MongoDatabase.noLocking(mongoUrl)
-          .then((MongoDatabase mdb) => mongodb = mdb)
+      ready = LockRequestor.connect(host, lockerPort)
+          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
           .then((_) => mongoServer = new MongoServer(27001, mongodb))
           .then((_) => mongoServer.start())
           .then((_) => mongodb.dropCollection('months'))
@@ -621,7 +622,7 @@ void main() {
 
     test('cache should invalidate when changing the collection', () {
       MongoDatabase _mongodb;
-      ready = LockRequestor.connect(url, 27005)
+      ready = LockRequestor.connect(host, lockerPort)
                 .then((locker) => _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest', locker,
                                       cache: new Cache(new Duration(seconds: 1), 1000)))
                 .then((_) => Future.wait(_mongodb.init))

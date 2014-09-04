@@ -62,17 +62,18 @@ run() {
 
   setUp(() {
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
-    var url = "127.0.0.1";
-    var port = 27001;
+    var host = "127.0.0.1";
+    var msPort = 27001;
+    var lockerPort = 27002;
     updateLock = new DataReference(false);
-    return MongoDatabase.noLocking(mongoUrl)
-    .then((MongoDatabase mdb) => mongodb = mdb)
-    .then((_) => mongoServer = new MongoServer(port, mongodb))
+    return LockRequestor.connect(host, lockerPort)
+    .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
+    .then((_) => mongoServer = new MongoServer(msPort, mongodb))
     .then((_) => mongoServer.start())
     .then((_) => mongodb.dropCollection(collectionName))
     .then((_) => mongodb.removeLocks())
     .then((_) {
-      mongoClient = new MongoClient(url, port);
+      mongoClient = new MongoClient(host, msPort);
 
       MultiRequestHandler requestHandler = new MultiRequestHandler();
       requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
