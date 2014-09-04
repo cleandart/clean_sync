@@ -12,13 +12,17 @@ library clean_sync.client;
 import 'dart:async';
 import "package:clean_ajax/client.dart";
 import "package:clean_ajax/common.dart";
-import "package:clean_data/clean_data.dart";
+import "package:clean_data/clean_data.dart" show DataReference;
 import "package:logging/logging.dart";
 import 'dart:math';
 import 'operations.dart' as defaultOperations;
 import 'operations.dart';
 import 'client_operations.dart' as clientOperations;
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_sync/src/json.dart';
+import 'package:clean_sync/clean_cursors.dart';
+import 'package:persistent/persistent.dart';
+
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';

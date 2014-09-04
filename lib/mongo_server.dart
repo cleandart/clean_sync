@@ -9,7 +9,7 @@ import 'package:logging/logging.dart';
 import 'operations.dart' as ops;
 import 'operations.dart';
 import 'server_operations.dart' as sOps;
-import 'package:clean_data/clean_data.dart';
+import 'package:clean_sync/clean_cursors.dart';
 
 Logger _logger = new Logger('mongo_wrapper_logger');
 
@@ -84,10 +84,10 @@ class DocumentNotFoundException implements Exception {
 
 class ServerOperationCall extends CommonOperationCall {
   String name;
-  List<DataMap> docs;
+  List<MapCursor> docs;
   List<MongoProvider> colls;
   Map args;
-  DataMap user;
+  MapCursor user;
   String author;
   String clientVersion;
   MongoDatabase db;
@@ -290,7 +290,7 @@ class MongoServer {
     })
     .then((_user){
       _logger.finer('MS operation - before ($opCall)');
-      user = _user != null ? new DataMap.from(_user) : null;
+      user = _user != null ? new MapCursor.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
           colls: fullColls, user: user, args: opCall.args, db: db, author: opCall.author,
           clientVersion: opCall.clientVersion);

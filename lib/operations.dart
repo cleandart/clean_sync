@@ -1,7 +1,7 @@
 library clean_sync.operations;
 
-import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
+import 'package:clean_sync/src/json.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 

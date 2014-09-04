@@ -12,6 +12,7 @@ import 'package:clean_sync/id_generator.dart';
 import 'package:mock/mock.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
+import 'package:clean_sync/clean_cursors.dart';
 
 class SubscriptionMock extends Mock implements Subscription {
   var mongoCollectionName;
@@ -94,9 +95,9 @@ run() {
   _addCollectionName(List<Map> docs, collectionName) => docs..forEach((e) => e["__clean_collection"] = collectionName);
 
   test('Can send money if there\'s enough credit', () {
-    DataMap first = new DataMap.from({"_id":"1", "name":"jozo","credit":5000});
-    DataMap second = new DataMap.from({"_id":"2", "name":"fero", "credit":1000});
-    DataSet logs = new DataSet();
+    MapCursor first = new MapCursor.from({"_id":"1", "name":"jozo","credit":5000});
+    MapCursor second = new MapCursor.from({"_id":"2", "name":"fero", "credit":1000});
+    SetCursor logs = new SetCursor();
     SubscriptionMock sub = new SubscriptionMock();
     sub.collection = logs;
     sub.mongoCollectionName = logCollectionName;
@@ -126,9 +127,9 @@ run() {
   });
 
   test('Should not send money if there\'s not enough credit', () {
-    DataMap first = new DataMap.from({"_id":"1", "name":"jozo", "credit":2000});
-    DataMap second = new DataMap.from({"_id":"2", "name":"fero", "credit":1000});
-    DataSet logs = new DataSet();
+    MapCursor first = new MapCursor.from({"_id":"1", "name":"jozo", "credit":2000});
+    MapCursor second = new MapCursor.from({"_id":"2", "name":"fero", "credit":1000});
+    SetCursor logs = new SetCursor();
     SubscriptionMock sub = new SubscriptionMock();
     sub.collection = logs;
     sub.mongoCollectionName = logCollectionName;

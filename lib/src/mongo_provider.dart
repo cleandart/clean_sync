@@ -261,8 +261,8 @@ class MongoProvider implements DataProvider {
     return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
   }
 
-  Future<DataSet> getDataSet() {
-    return data().then((data) => new DataSet.from(data['data'])..addIndex(['_id']));
+  Future<SetCursor> getDataSet() {
+    return data().then((data) => new SetCursor.from(data['data'])..addIndex(['_id']));
   }
 
   createSelector(Map selector, List fields, List excludeFields) {

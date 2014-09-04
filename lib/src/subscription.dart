@@ -26,12 +26,11 @@ void handleData(List<Map> data, Subscription subscription) {
   subscription.updateLock.value = true;
   collection.clear();
   collection.addAll(data);
-  subscription.oldCollection = cleanClone(collection);
-  subscription.oldCollection.addIndex(['_id']);
+  subscription.oldData = collection.reference.value;
   subscription.updateLock.value = false;
 }
 
-void _applyChangeList (List source, DataList target) {
+void _applyChangeList (List source, var target) {
   target.length = source.length;
   for (num i=0; i<target.length; i++) {
     if (!applyChange(source[i], target[i])) {
@@ -40,7 +39,7 @@ void _applyChangeList (List source, DataList target) {
   }
 }
 
-void _applyChangeMap (Map source, DataMap target) {
+void _applyChangeMap (Map source, MapCursor target) {
   for (var key in new List.from(source.keys)) {
     if (target.containsKey(key)) {
       if(!applyChange(source[key], target[key])){
@@ -107,15 +106,16 @@ num handleDiff(List<Map> diff, Subscription subscription) {
               'diffSize: ${diff.length}, diff: $diff');
 
   subscription.updateLock.value = true;
-  DataSet collection = subscription.collection;
-  DataSet oldCollection = subscription.oldCollection;
+  SetCursor collection = subscription.collection;
+  PersistentMap oldCollection = subscription.oldData;
   var version = subscription._version;
   num res = -1;
 
   try {
     diff.forEach((Map change) {
       var _records = collection.findBy("_id", change["_id"]);
-      DataMap record = _records.isNotEmpty? _records.first : null;
+
+      MapCursor record = _records.isNotEmpty? _records.first : null;
       String action = change["action"];
 
 
@@ -136,7 +136,6 @@ num handleDiff(List<Map> diff, Subscription subscription) {
         if (record == null) {
           logger.finer('aplying changes (add)');
           collection.add(change["data"]);
-          oldCollection.add(change['data']);
         } else {
           logger.finer('add discarded; same id already present');
         }
@@ -148,18 +147,17 @@ num handleDiff(List<Map> diff, Subscription subscription) {
            logger.finer('aplying changes (change)');
            res = max(res, change['version']);
            applyChange(change["data"], record);
-           applyChange(change['data'], oldCollection.findBy("_id", change["_id"]).first);
         }
       }
       else if (action == "remove" ) {
         logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
-        oldCollection.removeWhere((e) => e['_id'] == change['_id']);
       }
+      subscription.oldData = collection.reference.value;
       logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
     });
-  } catch (e) {
+  } catch (e, s) {
     if (e is Exception) {
       subscription.updateLock.value = false;
       throw e;
@@ -181,7 +179,8 @@ class Subscription {
   // constructor arguments:
   String resourceName;
   String mongoCollectionName;
-  DataSet collection, oldCollection;
+  SetCursor collection;
+  PersistentMap oldData;
   Connection _connection;
   Transactor transactor;
   final Function _handleData;
@@ -240,7 +239,7 @@ class Subscription {
   get initialSyncCompleted => _initialSync.isCompleted;
 
   static _createNewCollection() {
-    var collection = new DataSet();
+    var collection = new SetCursor();
     collection.addIndex(['_id']);
     return collection;
   }
@@ -248,9 +247,9 @@ class Subscription {
   Subscription.config(this.resourceName, this.mongoCollectionName, this.collection,
       this._connection, this._idGenerator, this.transactor, this._handleData,
       this._handleDiff, this._forceDataRequesting, this.updateLock) {
+    collection.addIndex(['_id']);
     _initialSync = createInitialSync();
-    this.oldCollection = cleanClone(collection);
-    this.oldCollection.addIndex(['_id']);
+    this.oldData = collection.value;
   }
 
   Subscription(resourceName, mongoCollectionName, connection, idGenerator,
@@ -304,53 +303,53 @@ class Subscription {
 
   void setupListeners() {
     // TODO assign ID to document added
-    _subscriptions.add(collection.onBeforeAdd.listen((dataObj) {
+    collection.modifyBeforeAdd = (dataObj) {
       assert(dataObj is Map);
       if (!dataObj.containsKey("_id")) dataObj["_id"] = _idGenerator.next();
       if (!dataObj.containsKey("__clean_collection")) dataObj["__clean_collection"] = mongoCollectionName;
-    }));
+
+      return dataObj;
+    };
 
     _subscriptions.add(collection.onChangeSync.listen((event) {
       if (this.updateLock.value == false) {
-        Set change = event['change'];
+        //TODO: This would not work for mixed changes
+        Map change = calcJSONDiff(collection.value, oldData);
+        List ids = change.keys.toList();
+
         var operation;
 
-        var id = change.first['_id'];
-        bool contains = collection.where((e) => e['_id'] == id).length == 1;
-        bool containsOld = oldCollection.where((e) => e['_id'] == id).length == 1;
-        if(contains && !containsOld) {
-          change.forEach((e) => oldCollection.add(cleanClone(e)));
-          operation = () => transactor.performServerOperation('addAll',
-            {'data': new List.from(change)},
-            subs: [this]
-          );
+        if(change[ids.first] is List) {
+          if(change[ids.first].first == CLEAN_UNDEFINED && change[ids.first][1] != CLEAN_UNDEFINED) {
+            operation = () => transactor.performServerOperation('addAll',
+              {'data': change.values.map((e) => e[1]).toList()},
+              subs: [this]
+            );
+          }
+          else if(change[ids.first].first != CLEAN_UNDEFINED && change[ids.first][1] == CLEAN_UNDEFINED) {
+            operation = () => transactor.performServerOperation('removeAll',
+              {"ids" : ids},
+              subs: [this]
+            );
+          }
+          else {
+            throw 'This should not happen';
+          }
         }
-        else if(contains && containsOld) {
-          var diff = calcJSONDiff(
-              collection.firstWhere((e) => e['_id'] == id),
-              oldCollection.firstWhere((e) => e['_id'] == id));
+        else {
+          assert(change.length == 1);
+          var diff = change.values.single;
           if(diff == null) {
             diff = {};
             //throw new Exception('Ty mantak $collection $oldCollection');
           }
-
-          oldCollection.removeWhere((e) => e['_id'] == id);
-          oldCollection.add(cleanClone(change.first));
           operation = () => transactor.performServerOperation("change",
             diff,
-            docs: [change.single]
+            docs: collection.findBy('_id', change.keys.single)
           );
         }
-        else if(!contains && containsOld) {
-          oldCollection.removeWhere((e) => e['_id'] == id);
-          operation = () => transactor.performServerOperation('removeAll',
-            {"ids" : new List.from([id])},
-            subs: [this]
-          );
-        }
-        else {
-          throw new Exception('This should not happen');
-        }
+
+        oldData = collection.value;
 
         Future result;
         transactor.operationPerformed = true;
@@ -513,10 +512,9 @@ class Subscription {
         // check to make multiple disposes safe
         if (collection != null) {
           collection.dispose();
-          oldCollection.dispose();
         }
         collection = null;
-        oldCollection = null;
+        oldData = null;
       });
   }
 
@@ -533,7 +531,7 @@ class Subscription {
         requestLock = false;
         if(collection == null) {
           collection = _createNewCollection();
-          oldCollection = _createNewCollection();
+          oldData = new PersistentMap();
         }
         _start(initialData: initialData);
       });

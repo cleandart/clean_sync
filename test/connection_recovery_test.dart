@@ -7,10 +7,11 @@ import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
-import 'package:clean_data/clean_data.dart';
+import 'package:clean_data/clean_data.dart' show DataReference;
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_sync/clean_cursors.dart';
 
 Logger logger = new Logger('clean_sync');
 
@@ -25,7 +26,7 @@ main(){
 run() {
 
   MongoDatabase mongodb;
-  DataSet colRandom;
+  SetCursor colRandom;
 
   Connection connection;
   LoopBackTransportStub transport;
@@ -115,9 +116,9 @@ run() {
           fullSyncFinished.complete();
         });
 
-        DataMap a = new DataMap.from(dataA);
-        DataMap b = new DataMap.from(dataB);
-        DataMap c = new DataMap.from(dataC);
+        MapCursor a = new MapCursor.from(dataA);
+        MapCursor b = new MapCursor.from(dataB);
+        MapCursor c = new MapCursor.from(dataC);
 
         transport.fail(0.6, new Duration(milliseconds: 500));
         colRandom.add(a);

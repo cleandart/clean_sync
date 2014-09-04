@@ -13,13 +13,14 @@ dependencies:
   mock: any
   mongo_dart: '>=0.1.36 <0.2.00'
   useful: '>=1.0.5 <2.0.0'
+  persistent: any
 dev_dependencies:
   clean_backend: any
   hop: any
   unittest: '>=0.9.3'
 
 dependency_overrides:
-  clean_data:
+  persistent:
     git:
-      url: https://github.com/cleandart/clean_data.git
-      ref: removeChangeSet
+      url: https://github.com/vacuumlabs/persistent.git
+      ref: master

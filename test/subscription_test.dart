@@ -10,9 +10,11 @@ import 'package:clean_sync/client.dart';
 import 'package:clean_sync/id_generator.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/common.dart';
-import 'package:clean_data/clean_data.dart';
+import 'package:clean_data/clean_data.dart' show DataReference;
 import 'package:useful/useful.dart';
 import 'dart:async';
+import 'package:clean_sync/clean_cursors.dart';
+import 'package:clean_sync/src/json.dart';
 
 class BareConnectionMock extends Mock implements Connection {noSuchMethod(inv) => super.noSuchMethod(inv);}
 
@@ -179,15 +181,15 @@ void run() {
     IdGeneratorMock idGenerator;
     Subscription months;
     Transactor transactor;
-    DataMap january, february;
-    DataSet collection;
+    MapCursor january, february;
+    SetCursor collection;
     DataReference updateLock;
     FunctionMock mockHandleData;
     FunctionMock mockHandleDiff;
     Function createSubscriptionStub;
 
     Function listenersAreOn = () {
-      january = new DataMap.from({'name': 'January', 'order': 1});
+      january = new MapCursor.from({'name': 'January', 'order': 1});
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-123');
       lastRequest = null;
       months.collection.add(january);
@@ -222,7 +224,7 @@ void run() {
       mockHandleDiff = new FunctionMock();
       updateLock = new DataReference(false);
       transactor = new Transactor(connection,updateLock, 'author', idGenerator);
-      collection = new DataSet();
+      collection = new SetCursor();
       collection.addIndex(['_id']);
       months = new Subscription.config('monthsResource','months', collection, connection, idGenerator,
         transactor, mockHandleData, mockHandleDiff, false, updateLock);
@@ -242,7 +244,7 @@ void run() {
     test("assign id to data.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      january = new DataMap.from({'name': 'January', 'order': 1});
+      january = new MapCursor.from({'name': 'January', 'order': 1});
 
       // when
       months.setupListeners();
@@ -281,7 +283,7 @@ void run() {
 
     skip_test("modifiedItems", () {
       var _connection = new BareConnectionMock();
-      var elem = new DataMap.from({'_id': '1', 'name': 'arthur'});
+      var elem = new MapCursor.from({'_id': '1', 'name': 'arthur'});
       _connection.when(callsTo('send')).alwaysCall((requestFactory) {
         var request = requestFactory();
         switch (request.args['action']) {
@@ -295,10 +297,10 @@ void run() {
               'name': 'ford'
             }
           }]});
-          case ('jsonChange'): {
+          case ('jsonChange'):
             return new Future.delayed(new Duration(milliseconds: 200),
                () => new Future.value(1));
-          }
+
           default: return new Future.value(1);
         }
       });
@@ -339,18 +341,18 @@ void run() {
     skip_test("handle diff response.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      DataMap marchMapBefore = new DataMap.from({'_id': '31', 'name': 'February', 'order': 3});
-      DataMap marchMapAfter = new DataMap.from({'_id': '31', 'name': 'March', 'order': 3,
+      MapCursor marchMapBefore = new MapCursor.from({'_id': '31', 'name': 'February', 'order': 3});
+      MapCursor marchMapAfter = new MapCursor.from({'_id': '31', 'name': 'March', 'order': 3,
                            'length': 31});
-      DataMap aprilMap = new DataMap.from({'_id': '41', 'name': 'April', 'length': 30});
-      january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
-      february = new DataMap.from(marchMapBefore);
+      MapCursor aprilMap = new MapCursor.from({'_id': '41', 'name': 'April', 'length': 30});
+      january = new MapCursor.from({'_id': '11', 'name': 'January', 'order': 1});
+      february = new MapCursor.from(marchMapBefore);
       collection.add(january);
       collection.add(february);
       List<Map> diff = [
         {'action': 'add', 'data': aprilMap},
         {'action': 'change', '_id': '31',
-         'data': new DataMap.from(marchMapAfter)},
+         'data': new MapCursor.from(marchMapAfter)},
         {'action': 'remove', '_id': '11'},
         ];
 
@@ -432,7 +434,7 @@ void run() {
     test("send add-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      january = new DataMap.from({'name': 'January', 'order': 1});
+      january = new MapCursor.from({'name': 'January', 'order': 1});
 
       // when
       months.setupListeners();
@@ -457,15 +459,15 @@ void run() {
     test("send change-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      january = new DataMap.from({'_id': '11', 'name': 'January', 'order': 1});
-      collection = new DataSet.from([january]);
+      january = new MapCursor.from({'_id': '11', 'name': 'January', 'order': 1, '__clean_collection': 'months'});
+      collection = new SetCursor.from([january]);
 
       Subscription _months = createSubscriptionStub(collection);
 
       // when
       _months.setupListeners();
       lastRequest = null;
-      january.addAll({'length': 31});
+      collection.findBy('_id', '11').single.addAll({'length': 31});
 
       // then
       return new Future.delayed(new Duration(milliseconds: 100), (){
@@ -480,11 +482,11 @@ void run() {
     test("send remove-request.", () {
       // given
       idGenerator.when(callsTo('next')).alwaysReturn('prefix-1');
-      january = new DataMap.from({'_id': '12', 'name': 'January', 'order': 1});
+      january = new MapCursor.from({'_id': '12', 'name': 'January', 'order': 1});
       collection.add(january);
 
       Subscription _months = createSubscriptionStub(collection);
-
+      print(_months.collection);
       // when
       _months.setupListeners();
       lastRequest = null;
@@ -521,9 +523,13 @@ void run() {
       months.dispose();
 
       // then
-      return listenersAreOn().then((res){
-        expect(res, isFalse);
-      });
+      try {
+        return listenersAreOn().then((res){
+          expect(res, isFalse);
+        });
+      } catch(e) {
+        expect(e is Exception, isTrue);
+      }
     });
 
     test("wait.", () {

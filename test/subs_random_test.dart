@@ -5,19 +5,17 @@ import "package:mock/mock.dart";
 import "package:clean_sync/server.dart";
 import "dart:async";
 import 'dart:math';
-import './mongo_provider_test.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_ajax/client.dart';
 import 'package:clean_ajax/client_backend.dart';
 import 'package:clean_ajax/server.dart';
-import 'package:clean_data/clean_data.dart';
+import 'package:clean_sync/clean_cursors.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/id_generator.dart';
-
-
+import 'package:clean_data/clean_data.dart' show DataReference;
 Random rng = new Random();
 
 // affect how map is modified
@@ -34,8 +32,16 @@ prob(p) {
 
 allowOperation(ServerOperationCall) => true;
 
-class BareConnectionMock extends Mock implements Connection {}
-class IdGeneratorMock extends Mock implements IdGenerator {}
+class BareConnectionMock extends Mock implements Connection {
+  noSuchMethod(Invocation invocation) {
+      return super.noSuchMethod(invocation);
+  }
+}
+class IdGeneratorMock extends Mock implements IdGenerator {
+  noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
+  }
+}
 
 Logger testLogger = new Logger('clean_sync.subs_random_test');
 
@@ -56,13 +62,13 @@ main() {
 }
 
 run(count, cache, {failProb: 0}) {
-  DataSet currCollection;
-  DataSet wholeCollection;
+  SetCursor currCollection;
+  SetCursor wholeCollection;
   MongoDatabase mongodb;
-  DataSet colAll;
-  DataSet colAll2;
-  DataSet colA;
-  DataSet colAa;
+  SetCursor colAll;
+  SetCursor colAll2;
+  SetCursor colA;
+  SetCursor colAa;
   Connection connection;
   LoopBackTransportStub transport;
   Subscription subAll;
@@ -74,10 +80,10 @@ run(count, cache, {failProb: 0}) {
   MongoServer mongoServer;
   MongoClient mongoClient;
 
-  DataMap data1;
-  DataMap data2;
-  DataMap data3;
-  DataMap data4;
+  MapCursor data1;
+  MapCursor data2;
+  MapCursor data3;
+  MapCursor data4;
 
   Publisher pub;
   DataReference updateLock;
@@ -140,10 +146,10 @@ group('subs_random_test', () {
         colAa = subAa.collection;
         subNoMatch = subscriber.subscribe('d', 'random')..restart();
 
-        data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
-        data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
-        data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
-        data4 = new DataMap.from({'a' : 'hello'});
+        data1 = new MapCursor.from({'_id': '0', 'colAll' : 'added from colAll'});
+        data2 = new MapCursor.from({'_id': '1', 'colAll2': 'added from colAll2'});
+        data3 = new MapCursor.from({'_id': '2', 'a': 'hello'});
+        data4 = new MapCursor.from({'a' : 'hello'});
 
         return Future.wait([mongoClient.connected]);
     });
@@ -174,7 +180,7 @@ group('subs_random_test', () {
     if (data.containsKey(key)) {
       if (data[key] is Map) {
         randomChangeMap(data[key]);
-      } else if (data[key] is DataList){
+      } else if (data[key] is ListCursor){
         randomChangeCollection(data[key], topLevel: false);
       } else {
         data[key] = randomChoice(allValues);
@@ -185,10 +191,10 @@ group('subs_random_test', () {
 
     if (data[key] is! Map && data[key] is! List && prob(PROB_ADD)) {
       if(prob(0.9)){
-        data[key] = new DataList();
+        data[key] = new ListCursor.empty();
         randomChangeCollection(data[key], topLevel: false);
       } else {
-        data[key] = new DataMap();
+        data[key] = new MapCursor.from({});
         randomChangeMap(data[key]);
       }
     }
@@ -222,7 +228,10 @@ group('subs_random_test', () {
       // remove
         if (coll.length == 0) return false;
         testLogger.finer('before remove \n $coll');
-        coll.remove(randomChoice(coll));
+        if(coll is MapCursor || coll is SetCursor)
+          coll.remove(randomChoice(coll));
+        else
+          coll.pop();
         testLogger.finer('after remove');
         return true;
     }

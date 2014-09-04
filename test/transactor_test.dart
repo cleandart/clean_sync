@@ -8,11 +8,22 @@ import 'package:clean_data/clean_data.dart';
 import 'package:useful/useful.dart';
 import 'dart:async';
 
-class ConnectionMock extends Mock implements Connection {}
-class IdGeneratorMock extends Mock implements IdGenerator {}
+class ConnectionMock extends Mock implements Connection {
+  noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
+  }
+}
+class IdGeneratorMock extends Mock implements IdGenerator {
+  noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
+  }
+}
 class SubscriptionMock extends Mock implements Subscription {
   var mongoCollectionName;
   var collection;
+  noSuchMethod(Invocation invocation) {
+    return super.noSuchMethod(invocation);
+  }
 }
 
 void main() {

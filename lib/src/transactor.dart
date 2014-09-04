@@ -6,7 +6,7 @@ part of clean_sync.client;
 class ClientOperationCall extends CommonOperationCall {
   String name;
   List<Map> docs;
-  List<DataSet> colls;
+  List<SetCursor> colls;
   Map args;
   String author;
   ClientOperationCall(this.name, {this.docs, this.colls, this.args, this.author});
@@ -31,7 +31,7 @@ class Transactor {
 
   Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
-  Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
+  Future operation(String name, Map args, {List<SetCursor> docs, List<Subscription> subs}) {
     if(operations[name] == null) {
       logger.shout('(transcator) Operation "$name" not found!!!');
       throw new Exception('Operation "$name" not found!!!');
@@ -72,7 +72,7 @@ class Transactor {
     }).then((Map value) {
       if(value == null || !value.containsKey('result') ||
           value['result'] != 'ok')
-          logger.warning('Operation "$name" completed with error ($value)');
+          logger.warning('Operation "$name" completed with error ($value), (docs: $docs)');
       else
         logger.fine('Operation "$name": completed correctly');
       return value;
@@ -81,7 +81,7 @@ class Transactor {
   }
 
   performClientOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}) {
-    List<DataSet> clientColls = subs != null ? new List.from(subs.map((e) => e.collection)) : null;
+    List<SetCursor> clientColls = subs != null ? new List.from(subs.map((e) => e.collection)) : null;
     ClientOperation op = operations[name];
     if (shouldDecorateArgs) op.argsDecorator.forEach((f) => f(args));
     updateLock.value = true;
