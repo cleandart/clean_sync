@@ -1,6 +1,5 @@
-d=`pwd`
-sync=`echo ${d} | sed -e "s/\(.*clean_sync\).*/\1/g"`
-p=`find ${sync} | grep mongo_locker.dart`
+sync=`pwd | sed -e "s/\(.*clean_sync\).*/\1/g"`
+p=`find ${sync} | grep mongo_locker\.dart$`
 port=27002
 host="127.0.0.1"
 tmp=`find ${sync} | grep upstart_template$`
