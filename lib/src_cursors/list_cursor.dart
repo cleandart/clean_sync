@@ -10,7 +10,6 @@ class ListCursor<V> extends DeepCursor implements List {
   ListCursor.empty() : super(new Reference.from([]), []);
 
   PersistentVector get value => super.value;
-  set value(newValue) => reference.changeIn(path, newValue);
 
   V operator[](int key) => elementAt(key);
 
@@ -92,10 +91,25 @@ class ListCursor<V> extends DeepCursor implements List {
   Iterable map(f(V value)) =>
     value.map(f);
 
+  Iterable where(f(V value)) =>
+      value.where(f);
+
   Iterator get iterator => value.iterator;
 
   bool any(f) => value.any(f);
 
+  Iterable take(int num) =>
+      value.take(num);
+
+  Iterable skip(int num) =>
+      value.skip(num);
+
+  int indexOf(obj, [int startIndex = 0]) {
+    for(int i = 0; i < this.length; i++) {
+      if(this[i] == obj) return i;
+    }
+    return -1;
+  }
   /**
    * Converts to Map.
    */

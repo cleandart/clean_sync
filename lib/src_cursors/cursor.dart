@@ -5,6 +5,7 @@ class Cursor {
   Reference reference;
 
   get value => reference.lookupIn(path);
+  set value(newValue) => reference.changeIn(path, newValue);
 
   Cursor(this.reference, Iterable path) {
     this.path = new List.from(path);

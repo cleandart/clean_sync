@@ -9,7 +9,6 @@ class MapCursor<K, V> extends DeepCursor implements Map {
   MapCursor.empty() : super(new Reference.from({}), []);
 
   PersistentMap get value => super.value;
-  set value(newValue) => reference.changeIn(path, newValue);
 
   V operator[](key) {
     _pathForF[_pathForF.length - 1] = key;

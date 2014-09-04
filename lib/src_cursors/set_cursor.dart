@@ -26,14 +26,16 @@ class SetCursor extends Cursor with IterableMixin {
     if(!indexes.contains(property))
       throw new NoIndexException('Property $property is not indexed.');
     if(property == '_id') {
-      if(reference.value.containsKey(value))
-        return [reference.cursorForIn([value])];
+      if(mapCursor.containsKey(value)) {
+        return [mapCursor.ref(value)];
+      }
       else
         return [];
     }
     else {
       return mapCursor.values.
-          where((e) => e.containsKey(property) && e[property] == value);
+          where((e) => e.containsKey(property) && e[property] == value).
+          map((e) => mapCursor.ref(e['_id']));
       }
   }
 
