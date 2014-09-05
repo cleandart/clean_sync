@@ -144,7 +144,8 @@ class MongoDatabase {
    * ascending/descending order (same as the map passed to mongo function
    * ensureIndex).
    */
-  Future createIndex(String collectionName, Map keys, {unique: false}) {
+  Future createIndex(String collectionName, Map keys, {unique: false,
+    sparse: false}) {
     if (keys.isEmpty) return _logOperation(() => new Future.value(null));
     Map beforeKeys = {};
     Map afterKeys = {};
@@ -158,7 +159,8 @@ class MongoDatabase {
             keys: beforeKeys)
         .then((_) => _db.createIndex(historyCollectionName(collectionName),
             keys: afterKeys))
-        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique)));
+        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique,
+            sparse: sparse)));
   }
 
   MongoProvider collection(String collectionName) => connection.collection(collectionName);
