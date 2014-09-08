@@ -12,6 +12,7 @@ import 'package:clean_sync/id_generator.dart';
 import 'package:mock/mock.dart';
 import 'dart:async';
 import 'package:logging/logging.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 class SubscriptionMock extends Mock implements Subscription {
   var mongoCollectionName;

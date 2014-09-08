@@ -12,8 +12,12 @@ dependencies:
   logging: '>=0.9.0 <0.10.0'
   mock: any
   mongo_dart: '>=0.1.36 <0.2.00'
-  useful: '>=1.0.5 <2.0.0'
+  useful: '>=1.0.17 <2.0.0'
+  clean_lock: '>=0.0.1'
 dev_dependencies:
   clean_backend: '>=0.2.0'
   hop: any
   unittest: '>=0.9.3'
+dependency_overrides:
+  clean_lock:
+    path: ../clean_lock

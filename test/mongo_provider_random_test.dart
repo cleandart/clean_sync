@@ -8,6 +8,7 @@ import './mongo_provider_test.dart';
 import 'package:useful/useful.dart';
 import 'package:logging/logging.dart';
 import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 Random rng = new Random();

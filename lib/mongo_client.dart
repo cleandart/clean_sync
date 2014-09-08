@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:clean_ajax/server.dart';
-import 'package:clean_sync/clean_stream.dart';
+import 'package:useful/socket_jsonizer.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
@@ -73,11 +73,11 @@ class MongoClient {
     String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;
     logger.finer("ReqToResp: ${reqToResp}");
-    String stringToSend = JSON.encode({"type": "operation", "data": {'name': name, 'docs': docs, 'colls': colls, 'args': args,
-      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}});
+    Map dataToSend = {"type": "operation", "data": {'name': name, 'docs': docs, 'colls': colls, 'args': args,
+      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}};
 
-    logger.finest("Trying to send string: $stringToSend");
-    writeJSON(socket, stringToSend);
+    logger.finest("Trying to send data: $dataToSend");
+    writeJSON(socket, dataToSend);
     return completer.future;
   }
 

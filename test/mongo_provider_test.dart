@@ -10,7 +10,7 @@ import "package:useful/useful.dart";
 import "dart:async";
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/mongo_server.dart';
-import 'package:clean_sync/locker.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 void handleDiff(List<Map> diff, List collection) {
@@ -37,7 +37,6 @@ void main() {
     Future ready;
     MongoDatabase mongodb;
     MongoServer mongoServer;
-    Locker locker;
     LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;

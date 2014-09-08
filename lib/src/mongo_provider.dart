@@ -57,53 +57,6 @@ const String COLLECTION_NAME = '__clean_collection';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
-class LockRequestor {
-
-  Map <String, Completer> requestors = {};
-  Socket _lockerSocket;
-  num _lockIdCounter = 0;
-  String prefix = (new Random(new DateTime.now().millisecondsSinceEpoch % (1<<20))).nextDouble().toString();
-
-  Future get done => _lockerSocket.done;
-
-  LockRequestor(this._lockerSocket) {
-    toJsonStream(_lockerSocket).listen((Map resp) {
-      Completer completer = requestors.remove(resp["id"]);
-      if (resp.containsKey("error")) {
-        completer.completeError(resp["error"]);
-      } else if (resp.containsKey("result")) {
-        completer.complete();
-      }
-    });
-  }
-
-  static Future<LockRequestor> connect(url, port) =>
-    Socket.connect(url, port).then((Socket socket) => new LockRequestor(socket))
-      .catchError((e,s) => throw new Exception("LockRequestor was unable to connect to url: $url, port: $port, (is Locker running?)"));
-
-  Future getLock() {
-    Completer completer = _sendRequest("get");
-    return completer.future;
-  }
-
-  Future releaseLock() {
-    Completer completer = _sendRequest("release");
-    return completer.future;
-  }
-
-  _sendRequest(String action) {
-    var id = "$prefix--$_lockIdCounter";
-    _lockIdCounter++;
-    Completer completer = new Completer();
-    requestors[id] = completer;
-    writeJSON(_lockerSocket, JSON.encode({"type": "lock", "data" : {"action" : action, "id": id}}));
-    return completer;
-  }
-
-  Future close() => _lockerSocket.close();
-
-}
-
 class MongoDatabase {
   Db _db;
   Future _conn;
@@ -112,6 +65,8 @@ class MongoDatabase {
   Cache cache;
   Db get rawDb => _db;
   LockRequestor _lockRequestor;
+
+  final _lockType = "dblock";
 
   MongoDatabase(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -188,9 +143,16 @@ class MongoDatabase {
   /**
     * if collectionName is specified, drop locks for this specific collection.
     * Otherwise, drop all locks in the system.
+    *
+    * ----
+    *
+    * !! NOT NEEDED ANYMORE !!
+    *
+    * ----
     */
    Future removeLocks({String collectionName}){
-     return _lockRequestor.releaseLock();
+     return new Future.value(null);
+     //     return _lockRequestor.releaseLock();
    }
 
    Future withLock(Future callback()) {
@@ -206,9 +168,9 @@ class MongoDatabase {
      } else {
        // It's not running in any Zone yet
        return runZoned(() {
-         return _lockRequestor.getLock()
+         return _lockRequestor.getLock(_lockType)
           .then((_) => new Future.sync(callback))
-          .whenComplete(() => _lockRequestor.releaseLock())
+          .whenComplete(() => _lockRequestor.releaseLock(_lockType))
           .then((_) => Zone.current[#lock]["lock"] = false);
        }, zoneValues: {#lock: {"lock" : true}});
      }

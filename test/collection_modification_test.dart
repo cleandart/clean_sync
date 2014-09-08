@@ -13,6 +13,7 @@ import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
@@ -135,6 +136,7 @@ group('collection_modification',() {
   });
 
   tearDown(() {
+    print("tearDown");
     List itemsToClose = [
       subAll,
       subAll2,

@@ -16,6 +16,7 @@ import 'package:useful/useful.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 Random rng = new Random();

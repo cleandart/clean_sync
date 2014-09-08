@@ -20,10 +20,8 @@ import 'package:useful/useful.dart';
 import 'package:useful/useful.dart' as useful;
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/id_generator.dart';
-import 'dart:io';
-import 'dart:convert';
-import 'package:clean_sync/clean_stream.dart';
-import 'package:clean_sync/locker.dart';
+import 'package:clean_lock/lock_requestor.dart';
+import 'package:clean_lock/locker.dart';
 
 part 'src/publisher.dart';
 part 'src/data_provider.dart';

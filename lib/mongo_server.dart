@@ -9,7 +9,7 @@ import 'operations.dart' as ops;
 import 'operations.dart';
 import 'server_operations.dart' as sOps;
 import 'package:clean_data/clean_data.dart';
-import 'package:clean_sync/clean_stream.dart';
+import 'package:useful/socket_jsonizer.dart';
 
 Logger _logger = new Logger('mongo_wrapper_logger');
 
@@ -107,7 +107,7 @@ class MongoServer {
     queue.add(op);
     op.completer.future.then((Map response){
       response['operationId'] = req['operationId'];
-      writeJSON(socket, JSON.encode(response));
+      writeJSON(socket, response);
     });
     _performOne();
   }
@@ -120,12 +120,13 @@ class MongoServer {
     });
   }
 
-  Future close() =>
-      Future.wait([
+  Future close() {
+     return Future.wait([
          db.close(),
          Future.wait(clientSockets.map((socket) => socket.close())),
          serverSocket.close(),
       ]);
+  }
 
   registerOperation(name, {operation, before, after}){
     _logger.fine("registering operation $name");
