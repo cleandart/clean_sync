@@ -143,8 +143,8 @@ class MongoDatabase {
       _db.collection(historyCollectionName(collectionName)).drop()
     ])));
 
-   Future withLock(Future callback(), {String lockType: _dbLock}) =>
-       _lockRequestor.withLock(lockType, callback);
+   Future withLock(Future callback()) =>
+       _lockRequestor.withLock(_dbLock, callback);
 
 }
 
