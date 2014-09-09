@@ -237,28 +237,6 @@ void main() {
         .then((_) => expect(catched, isTrue));
     });
 
-
-    skip_test('_get_locks throws, if locks cannot be grabbed for some time', () {
-      var catched = false;
-      //given
-      MongoProvider colAaa = mongodb.collection("aaa");
-      MongoProvider colAaa2 = mongodb.collection("aaa");
-      return colAaa.test_get_locks()
-       //when
-      .then((_) => colAaa2.test_get_locks())
-       //then catch error
-      .catchError((_) => catched = true)
-      .then((_) => expect(catched, isTrue));
-    });
-
-    skip_test('get_locks should aquire lock on mongo server', () {
-      MongoProvider colAaa = mongodb.collection("aaa");
-      return colAaa.test_get_locks()
-        .then((_) => expect(mongoServer.locks.containsKey("aaa"), isTrue))
-        .then((_) => colAaa.test_release_locks())
-        .then((_) => expect(mongoServer.locks.containsKey("aaa"), isFalse));
-    });
-
     test('change with upsert', () {
       var data = [];
       var toWait = [];
