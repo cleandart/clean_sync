@@ -5,6 +5,7 @@ import 'dart:core';
 import 'package:clean_sync/server.dart';
 import 'package:clean_ajax/server.dart';
 import 'package:logging/logging.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 // 1k elem, 50clients: 640, 770, 1420
@@ -16,10 +17,10 @@ final TIME = new Duration(seconds: 10);
 MongoDatabase mongodb;
 setup() {
   Cache cache = new Cache(new Duration(milliseconds: 200), 10000);
-  mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', cache: cache);
 
-  return mongodb.dropCollection('benchmark')
-  .then((_) => mongodb.removeLocks())
+  return LockRequestor.connect("127.0.0.1", 27002)
+  .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', lockRequestor, cache: cache))
+  .then((_) => mongodb.dropCollection('benchmark'))
   .then((_) => mongodb.create_collection('benchmark'))
   .then((_) => Future.wait(mongodb.init))
   .then((_) => mongodb.collection('benchmark'));

@@ -63,10 +63,12 @@ class MongoDatabase {
   List<Future> init = [];
   DbCollection _lock;
   Cache cache;
-
   Db get rawDb => _db;
+  LockRequestor _lockRequestor;
 
-  MongoDatabase(String url, {Cache this.cache: dummyCache} ) {
+  static const _dbLock = "dblock";
+
+  MongoDatabase(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
     _conn = _db.open(); // open connection to database
     init.add(_conn);
@@ -76,7 +78,20 @@ class MongoDatabase {
       }));
   }
 
-  Future close() => Future.wait(init).then((_) => _db.close());
+  static Future<MongoDatabase> noLocking(String url, {Cache cache: dummyCache, int port: 27005}) {
+    Locker locker;
+    return
+        Locker.bind("127.0.0.1", port)
+          .then((Locker l) => locker = l)
+          .then((_) => LockRequestor.connect("127.0.0.1", port))
+          .then((LockRequestor lockRequestor) {
+            lockRequestor.done.then((_) => locker.close());
+            return new MongoDatabase(url, lockRequestor, cache: cache);
+        });
+  }
+
+  Future close() => Future.wait(init)
+      .then((_) => Future.wait([_db.close(), _lockRequestor.close()]));
 
   Future create_collection(String collectionName) {
     Future res =_conn.then((_) =>
@@ -119,26 +134,17 @@ class MongoDatabase {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
         _db.collection(historyCollectionName(collectionName));
-    return new MongoProvider(collection, collectionHistory, _lock, cache);
+    return new MongoProvider(this, collection, collectionHistory, _lock, cache);
   }
 
   Future dropCollection(String collectionName) =>
-    _conn.then((_) => Future.wait([
+    _conn.then((_) => withLock(() => Future.wait([
       _db.collection(collectionName).drop(),
       _db.collection(historyCollectionName(collectionName)).drop()
-    ]));
+    ])));
 
-  /**
-   * if collectionName is specified, drop locks for this specific collection.
-   * Otherwise, drop all locks in the system.
-   */
-  Future removeLocks({String collectionName}){
-    if (collectionName == null) {
-      return _lock.drop();
-    } else {
-      return this.collection(collectionName)._release_locks();
-    }
-  }
+   Future withLock(Future callback(), {String lockType: _dbLock}) =>
+       _lockRequestor.withLock(lockType, callback);
 
 }
 
@@ -153,7 +159,7 @@ List addFieldIfNotEmpty(List fields, String field){
 
 MongoProvider mpClone(MongoProvider source){
 
-  MongoProvider m = new MongoProvider.config(source.collection,
+  MongoProvider m = new MongoProvider.config(source.mongodb, source.collection,
       source._collectionHistory, source._lock, source.cache, source.idgen);
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
@@ -166,6 +172,7 @@ MongoProvider mpClone(MongoProvider source){
 
 class MongoProvider implements DataProvider {
   final DbCollection collection, _collectionHistory, _lock;
+  MongoDatabase mongodb;
   List<Map> _selectorList = [];
   Map _sortParams = {};
   List _excludeFields = [];
@@ -186,11 +193,11 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(collection, collectionHistory, lock, cache) :
-    this.config(collection, collectionHistory, lock, cache,
+  MongoProvider(mongodb, collection, collectionHistory, lock, cache) :
+    this.config(mongodb, collection, collectionHistory, lock, cache,
         new IdGenerator(getIdPrefix()));
 
-  MongoProvider.config(this.collection, this._collectionHistory, this._lock,
+  MongoProvider.config(this.mongodb, this.collection, this._collectionHistory, this._lock,
       this.cache, this.idgen);
 
   Future deleteHistory(num version) {
@@ -337,7 +344,7 @@ class MongoProvider implements DataProvider {
     for (Map d in data) ensureId(d, idgen);
     cache.invalidate();
     num nextVersion;
-    return _get_locks(author).then((_) => _maxVersion).then((version) {
+    return mongodb.withLock(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
         return collection.insertAll(data);
@@ -354,11 +361,9 @@ class MongoProvider implements DataProvider {
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         logger.warning('MP update error:', e, s);
-        return _release_locks().then((_) {
           throw new MongoException(e,s);
-        });
       }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+      )).then((_) => nextVersion);
   }
 
 
@@ -366,8 +371,8 @@ class MongoProvider implements DataProvider {
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks(author)
-      .then((_) => _checkClientVersion(clientVersion))
+    return mongodb.withLock(() =>
+       new Future.sync(() => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
 
       .then((Map oldData) {
@@ -407,8 +412,9 @@ class MongoProvider implements DataProvider {
               "timestamp" : new DateTime.now()
             }));
         }
-      }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
+      })
+      .catchError((e, s) => _processError(e, s))
+      ).then((_) => nextVersion);
   }
 
   static ensureId(Map doc, IdGenerator idgen) {
@@ -441,8 +447,7 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
 
     num nextVersion;
-    return _get_locks(author)
-      .then((_) => _checkClientVersion(clientVersion))
+    return mongodb.withLock(() => new Future.sync(() => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
         if (oldData == null) oldData = {};
@@ -505,15 +510,16 @@ class MongoProvider implements DataProvider {
               "jsonData" : jsonData
             }));
         }
-      }).then((_) => _release_locks()).then((_) => nextVersion)
-      .catchError((e, s) => _release_locks().then((_) => _processError(e, s)));
+      })
+      .catchError((e, s) => _processError(e, s))
+      ).then((_) => nextVersion);
   }
 
   Future update(selector, Map modifier(Map document), String author) {
     cache.invalidate();
     num nextVersion;
     List oldData;
-    return _get_locks(author).then((_) => _maxVersion).then((version) {
+    return mongodb.withLock(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         num versionUpdate = nextVersion;
 
@@ -548,22 +554,21 @@ class MongoProvider implements DataProvider {
               "timestamp" : new DateTime.now()
             }));
           });
-        }).then((_) => _release_locks()).then((_) => nextVersion)
+        })
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
           logger.warning('MP update error:', e, s);
-          return _release_locks().then((_) {
-            if (e is ModifierException) {
-              throw e;
-            } else throw new MongoException(e,s);
-          });
-        });
+          if (e is ModifierException) {
+            throw e;
+          } else throw new MongoException(e,s);
+        })
+      ).then((_) => nextVersion);
   }
 
   Future removeAll(query, String author) {
     cache.invalidate();
     num nextVersion;
-    return _get_locks(author).then((_) => _maxVersion).then((version) {
+    return mongodb.withLock(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
@@ -583,11 +588,9 @@ class MongoProvider implements DataProvider {
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
         logger.warning('MP removeAll error:', e, s);
-        return _release_locks().then((_) {
-          throw new MongoException(e,s);
-        });
+        throw new MongoException(e,s);
       }
-      ).then((_) => _release_locks()).then((_) => nextVersion);
+      )).then((_) => nextVersion);
   }
 
   Future<Map> diffFromVersion(num version) {
@@ -879,57 +882,6 @@ class MongoProvider implements DataProvider {
 
         return clientDiff;
       });
-    });
-  }
-
-  Future test_get_locks(nums) {
-    return _get_locks('test_get_locks', nums: nums);
-  }
-
-  Future _get_locks(author, {nums: 100}) {
-    waitingForLocks();
-    return __get_locks(author, nums: nums).then((value) {
-      gotLocks();
-      return value;
-    });
-  }
-
-  Future __get_locks(author, {nums: 100}) {
-    if (nums <= 0) {
-      logger.shout('Could not acquire locks for many many times, gg');
-      throw new Exception('Could not acquire locks for many many times, gg');
-    }
-
-    return _lock.insert({'_id': collection.collectionName, 'author': author}).then(
-      (_) => _lock.insert({'_id': _collectionHistory.collectionName, 'author': author}),
-      onError: (e, s) {
-        if(e['code'] == 11000) {
-          // duplicate key error index
-          nums--;
-          return _lock.find({'_id': collection.collectionName}).toList()
-              .then((locks) {
-            var lockingAuthor = 'unknown, locks are released by now';
-            if (locks.isNotEmpty) lockingAuthor = locks[0]['author'];
-            logger.warning('Could not obtain lock, retrying $nums more times. '
-                           'Locking author is $lockingAuthor. '
-                           'Current author is $author.');
-
-            return new Future.delayed(new Duration(milliseconds: 100))
-                .then((_) => _get_locks(author, nums: nums));
-          });
-        } else {
-          logger.shout('MP _get_locks error', e, s);
-          throw(e);
-        }
-      }).then((_) => true);
-  }
-
-  Future _release_locks() {
-    return _lock.remove({'_id': _collectionHistory.collectionName}).then((_) =>
-    _lock.remove({'_id': collection.collectionName})).then((_) =>
-    true)
-    .catchError((e, s) {
-      logger.shout('during releasing locks, error occured', e, s);
     });
   }
 

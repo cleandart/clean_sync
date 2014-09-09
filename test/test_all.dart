@@ -24,7 +24,6 @@ import 'transactor_test.dart' as transactor_test;
 
 final Logger logger = new Logger('clean_sync');
 
-
 main() {
   run(new VMConfiguration());
 }

@@ -13,6 +13,7 @@ import "package:clean_sync/server.dart";
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 stripIds(Iterable data) => data.map((elem) => new Map.from(elem)..remove('_id')
@@ -61,13 +62,20 @@ run() {
 
 group('collection_modification',() {
   setUp((){
+    var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
+    var host = "127.0.0.1";
+    var lockerPort = 27002;
+    var msPort = 27001;
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
-    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
-    return mongoServer.start()
+    return LockRequestor.connect(host, lockerPort)
+      .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor, cache: cache))
+      .then((_) => mongoServer = new MongoServer(27001, mongodb))
+      .then((_) => mongoServer.start())
+      .then((_) => mongodb = mongoServer.db)
       .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
         return mongoClient.connected;
-      }).then((_){
+      }).catchError((e,s) => print("$e, $s")).then((_){
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);
         mongoServer.registerBeforeCallback('removeAll', allowOperation);
@@ -82,13 +90,8 @@ group('collection_modification',() {
             updateLock);
       })
       .then((_) => subscriber.init("prefix"))
-      .then((_) {
-        mongodb = mongoServer.db;
-        mongodb.dropCollection('random');
-      })
-      .then((_) => mongodb.removeLocks())
+      .then((_) => mongodb.dropCollection('random'))
       .then((_){
-
           pub.publish('a', (_) {
             return mongodb.collection("random").find({});
           });
@@ -141,7 +144,7 @@ group('collection_modification',() {
     ];
 
     return Future.forEach(itemsToClose, (item) {
-      return item.dispose();
+      return item.dispose().catchError((e,s) => print("$e, $s"));
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
       .then((_) => mongoServer.close())
       .then((_) => mongoClient.close());
@@ -152,8 +155,7 @@ group('collection_modification',() {
     .catchError((e, s){
       print('cannot drop collection, ignoring the error');
     })
-    .then((_) {
-      return mongodb.removeLocks();}).then((_) =>
+    .then((_) =>
       mongoClient.connected).then((_) {
       return subAll.initialSync;}).then((_) {
       return subAll2.initialSync;}).then((_) =>
@@ -161,7 +163,9 @@ group('collection_modification',() {
     subAa.initialSync).then((_) =>
     subArgs.initialSync).then((_) =>
     Future.forEach(actions, (action) {
+      try {
       action();
+      } catch (e) { print(e); }
       return new Future.delayed(new Duration(milliseconds: 200));
     }));
   }

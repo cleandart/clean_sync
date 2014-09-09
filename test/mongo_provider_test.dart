@@ -9,6 +9,8 @@ import "package:clean_sync/server.dart";
 import "package:useful/useful.dart";
 import "dart:async";
 import 'package:clean_data/clean_data.dart';
+import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 void handleDiff(List<Map> diff, List collection) {
@@ -34,9 +36,15 @@ void main() {
     MongoProvider months;
     Future ready;
     MongoDatabase mongodb;
+    MongoServer mongoServer;
+    LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
     List monthsCol;
+    var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
+    var host = "127.0.0.1";
+    var msPort = 27001;
+    var lockerPort = 27002;
 
      setUp(() {
 
@@ -56,15 +64,17 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest');
-      ready = Future.wait(mongodb.init).then((_) => mongodb.dropCollection('months'))
-                    .then((_) => mongodb.removeLocks())
-                    .then((_) => months = mongodb.collection('months'));
+      ready = LockRequestor.connect(host, lockerPort)
+          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
+          .then((_) => mongoServer = new MongoServer(27001, mongodb))
+          .then((_) => mongoServer.start())
+          .then((_) => mongodb.dropCollection('months'))
+          .then((_) => months = mongodb.collection('months'));
       return ready;
     });
 
     tearDown(() {
-      return Future.wait([mongodb.close()]);
+      return Future.wait([mongoServer.close()]);
     });
 
     test('get data. (T01)', () {
@@ -225,20 +235,6 @@ void main() {
           catched = true;
         })
         .then((_) => expect(catched, isTrue));
-    });
-
-
-    test('_get_locks throws, if locks cannot be grabbed for some time', () {
-      var catched = false;
-      //given
-      MongoProvider colAaa = mongodb.collection("aaa");
-      MongoProvider colAaa2 = mongodb.collection("aaa");
-      return colAaa.test_get_locks(50)
-       //when
-      .then((_) => colAaa2.test_get_locks(50))
-       //then catch error
-      .catchError((_) => catched = true)
-      .then((_) => expect(catched, isTrue));
     });
 
     test('change with upsert', () {
@@ -588,13 +584,15 @@ void main() {
     });
 
     test('cache should invalidate when changing the collection', () {
-      var _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest',
-          cache: new Cache(new Duration(seconds: 1), 1000));
-      ready = Future.wait(_mongodb.init)
-                    .then((_) => _mongodb.dropCollection('months'))
-                    .then((_) => _mongodb.removeLocks())
-                    .then((_) => months = _mongodb.collection('months'))
-                    ;
+      MongoDatabase _mongodb;
+      ready = LockRequestor.connect(host, lockerPort)
+                .then((locker) => _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest', locker,
+                                      cache: new Cache(new Duration(seconds: 1), 1000)))
+                .then((_) => Future.wait(_mongodb.init))
+                .then((_) =>
+                    _mongodb.dropCollection('months'))
+                .then((_) => months = _mongodb.collection('months'));
+
       return ready.then((_){
         months = _mongodb.collection('months');
         return months.add({'a': 'aa'}, '')
@@ -602,7 +600,8 @@ void main() {
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
         .then((data) => expect(data['data'].length, equals(2)))
-        .then((_) => _mongodb.close());
+        .then((_) =>
+            _mongodb.close());
       });
 
     });

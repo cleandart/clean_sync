@@ -35,7 +35,7 @@ run() {
 
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks()).then((_){
+    .then((_){
         pub = new Publisher();
         pub.publish('a', (_) {
           return mongodb.collection("random").find({});
@@ -59,7 +59,6 @@ run() {
     var idGen = new IdGenerator('a');
     return
       mongodb.dropCollection('random').then((_) =>
-      mongodb.removeLocks()).then((_) =>
 
       Future.forEach(new List.filled(100, null), (_) {
         subAll = new Subscription('a', connection, 'author1', idGen, {});

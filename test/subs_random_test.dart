@@ -16,6 +16,7 @@ import 'package:useful/useful.dart';
 import 'package:clean_sync/mongo_server.dart';
 import 'package:clean_sync/mongo_client.dart';
 import 'package:clean_sync/id_generator.dart';
+import 'package:clean_lock/lock_requestor.dart';
 
 
 Random rng = new Random();
@@ -86,20 +87,22 @@ run(count, cache, {failProb: 0}) {
 
 group('subs_random_test', () {
   setUp((){
-    mongoServer = new MongoServer(27001, "mongodb://0.0.0.0/mongoProviderTest", cache: cache);
+    var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
+    var url = "127.0.0.1";
+    var port = 27001;
+    var lockerPort = 27002;
     updateLock = new DataReference(false);
-    return mongoServer.start()
-    .then((_) {
-      mongodb = mongoServer.db;
-      return mongodb.dropCollection('random');
-    })
-    .then((_) => mongodb.removeLocks())
+    return LockRequestor.connect(url, lockerPort)
+    .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
+    .then((_) => mongoServer = new MongoServer(port, mongodb))
+    .then((_) => mongoServer.start())
+    .then((_) => mongodb.dropCollection('random'))
     .then((_) {
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);
         mongoServer.registerBeforeCallback('removeAll', allowOperation);
 
-        mongoClient = new MongoClient("127.0.0.1", 27001);
+        mongoClient = new MongoClient(url, port);
         pub = new Publisher();
         var versionProvider = mongodb.collection("random");
         pub.publish('a', (_) {

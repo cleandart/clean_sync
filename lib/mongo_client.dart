@@ -7,7 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:logging/logging.dart';
 import 'package:clean_ajax/server.dart';
-
+import 'package:useful/socket_jsonizer.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 
@@ -39,24 +39,18 @@ class MongoClient {
         .then((Socket _socket) {
           _connected.complete(null);
           socket = _socket;
-          socket.listen((List <int> data){
-            logger.finest('MC got response: ${new String.fromCharCodes(data)}');
-            // We could have received more JSONs at once
-            var responses = getJSONs(new String.fromCharCodes(data), incompleteJson).map((m) => JSON.decode(m));
-            logger.finest("MC got JSON response: $responses");
-            responses.forEach((resp) {
-              logger.finer('MC response obtained: ${resp}');
-              Completer completer = reqToResp.remove(resp['operationId']);
-              // Distinguish (un)successful operations by the key
-              if (resp.containsKey('result')) {
-                completer.complete(resp);
-              } else if (resp.containsKey('error')) {
-                //TODO: think about this
-                completer.complete(resp);
-              } else {
-                completer.complete('MongoClient - unknown error');
-              }
-            });
+          toJsonStream(socket).listen((Map json){
+            logger.finer("Response: $json");
+            Completer completer = reqToResp.remove(json['operationId']);
+            // Distinguish (un)successful operations by the key
+            if (json.containsKey('result')) {
+              completer.complete(json);
+            } else if (json.containsKey('error')) {
+              //TODO: think about this
+              completer.complete(json);
+            } else {
+              completer.complete('MongoClient - unknown error');
+            }
           });
         })
         .catchError((e) {
@@ -78,10 +72,12 @@ class MongoClient {
     Completer completer = new Completer();
     String operationId = '$prefix--${_count++}';
     reqToResp[operationId] = completer;
-    String stringToSend = JSON.encode({'name': name, 'docs': docs, 'colls': colls, 'args': args,
-      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion});
-    logger.finest("Trying to send string: $stringToSend");
-    socket.write('${stringToSend.length}${stringToSend}');
+    logger.finer("ReqToResp: ${reqToResp}");
+    Map dataToSend = {"type": "operation", "data": {'name': name, 'docs': docs, 'colls': colls, 'args': args,
+      'userId': userId, 'operationId': operationId, 'author': author, 'clientVersion': clientVersion}};
+
+    logger.finest("Trying to send data: $dataToSend");
+    writeJSON(socket, dataToSend);
     return completer.future;
   }
 

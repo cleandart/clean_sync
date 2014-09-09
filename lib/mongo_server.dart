@@ -4,76 +4,14 @@ import 'package:clean_sync/server.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:math';
 import 'package:logging/logging.dart';
 import 'operations.dart' as ops;
 import 'operations.dart';
 import 'server_operations.dart' as sOps;
 import 'package:clean_data/clean_data.dart';
+import 'package:useful/socket_jsonizer.dart';
 
 Logger _logger = new Logger('mongo_wrapper_logger');
-
-class Tuple {
-  var fst;
-  var snd;
-  Tuple(this.fst, this.snd);
-}
-
-Tuple decodeLeadingNum(String message) {
-  // Take while it's a digit
-  List codeUnits = message.codeUnits.takeWhile((c) => ((c >= 48) && (c <= 57))).toList();
-  // If there are only digits, the leading number is problably not transfered whole
-  if ((codeUnits.length == message.length) || (codeUnits.isEmpty)) return new Tuple(-1, -1);
-  return new Tuple(num.parse(new String.fromCharCodes(codeUnits)), codeUnits.length);
-}
-
-/**
- * Takes a [message] of potentially concatenated JSONs
- * and returns List of separate JSONs. If the message is incomplete,
- * the incomplete part is stored in [incompleteJson]
- * */
-List<String> getJSONs(String message, [Map incompleteJson]) {
-  List<String> jsons = [];
-  int messageLength = 0;
-  int lastAdditionAt = 0;
-  _logger.finest("Messages: $message");
-  _logger.finest("From previous iteration: $incompleteJson");
-  if (incompleteJson == null) incompleteJson = {};
-  if (incompleteJson.containsKey("msg")) {
-    // Previous JSON was not sent entirely
-    message = incompleteJson["msg"] + message;
-    _logger.finest("New message: $message");
-  }
-
-  int i = 0;
-  while (i < message.length) {
-    // Beginning of new message
-    // Performance upgrade, there's not going to be JSON longer than 10 bil chars..
-    // Returns -1 if there are only digits or no digits
-    // Assert = message[i] is a beginning of some valid message => the leading
-    // few characters determine the length of message
-    Tuple messageInfo = decodeLeadingNum(message.substring(i, i+10));
-    messageLength = messageInfo.fst;
-    if (messageLength == -1) {
-      // Length of string was not sent entirely
-      break;
-    }
-    i += messageInfo.snd;
-    if (messageLength+i > message.length) {
-      // We want to send more chars than this message contains =>
-      // it was not sent entirely
-      break;
-    }
-    jsons.add(message.substring(i, i+messageLength));
-    lastAdditionAt = i+messageLength;
-    i += messageLength;
-  }
-  if (lastAdditionAt != message.length-1) {
-    // message is incomplete
-    incompleteJson["msg"] = message.substring(lastAdditionAt);
-  } else incompleteJson["msg"] = "";
-  return jsons;
-}
 
 class DocumentNotFoundException implements Exception {
   final String error;
@@ -138,75 +76,56 @@ class RawOperationCall {
 class MongoServer {
   int port;
   String mongoUrl;
-  Cache cache;
   Map <String, ServerOperation> operations = {};
   MongoDatabase db;
   String userColName;
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
-  Map incompleteJson = {};
 
-  MongoServer(this.port, this.mongoUrl, {this.cache, this.userColName}){
+  MongoServer(this.port, this.db, {this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
   Future start() {
-    if (cache == null) db = new MongoDatabase(mongoUrl);
-    else db = new MongoDatabase(mongoUrl, cache: cache);
     queue = [];
-    incompleteJson = {};
     var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
         serverSocket = server;
-        server.listen(handleClient);
+        serverSocket.listen(handleClient);
       }
-    );
+    ).catchError((e,s) =>
+        print("Caught error: $e, $s"));
     return Future.wait(db.init..add(socketFuture));
+  }
+
+  handleOperation(Socket socket, Map req) {
+    List<RawOperationCall> opCalls = new List();
+    var op = new RawOperationCall.fromJson(req);
+    opCalls.add(op);
+    queue.add(op);
+    op.completer.future.then((Map response){
+      response['operationId'] = req['operationId'];
+      writeJSON(socket, response);
+    });
+    _performOne();
   }
 
   handleClient(Socket socket){
     clientSockets.add(socket);
-    socket.listen((List<int> data){
-      _logger.finer("Received JSON: ${UTF8.decode(data)}");
-      _logger.finest("Char codes: ${data}");
-      _logger.finest("Incomplete json: $incompleteJson");
-      // JSONs could have been sent frequently and therefore concatenated
-      List<String> messages = getJSONs(UTF8.decode(data), incompleteJson);
-      _logger.finest('Messages: $messages');
-      _logger.finest("Incomplete json after: $incompleteJson");
-      var jsons = messages.map((f) {
-        try{
-          JSON.decode(f);
-        } catch (e){
-          _logger.shout("Failed to decode JSON from $f",e);
-          throw e;
-        }
-        return JSON.decode(f);
-      });
-      _logger.finest("MS Parsed JSONs: $jsons");
-      List<RawOperationCall> opCalls = new List();
-      jsons.forEach((m) {
-        var op = new RawOperationCall.fromJson(m);
-        opCalls.add(op);
-        queue.add(op);
-        op.completer.future.then((Map response){
-          response['operationId'] = m['operationId'];
-          String responseToSend = JSON.encode(response);
-          socket.write('${responseToSend.length}${responseToSend}');
-        });
-      });
-      _performOne();
+    socket.done.then((_) => clientSockets.remove(socket));
+    toJsonStream(socket).listen((Map req) {
+      if (req["type"] == "operation") return handleOperation(socket, req["data"]);
     });
   }
 
   Future close() {
-    return Future.wait([
-       db.close(),
-       Future.wait(clientSockets.map((socket) => socket.close())),
-       serverSocket.close()
-    ]);
+     return Future.wait([
+         db.close(),
+         Future.wait(clientSockets.map((socket) => socket.close())),
+         serverSocket.close(),
+      ]);
   }
 
   registerOperation(name, {operation, before, after}){
@@ -271,7 +190,7 @@ class MongoServer {
 
     _logger.finest('fetching docs ($opCall)');
     int i = -1;
-    return Future.forEach(opCall.docs, (doc){
+    return db.withLock(() => Future.forEach(opCall.docs, (doc){
       i++;
       return db.collection(opCall.docs[i][1]).find({'_id': opCall.docs[i][0]}).findOne()
           .catchError((e,s) => throw new DocumentNotFoundException('$e','$s'))
@@ -341,6 +260,6 @@ class MongoServer {
         _logger.shout("Some other error occured !",e,s);
         opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
-    });
+    }));
   }
 }

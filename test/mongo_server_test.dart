@@ -10,7 +10,7 @@ import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:clean_sync/operations.dart';
-import 'dart:convert';
+import 'package:clean_lock/lock_requestor.dart';
 
 Logger logger = new Logger('mongo_wrapper_logger');
 class IdGenerator {
@@ -39,6 +39,7 @@ void run() {
 
     MongoServer server;
     MongoClient client;
+    MongoDatabase mongodb;
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
     String lastOperation;
@@ -48,13 +49,18 @@ void run() {
 
     setUp(() {
       lastOperation = "";
-      server = new MongoServer(27001, "mongodb://0.0.0.0/mongoServerTest");
-      return server.start()
+      var port = 27001;
+      var mongoUrl = "mongodb://0.0.0.0/mongoServerTest";
+      var lockerPort = 27002;
+      var host = "127.0.0.1";
+      return LockRequestor.connect(host, lockerPort)
+          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
+          .then((_) => server = new MongoServer(port, mongodb))
+          .then((_) => server.start())
           .then((_) => server.db.dropCollection(testCollectionUser))
-          .then((_) => server.db.removeLocks())
           .then((_) {
 
-        client = new MongoClient("127.0.0.1", 27001);
+        client = new MongoClient(host, 27001);
 
         server.registerOperation("save",
             operation: (ServerOperationCall opCall){

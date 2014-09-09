@@ -36,7 +36,7 @@ run() {
       transactor = new Transactor(connection, updateLock, 'author', new IdGeneratorMock());
       return Future.wait(mongodb.init)
         .then((_) => mongodb.dropCollection('random'))
-        .then((_) => mongodb.removeLocks()).then((_){
+        .then((_){
           pub = new Publisher();
           pub.publish('a', (_) {
             throw new ArgumentError('__TEST__: Error');

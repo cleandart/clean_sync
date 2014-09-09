@@ -5,3 +5,4 @@ packages
 local_pubspec_yaml
 pubspec.lock
 .idea
+*~
