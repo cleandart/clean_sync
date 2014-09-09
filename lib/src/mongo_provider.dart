@@ -155,26 +155,8 @@ class MongoDatabase {
      //     return _lockRequestor.releaseLock();
    }
 
-   Future withLock(Future callback(), {String lockType: _dbLock}) {
-     // Check if it's already running in zone
-     if (Zone.current[#lock] != null) {
-       // It is, check for lock and run
-       if (Zone.current[#lock]["lock"]) {
-         return new Future.sync(callback);
-       } else {
-         // Lock was already released, this shouldn't happen
-         throw new Exception("withLock: Lock was released, but callback is still trying to run in this zone, (maybe there is some Future not waited for?)");
-       }
-     } else {
-       // It's not running in any Zone yet
-       return runZoned(() {
-         return _lockRequestor.getLock(lockType)
-          .then((_) => new Future.sync(callback))
-          .whenComplete(() => _lockRequestor.releaseLock(lockType))
-          .then((_) => Zone.current[#lock]["lock"] = false);
-       }, zoneValues: {#lock: {"lock" : true}});
-     }
-   }
+   Future withLock(Future callback(), {String lockType: _dbLock}) =>
+       _lockRequestor.withLock(lockType, callback);
 
 }
 
