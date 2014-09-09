@@ -40,7 +40,7 @@ class MongoClient {
           _connected.complete(null);
           socket = _socket;
           toJsonStream(socket).listen((Map json){
-            logger.fine("Response: $json");
+            logger.finer("Response: $json");
             Completer completer = reqToResp.remove(json['operationId']);
             // Distinguish (un)successful operations by the key
             if (json.containsKey('result')) {
