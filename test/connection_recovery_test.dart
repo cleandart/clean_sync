@@ -45,7 +45,7 @@ run() {
 
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks()).then((_){
+    .then((_){
 
         pub = new Publisher();
 
@@ -82,7 +82,6 @@ run() {
 
   executeSubscriptionActions(List actions) {
     return mongodb.dropCollection('random').then((_) =>
-      mongodb.removeLocks()).then((_) =>
       subRandom.initialSync).then((_) =>
       Future.forEach(actions, (action) {
         action();

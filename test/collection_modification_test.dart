@@ -91,7 +91,6 @@ group('collection_modification',() {
       })
       .then((_) => subscriber.init("prefix"))
       .then((_) => mongodb.dropCollection('random'))
-      .then((_) => mongodb.removeLocks())
       .then((_){
           pub.publish('a', (_) {
             return mongodb.collection("random").find({});
@@ -156,8 +155,7 @@ group('collection_modification',() {
     .catchError((e, s){
       print('cannot drop collection, ignoring the error');
     })
-    .then((_) {
-      return mongodb.removeLocks();}).then((_) =>
+    .then((_) =>
       mongoClient.connected).then((_) {
       return subAll.initialSync;}).then((_) {
       return subAll2.initialSync;}).then((_) =>

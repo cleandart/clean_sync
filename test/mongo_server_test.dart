@@ -58,7 +58,6 @@ void run() {
           .then((_) => server = new MongoServer(port, mongodb))
           .then((_) => server.start())
           .then((_) => server.db.dropCollection(testCollectionUser))
-          .then((_) => server.db.removeLocks())
           .then((_) {
 
         client = new MongoClient(host, 27001);

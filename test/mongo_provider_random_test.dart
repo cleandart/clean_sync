@@ -49,7 +49,6 @@ run(count) {
       .then((_) => mongoServer = new MongoServer(27001, mongodb))
       .then((_) => mongoServer.start())
       .then((_) => mongodb.dropCollection('random'))
-      .then((_) => mongodb.removeLocks())
       .then((_){
         wholeCollection = mongodb.collection('random');
         currCollection = selector(mongodb.collection('random'));

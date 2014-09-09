@@ -21,7 +21,6 @@ setup() {
   return LockRequestor.connect("127.0.0.1", 27002)
   .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', lockRequestor, cache: cache))
   .then((_) => mongodb.dropCollection('benchmark'))
-  .then((_) => mongodb.removeLocks())
   .then((_) => mongodb.create_collection('benchmark'))
   .then((_) => Future.wait(mongodb.init))
   .then((_) => mongodb.collection('benchmark'));

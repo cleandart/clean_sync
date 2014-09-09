@@ -97,7 +97,6 @@ group('subs_random_test', () {
     .then((_) => mongoServer = new MongoServer(port, mongodb))
     .then((_) => mongoServer.start())
     .then((_) => mongodb.dropCollection('random'))
-    .then((_) => mongodb.removeLocks())
     .then((_) {
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);

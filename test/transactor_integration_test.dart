@@ -72,7 +72,6 @@ run() {
     .then((_) => mongoServer = new MongoServer(msPort, mongodb))
     .then((_) => mongoServer.start())
     .then((_) => mongodb.dropCollection(collectionName))
-    .then((_) => mongodb.removeLocks())
     .then((_) {
       mongoClient = new MongoClient(host, msPort);
 

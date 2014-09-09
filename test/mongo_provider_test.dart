@@ -69,7 +69,6 @@ void main() {
           .then((_) => mongoServer = new MongoServer(27001, mongodb))
           .then((_) => mongoServer.start())
           .then((_) => mongodb.dropCollection('months'))
-          .then((_) => mongodb.removeLocks())
           .then((_) => months = mongodb.collection('months'));
       return ready;
     });
@@ -614,7 +613,6 @@ void main() {
                 .then((_) => Future.wait(_mongodb.init))
                 .then((_) =>
                     _mongodb.dropCollection('months'))
-                .then((_) => _mongodb.removeLocks())
                 .then((_) => months = _mongodb.collection('months'));
 
       return ready.then((_){

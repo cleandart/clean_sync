@@ -13,7 +13,6 @@ main() {
     mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
     return Future.wait(mongodb.init)
     .then((_) => mongodb.dropCollection('sort_test'))
-    .then((_) => mongodb.removeLocks())
     .then((_){
       collection = mongodb.collection('sort_test');
     });

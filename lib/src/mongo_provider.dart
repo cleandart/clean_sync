@@ -135,25 +135,10 @@ class MongoDatabase {
   }
 
   Future dropCollection(String collectionName) =>
-    _conn.then((_) => Future.wait([
+    _conn.then((_) => withLock(() => Future.wait([
       _db.collection(collectionName).drop(),
       _db.collection(historyCollectionName(collectionName)).drop()
-    ]));
-
-  /**
-    * if collectionName is specified, drop locks for this specific collection.
-    * Otherwise, drop all locks in the system.
-    *
-    * ----
-    *
-    * !! NOT NEEDED ANYMORE !!
-    *
-    * ----
-    */
-   Future removeLocks({String collectionName}){
-     return new Future.value(null);
-     //     return _lockRequestor.releaseLock();
-   }
+    ])));
 
    Future withLock(Future callback(), {String lockType: _dbLock}) =>
        _lockRequestor.withLock(lockType, callback);
