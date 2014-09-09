@@ -66,7 +66,7 @@ class MongoDatabase {
   Db get rawDb => _db;
   LockRequestor _lockRequestor;
 
-  final _lockType = "dblock";
+  static const _dbLock = "dblock";
 
   MongoDatabase(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache} ) {
     _db = new Db(url);
@@ -155,7 +155,7 @@ class MongoDatabase {
      //     return _lockRequestor.releaseLock();
    }
 
-   Future withLock(Future callback()) {
+   Future withLock(Future callback(), {String lockType: _dbLock}) {
      // Check if it's already running in zone
      if (Zone.current[#lock] != null) {
        // It is, check for lock and run
@@ -168,9 +168,9 @@ class MongoDatabase {
      } else {
        // It's not running in any Zone yet
        return runZoned(() {
-         return _lockRequestor.getLock(_lockType)
+         return _lockRequestor.getLock(lockType)
           .then((_) => new Future.sync(callback))
-          .whenComplete(() => _lockRequestor.releaseLock(_lockType))
+          .whenComplete(() => _lockRequestor.releaseLock(lockType))
           .then((_) => Zone.current[#lock]["lock"] = false);
        }, zoneValues: {#lock: {"lock" : true}});
      }

@@ -136,7 +136,6 @@ group('collection_modification',() {
   });
 
   tearDown(() {
-    print("tearDown");
     List itemsToClose = [
       subAll,
       subAll2,
