@@ -29,7 +29,8 @@ run() {
   Transactor transactor;
   MongoClient mongoClient;
   MongoServer mongoServer;
-  MongoDatabase mongodb;
+  MongoConnection mongoConnection;
+  LockRequestor lockRequestor;
   DataReference updateLock;
   Connection connection;
 
@@ -68,10 +69,12 @@ run() {
     var lockerPort = 27002;
     updateLock = new DataReference(false);
     return LockRequestor.connect(host, lockerPort)
-    .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
-    .then((_) => mongoServer = new MongoServer(msPort, mongodb))
-    .then((_) => mongoServer.start())
-    .then((_) => mongodb.dropCollection(collectionName))
+    .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+    .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+    .then((_) => mongoConnection.init())
+    .then((_) => mongoServer = new MongoServer(msPort, mongoConnection))
+    .then((_) => mongoServer.init())
+    .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection(collectionName)))
     .then((_) {
       mongoClient = new MongoClient(host, msPort);
 
@@ -93,7 +96,7 @@ run() {
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close()]);
+    return Future.wait([mongoServer.close(), mongoClient.close(), lockRequestor.close()]);
   });
 
   _addCollectionName(List<Map> docs, collectionName) => docs..forEach((e) => e["__clean_collection"] = collectionName);
@@ -106,7 +109,7 @@ run() {
     sub.collection = logs;
     sub.mongoCollectionName = logCollectionName;
     Map args = {"amount":3000};
-    return mongodb.collection(collectionName).addAll([first, second],'author')
+    return mongoConnection.collection(collectionName).addAll([first, second],'author')
       .then((_) {
         _addCollectionName([first,second],collectionName);
         return transactor.operation('send money', args, docs: [first, second], subs:[sub]);
@@ -114,15 +117,15 @@ run() {
       .then((_) {
         expect(first["credit"], equals(2000));
         expect(second["credit"], equals(4000));
-        return mongodb.collection(collectionName).find({"_id":"1"}).findOne();
+        return mongoConnection.collection(collectionName).find({"_id":"1"}).findOne();
       })
       .then((d) {
         expect(d["credit"], equals(2000));
-        return mongodb.collection(collectionName).find({"_id":"2"}).findOne();
+        return mongoConnection.collection(collectionName).find({"_id":"2"}).findOne();
       })
       .then((d) {
         expect(d["credit"], equals(4000));
-        return mongodb.collection(logCollectionName).find({"_id":"8"}).findOne();
+        return mongoConnection.collection(logCollectionName).find({"_id":"8"}).findOne();
       })
       .then((d) {
         expect(logs.elementAt(0)["log"], equals("player bought"));
@@ -138,15 +141,15 @@ run() {
     sub.collection = logs;
     sub.mongoCollectionName = logCollectionName;
     Map args = {"amount" : 2048};
-    return mongodb.collection(collectionName).addAll([first, second], 'author')
+    return mongoConnection.collection(collectionName).addAll([first, second], 'author')
       .then((_) {
         _addCollectionName([first, second], collectionName);
         return transactor.operation('send money', args, docs: [first,second], subs:[sub]);
       })
-      .then((_) => mongodb.collection(collectionName).find({"_id":"1"}).findOne())
+      .then((_) => mongoConnection.collection(collectionName).find({"_id":"1"}).findOne())
       .then((d) {
         expect(d["credit"], equals(2000));
-        return mongodb.collection(collectionName).find({"_id":"2"}).findOne();
+        return mongoConnection.collection(collectionName).find({"_id":"2"}).findOne();
       })
       .then((d) => expect(d["credit"], equals(1000)));
   });

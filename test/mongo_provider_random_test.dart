@@ -36,8 +36,9 @@ main() {
 run(count) {
   MongoProvider currCollection;
   MongoProvider wholeCollection;
-  MongoDatabase mongodb;
+  MongoConnection mongoConnection;
   MongoServer mongoServer;
+  LockRequestor lockRequestor;
 
   setup(selector) {
     var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
@@ -45,13 +46,15 @@ run(count) {
     var msPort = 27001;
     var lockerPort = 27002;
     return LockRequestor.connect(host, lockerPort)
-      .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
-      .then((_) => mongoServer = new MongoServer(27001, mongodb))
-      .then((_) => mongoServer.start())
-      .then((_) => mongodb.dropCollection('random'))
+      .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+      .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+      .then((_) => mongoConnection.init())
+      .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
+      .then((_) => mongoServer.init())
+      .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random')))
       .then((_){
-        wholeCollection = mongodb.collection('random');
-        currCollection = selector(mongodb.collection('random'));
+        wholeCollection = mongoConnection.collection('random');
+        currCollection = selector(mongoConnection.collection('random'));
       });
   }
 
@@ -148,7 +151,7 @@ run(count) {
     }
 
     _teardown() {
-      mongoServer.close();
+      return Future.wait([mongoServer.close(), lockRequestor.close()]);
     };
 
    _test(){

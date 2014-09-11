@@ -34,7 +34,8 @@ main(){
 
 run() {
 
-  MongoDatabase mongodb;
+  MongoConnection mongoConnection;
+  LockRequestor lockRequestor;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
@@ -68,10 +69,11 @@ group('collection_modification',() {
     var msPort = 27001;
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
     return LockRequestor.connect(host, lockerPort)
-      .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor, cache: cache))
-      .then((_) => mongoServer = new MongoServer(27001, mongodb))
-      .then((_) => mongoServer.start())
-      .then((_) => mongodb = mongoServer.db)
+      .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+      .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor, cache: cache))
+      .then((_) => mongoConnection.init())
+      .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
+      .then((_) => mongoServer.init())
       .then((_){
         mongoClient = new MongoClient("127.0.0.1", 27001);
         return mongoClient.connected;
@@ -90,30 +92,30 @@ group('collection_modification',() {
             updateLock);
       })
       .then((_) => subscriber.init("prefix"))
-      .then((_) => mongodb.dropCollection('random'))
+      .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random')))
       .then((_){
           pub.publish('a', (_) {
-            return mongodb.collection("random").find({});
+            return mongoConnection.collection("random").find({});
           });
 
           pub.publish('b', (_) {
-            return mongodb.collection("random").find({'a': 'hello'});
+            return mongoConnection.collection("random").find({'a': 'hello'});
           });
 
           pub.publish('c', (_) {
-            return mongodb.collection("random").find({'a.a': 'hello'});
+            return mongoConnection.collection("random").find({'a.a': 'hello'});
           });
 
           pub.publish('withArgs', (args) {
-            return mongodb.collection("random").find({'a': args['name']});
+            return mongoConnection.collection("random").find({'a': args['name']});
           });
 
           pub.publish('mapped_pos', (_) {
-            return mongodb.collection("random").find({'b': 3}).fields(['a']);
+            return mongoConnection.collection("random").find({'b': 3}).fields(['a']);
           });
 
           pub.publish('mapped_neg', (_) {
-            return mongodb.collection("random").find({'b': 3}).excludeFields(['a']);
+            return mongoConnection.collection("random").find({'b': 3}).excludeFields(['a']);
           });
 
 
@@ -147,11 +149,12 @@ group('collection_modification',() {
       return item.dispose().catchError((e,s) => print("$e, $s"));
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
       .then((_) => mongoServer.close())
+      .then((_) => lockRequestor.close())
       .then((_) => mongoClient.close());
     });
 
   executeSubscriptionActions(List actions) {
-    return mongodb.dropCollection('random')
+    return mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random'))
     .catchError((e, s){
       print('cannot drop collection, ignoring the error');
     })

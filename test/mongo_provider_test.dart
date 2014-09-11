@@ -35,7 +35,7 @@ void main() {
   group('MongoProvider', () {
     MongoProvider months;
     Future ready;
-    MongoDatabase mongodb;
+    MongoConnection mongoConnection;
     MongoServer mongoServer;
     LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
@@ -65,16 +65,18 @@ void main() {
                     july, august, september, october, november, december];
 
       ready = LockRequestor.connect(host, lockerPort)
-          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
-          .then((_) => mongoServer = new MongoServer(27001, mongodb))
-          .then((_) => mongoServer.start())
-          .then((_) => mongodb.dropCollection('months'))
-          .then((_) => months = mongodb.collection('months'));
+          .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+          .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+          .then((_) => mongoConnection.init())
+          .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
+          .then((_) => mongoServer.init())
+          .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('months')))
+          .then((_) => months = mongoConnection.collection('months'));
       return ready;
     });
 
     tearDown(() {
-      return Future.wait([mongoServer.close()]);
+      return Future.wait([mongoServer.close(), lockRequestor.close()]);
     });
 
     test('get data. (T01)', () {
@@ -224,15 +226,17 @@ void main() {
     test('breaking unique index constraint throws', () {
       var catched = false;
       //given
-      mongodb.createIndex('months', {'a':1}, unique: true);
-      return ready.then((_) =>
-          months.change("2", {'a': 'a', 'b': 'b', '_id': "2"}, 'dummy', upsert: true))
-       .then((_) =>
-          //when
-          months.change("1", {'a': 'a', 'b': 'b', '_id': "1"}, 'dummy', upsert: true))
-       .catchError((e){
-          //then catch error
-          catched = true;
+      mongoConnection.transact((MongoDatabase mdb) {
+        return ready.then((_) => mdb.createIndex('months', {'a':1}, unique: true))
+         .then((_) =>
+            months.change("2", {'a': 'a', 'b': 'b', '_id': "2"}, 'dummy', upsert: true))
+         .then((_) =>
+            //when
+            months.change("1", {'a': 'a', 'b': 'b', '_id': "1"}, 'dummy', upsert: true))
+         .catchError((e){
+            //then catch error
+            catched = true;
+          });
         })
         .then((_) => expect(catched, isTrue));
     });
@@ -469,11 +473,11 @@ void main() {
 
               return document;
             }, 'John Doe')).then((_) {
-              return mongodb.rawDb.collection("__clean_months_history").find()
+              return mongoConnection.transact((MongoDatabase mdb) => mdb.rawDb.collection("__clean_months_history").find()
                 .toList().then((data) {
                   Map oldData = data.where((m) => m['before']['name'] == 'February').first['before'];
                   expect(oldData['days'], equals(28));
-              });
+              }));
             });
     });
 
@@ -584,26 +588,51 @@ void main() {
     });
 
     test('cache should invalidate when changing the collection', () {
-      MongoDatabase _mongodb;
+      MongoConnection _mongoConnection;
       ready = LockRequestor.connect(host, lockerPort)
-                .then((locker) => _mongodb = new MongoDatabase('mongodb://127.0.0.1/mongoProviderTest', locker,
+                .then((locker) => _mongoConnection = new MongoConnection('mongodb://127.0.0.1/mongoProviderTest', locker,
                                       cache: new Cache(new Duration(seconds: 1), 1000)))
-                .then((_) => Future.wait(_mongodb.init))
+                .then((_) => _mongoConnection.init())
                 .then((_) =>
-                    _mongodb.dropCollection('months'))
-                .then((_) => months = _mongodb.collection('months'));
+                    _mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('months')))
+                .then((_) => months = _mongoConnection.collection('months'));
 
       return ready.then((_){
-        months = _mongodb.collection('months');
+        months = _mongoConnection.collection('months');
         return months.add({'a': 'aa'}, '')
         .then((_) => months.data())
         .then((_) => months.add({'b': 'bb'}, ''))
         .then((_) => months.data())
         .then((data) => expect(data['data'].length, equals(2)))
         .then((_) =>
-            _mongodb.close());
+            _mongoConnection.close());
       });
 
+    });
+
+    test('should pass same MongoDatabases in nested transactions', () {
+      return mongoConnection.transact((MongoDatabase mdb) =>
+          mongoConnection.transact((MongoDatabase mdb2) =>
+              mongoConnection.transact((MongoDatabase mdb3) {
+                expect(mdb, equals(mdb2));
+                expect(mdb, equals(mdb3));
+              })
+          )
+      );
+    });
+
+    test('performing operation on disposed MongoDatabase should throw', () {
+      bool caught = false;
+      runZoned(() {
+        return mongoConnection.transact((MongoDatabase mdb) {
+          return mongoConnection.transact((MongoDatabase mdb2) {
+            new Future.delayed(new Duration(milliseconds: 500), () => mdb2.create_collection('random name'));
+            return new Future.value(null);
+          });
+        });
+      }, onError: (e,s) => caught = true);
+
+      return new Future.delayed(new Duration(milliseconds: 700), () => expect(caught, isTrue));
     });
 
   });

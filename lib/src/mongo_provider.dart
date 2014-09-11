@@ -57,28 +57,20 @@ const String COLLECTION_NAME = '__clean_collection';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
-class MongoDatabase {
+class MongoConnection {
   Db _db;
-  Future _conn;
-  List<Future> init = [];
-  DbCollection _lock;
-  Cache cache;
-  Db get rawDb => _db;
   LockRequestor _lockRequestor;
+  Cache cache;
 
   static const _dbLock = "dblock";
 
-  MongoDatabase(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache} ) {
+  Db get rawDb => _db;
+
+  MongoConnection(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache}) {
     _db = new Db(url);
-    _conn = _db.open(); // open connection to database
-    init.add(_conn);
-    init.add(_conn.then((_) {
-      _lock = _db.collection(LOCK_COLLECTION_NAME);
-      return true;
-      }));
   }
 
-  static Future<MongoDatabase> noLocking(String url, {Cache cache: dummyCache, int port: 27005}) {
+  static Future<MongoConnection> noLocking(String url, {Cache cache: dummyCache, int port: 27005}) {
     Locker locker;
     return
         Locker.bind("127.0.0.1", port)
@@ -86,23 +78,65 @@ class MongoDatabase {
           .then((_) => LockRequestor.connect("127.0.0.1", port))
           .then((LockRequestor lockRequestor) {
             lockRequestor.done.then((_) => locker.close());
-            return new MongoDatabase(url, lockRequestor, cache: cache);
+            return new MongoConnection(url, lockRequestor, cache: cache);
         });
   }
 
-  Future close() => Future.wait(init)
-      .then((_) => Future.wait([_db.close(), _lockRequestor.close()]));
+  Future init() => _db.open();
 
-  Future create_collection(String collectionName) {
-    Future res =_conn.then((_) =>
-            _db.createIndex(historyCollectionName(collectionName), key: 'version',
-            unique: true)).then((_) =>
-            _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
-            unique: true, sparse: true));
-
-    init.add(res);
-    return res;
+  Future transact(callback(MongoDatabase _)) {
+    Map meta = _lockRequestor.getZoneMetaData();
+    MongoDatabase mdb;
+    // Dispose only if this is the root transact
+    bool shouldDispose = false;
+    if (meta == null) {
+      // Not in Zone yet => this is the root transact => create MongoDatabase
+      mdb = new MongoDatabase(_db, this, cache: cache);
+      shouldDispose = true;
+    } else {
+      mdb = meta['db'];
+    }
+    return _lockRequestor.withLock(_dbLock,
+        () => (new Future.sync(() => callback(mdb)))
+              .then((_) => shouldDispose ? mdb.dispose() : null),
+        metaData: {'db': mdb});
   }
+
+  MongoProvider collection(String collectionName) {
+    DbCollection collection = _db.collection(collectionName);
+    DbCollection collectionHistory =
+        _db.collection(historyCollectionName(collectionName));
+    return new MongoProvider(this, collection, collectionHistory, cache);
+  }
+
+  Future close() => _db.close();
+
+}
+
+class MongoDatabase {
+  Db _db;
+  Cache cache;
+  MongoConnection connection;
+  Db get rawDb => _db;
+  List<Future> operations = [];
+  bool _disposed = false;
+
+  MongoDatabase(Db this._db, MongoConnection this.connection, {Cache this.cache: dummyCache} );
+
+  Future dispose() => Future.wait(operations).then((_) => _disposed = true);
+
+  Future _logOperation(Future op()) {
+    if (_disposed) throw new Exception("MongoDatabase is already disposed, no operations should be executed");
+    Future f = op();
+    operations.add(f);
+    return f;
+  }
+
+  Future create_collection(String collectionName) =>
+    _logOperation(() => _db.createIndex(historyCollectionName(collectionName), key: 'version',
+        unique: true).then((_) =>
+        _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
+        unique: true, sparse: true)));
 
   /**
    * Creates index on chosen collection and corresponding indexes on collection
@@ -111,7 +145,7 @@ class MongoDatabase {
    * ensureIndex).
    */
   Future createIndex(String collectionName, Map keys, {unique: false}) {
-    if (keys.isEmpty) return new Future.value(null);
+    if (keys.isEmpty) return _logOperation(() => new Future.value(null));
     Map beforeKeys = {};
     Map afterKeys = {};
     keys.forEach((key, val) {
@@ -120,31 +154,23 @@ class MongoDatabase {
     });
     beforeKeys['version'] = 1;
     afterKeys['version'] = 1;
-    Future res = _conn
-        .then((_) => _db.createIndex(historyCollectionName(collectionName),
-            keys: beforeKeys))
+    return _logOperation(() => _db.createIndex(historyCollectionName(collectionName),
+            keys: beforeKeys)
         .then((_) => _db.createIndex(historyCollectionName(collectionName),
             keys: afterKeys))
-        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique));
-    init.add(res);
-    return res;
+        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique)));
   }
 
-  MongoProvider collection(String collectionName) {
-    DbCollection collection = _db.collection(collectionName);
-    DbCollection collectionHistory =
-        _db.collection(historyCollectionName(collectionName));
-    return new MongoProvider(this, collection, collectionHistory, _lock, cache);
-  }
+  MongoProvider collection(String collectionName) => connection.collection(collectionName);
 
   Future dropCollection(String collectionName) =>
-    _conn.then((_) => withLock(() => Future.wait([
+      _logOperation(() => Future.wait([
       _db.collection(collectionName).drop(),
       _db.collection(historyCollectionName(collectionName)).drop()
-    ])));
+    ]));
 
-   Future withLock(Future callback()) =>
-       _lockRequestor.withLock(_dbLock, callback);
+   Future _operation(callback()) =>
+       _logOperation(() => new Future.sync(callback));
 
 }
 
@@ -159,8 +185,8 @@ List addFieldIfNotEmpty(List fields, String field){
 
 MongoProvider mpClone(MongoProvider source){
 
-  MongoProvider m = new MongoProvider.config(source.mongodb, source.collection,
-      source._collectionHistory, source._lock, source.cache, source.idgen);
+  MongoProvider m = new MongoProvider.config(source.mongoConn, source.collection,
+      source._collectionHistory, source.cache, source.idgen);
   m._selectorList = new List.from(source._selectorList);
   m._sortParams = new Map.from(source._sortParams);
   m._limit = source._limit;
@@ -171,8 +197,8 @@ MongoProvider mpClone(MongoProvider source){
 }
 
 class MongoProvider implements DataProvider {
-  final DbCollection collection, _collectionHistory, _lock;
-  MongoDatabase mongodb;
+  final DbCollection collection, _collectionHistory;
+  MongoConnection mongoConn;
   List<Map> _selectorList = [];
   Map _sortParams = {};
   List _excludeFields = [];
@@ -193,11 +219,11 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(mongodb, collection, collectionHistory, lock, cache) :
-    this.config(mongodb, collection, collectionHistory, lock, cache,
+  MongoProvider(mongodb, collection, collectionHistory, cache) :
+    this.config(mongodb, collection, collectionHistory, cache,
         new IdGenerator(getIdPrefix()));
 
-  MongoProvider.config(this.mongodb, this.collection, this._collectionHistory, this._lock,
+  MongoProvider.config(this.mongoConn, this.collection, this._collectionHistory,
       this.cache, this.idgen);
 
   Future deleteHistory(num version) {
@@ -344,7 +370,8 @@ class MongoProvider implements DataProvider {
     for (Map d in data) ensureId(d, idgen);
     cache.invalidate();
     num nextVersion;
-    return mongodb.withLock(() => _maxVersion.then((version) {
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         data.forEach((elem) => elem[VERSION_FIELD_NAME] = nextVersion++);
         return collection.insertAll(data);
@@ -363,7 +390,7 @@ class MongoProvider implements DataProvider {
         logger.warning('MP update error:', e, s);
           throw new MongoException(e,s);
       }
-      )).then((_) => nextVersion);
+      ))).then((_) => nextVersion);
   }
 
 
@@ -371,8 +398,8 @@ class MongoProvider implements DataProvider {
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
-    return mongodb.withLock(() =>
-       new Future.sync(() => _checkClientVersion(clientVersion))
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() => new Future.sync(() => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
 
       .then((Map oldData) {
@@ -414,7 +441,7 @@ class MongoProvider implements DataProvider {
         }
       })
       .catchError((e, s) => _processError(e, s))
-      ).then((_) => nextVersion);
+      )).then((_) => nextVersion);
   }
 
   static ensureId(Map doc, IdGenerator idgen) {
@@ -447,7 +474,9 @@ class MongoProvider implements DataProvider {
     cache.invalidate();
 
     num nextVersion;
-    return mongodb.withLock(() => new Future.sync(() => _checkClientVersion(clientVersion))
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() =>
+           new Future.sync(() => _checkClientVersion(clientVersion))
       .then((_) => collection.findOne({"_id" : _id}))
       .then((Map oldData) {
         if (oldData == null) oldData = {};
@@ -512,14 +541,15 @@ class MongoProvider implements DataProvider {
         }
       })
       .catchError((e, s) => _processError(e, s))
-      ).then((_) => nextVersion);
+      )).then((_) => nextVersion);
   }
 
   Future update(selector, Map modifier(Map document), String author) {
     cache.invalidate();
     num nextVersion;
     List oldData;
-    return mongodb.withLock(() => _maxVersion.then((version) {
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         num versionUpdate = nextVersion;
 
@@ -562,13 +592,14 @@ class MongoProvider implements DataProvider {
             throw e;
           } else throw new MongoException(e,s);
         })
-      ).then((_) => nextVersion);
+      )).then((_) => nextVersion);
   }
 
   Future removeAll(query, String author) {
     cache.invalidate();
     num nextVersion;
-    return mongodb.withLock(() => _maxVersion.then((version) {
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() => _maxVersion.then((version) {
         nextVersion = version + 1;
         return collection.find(query).toList();
       }).then((data) {
@@ -590,8 +621,8 @@ class MongoProvider implements DataProvider {
         logger.warning('MP removeAll error:', e, s);
         throw new MongoException(e,s);
       }
-      )).then((_) => nextVersion);
-  }
+      ))).then((_) => nextVersion);
+    }
 
   Future<Map> diffFromVersion(num version) {
     return cache.putIfAbsent('version ${collection.collectionName}', () => _maxVersion)

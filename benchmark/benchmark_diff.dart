@@ -14,16 +14,16 @@ const CLIENTS = 50;
 
 final TIME = new Duration(seconds: 10);
 
-MongoDatabase mongodb;
+MongoConnection mongoConnection;
 setup() {
   Cache cache = new Cache(new Duration(milliseconds: 200), 10000);
 
   return LockRequestor.connect("127.0.0.1", 27002)
-  .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase('mongodb://0.0.0.0/benchmark', lockRequestor, cache: cache))
-  .then((_) => mongodb.dropCollection('benchmark'))
-  .then((_) => mongodb.create_collection('benchmark'))
-  .then((_) => Future.wait(mongodb.init))
-  .then((_) => mongodb.collection('benchmark'));
+  .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection('mongodb://0.0.0.0/benchmark', lockRequestor, cache: cache))
+  .then((_) => mongoConnection.init())
+  .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('benchmark')))
+  .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.create_collection('benchmark')))
+  .then((_) => mongoConnection.collection('benchmark'));
 }
 
 main() {
@@ -45,8 +45,8 @@ main() {
     return collection.data().then((data) => data['version']);
   }).then((version) {
     print('Publishing collection with version $version....');
-    var versionProvider = mongodb.collection('benchmark');
-    publish('benchmark', (_) => mongodb.collection('benchmark'));
+    var versionProvider = mongoConnection.collection('benchmark');
+    publish('benchmark', (_) => mongoConnection.collection('benchmark'));
 
     var request = new ServerRequest("sync", {
       "action" : "get_diff", "collection" : 'benchmark',
