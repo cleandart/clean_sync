@@ -596,32 +596,32 @@ class MongoProvider implements DataProvider {
   }
 
   Future removeAll(query, String author) {
-      cache.invalidate();
-      num nextVersion;
-      return mongoConn.transact((MongoDatabase mdb) =>
-        mdb._operation(() => _maxVersion.then((version) {
-          nextVersion = version + 1;
-          return collection.find(query).toList();
-        }).then((data) {
-          return collection.remove(query).then((_) {
-            if (data.isNotEmpty) {
-              return _collectionHistory.insertAll(data.map((elem) => {
-                "before" : elem,
-                "after" : {},
-                "action" : "remove",
-                "author" : author,
-                "version" : nextVersion++,
-                "timestamp" : new DateTime.now()
-              }).toList(growable: false));
-            } else return [];
-          });
-        },
-        onError: (e,s) {
-          // Errors thrown by MongoDatabase are Map objects with fields err, code,
-          logger.warning('MP removeAll error:', e, s);
-          throw new MongoException(e,s);
-        }
-        ))).then((_) => nextVersion);
+    cache.invalidate();
+    num nextVersion;
+    return mongoConn.transact((MongoDatabase mdb) =>
+      mdb._operation(() => _maxVersion.then((version) {
+        nextVersion = version + 1;
+        return collection.find(query).toList();
+      }).then((data) {
+        return collection.remove(query).then((_) {
+          if (data.isNotEmpty) {
+            return _collectionHistory.insertAll(data.map((elem) => {
+              "before" : elem,
+              "after" : {},
+              "action" : "remove",
+              "author" : author,
+              "version" : nextVersion++,
+              "timestamp" : new DateTime.now()
+            }).toList(growable: false));
+          } else return [];
+        });
+      },
+      onError: (e,s) {
+        // Errors thrown by MongoDatabase are Map objects with fields err, code,
+        logger.warning('MP removeAll error:', e, s);
+        throw new MongoException(e,s);
+      }
+      ))).then((_) => nextVersion);
     }
 
   Future<Map> diffFromVersion(num version) {
