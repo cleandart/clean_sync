@@ -65,7 +65,8 @@ void main() {
                     july, august, september, october, november, december];
 
       ready = LockRequestor.connect(host, lockerPort)
-          .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+          .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+          .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
           .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
           .then((_) => mongoServer.init())
@@ -75,7 +76,7 @@ void main() {
     });
 
     tearDown(() {
-      return Future.wait([mongoServer.close()]);
+      return Future.wait([mongoServer.close(), lockRequestor.close()]);
     });
 
     test('get data. (T01)', () {
@@ -607,6 +608,17 @@ void main() {
             _mongoConnection.close());
       });
 
+    });
+
+    test('should pass same MongoDatabases in nested transactions', () {
+      return mongoConnection.transact((MongoDatabase mdb) =>
+          mongoConnection.transact((MongoDatabase mdb2) =>
+              mongoConnection.transact((MongoDatabase mdb3) {
+                expect(mdb, equals(mdb2));
+                expect(mdb, equals(mdb3));
+              })
+          )
+      );
     });
 
   });

@@ -64,6 +64,8 @@ class MongoConnection {
 
   static const _dbLock = "dblock";
 
+  Db get rawDb => _db;
+
   MongoConnection(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache}) {
     _db = new Db(url);
   }

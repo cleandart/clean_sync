@@ -35,6 +35,7 @@ main(){
 run() {
 
   MongoConnection mongoConnection;
+  LockRequestor lockRequestor;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
@@ -68,7 +69,8 @@ group('collection_modification',() {
     var msPort = 27001;
     Cache cache = new Cache(new Duration(milliseconds: 10), 10000);
     return LockRequestor.connect(host, lockerPort)
-      .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor, cache: cache))
+      .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+      .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor, cache: cache))
       .then((_) => mongoConnection.init())
       .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
       .then((_) => mongoServer.init())
@@ -147,6 +149,7 @@ group('collection_modification',() {
       return item.dispose().catchError((e,s) => print("$e, $s"));
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
       .then((_) => mongoServer.close())
+      .then((_) => lockRequestor.close())
       .then((_) => mongoClient.close());
     });
 

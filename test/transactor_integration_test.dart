@@ -30,6 +30,7 @@ run() {
   MongoClient mongoClient;
   MongoServer mongoServer;
   MongoConnection mongoConnection;
+  LockRequestor lockRequestor;
   DataReference updateLock;
   Connection connection;
 
@@ -68,7 +69,8 @@ run() {
     var lockerPort = 27002;
     updateLock = new DataReference(false);
     return LockRequestor.connect(host, lockerPort)
-    .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+    .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+    .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
     .then((_) => mongoConnection.init())
     .then((_) => mongoServer = new MongoServer(msPort, mongoConnection))
     .then((_) => mongoServer.init())
@@ -94,7 +96,7 @@ run() {
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close()]);
+    return Future.wait([mongoServer.close(), mongoClient.close(), lockRequestor.close()]);
   });
 
   _addCollectionName(List<Map> docs, collectionName) => docs..forEach((e) => e["__clean_collection"] = collectionName);

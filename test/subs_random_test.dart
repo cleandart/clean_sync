@@ -60,6 +60,7 @@ run(count, cache, {failProb: 0}) {
   DataSet currCollection;
   DataSet wholeCollection;
   MongoConnection mongoConnection;
+  LockRequestor lockRequestor;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
@@ -93,7 +94,8 @@ group('subs_random_test', () {
     var lockerPort = 27002;
     updateLock = new DataReference(false);
     return LockRequestor.connect(url, lockerPort)
-    .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+    .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+    .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
     .then((_) => mongoConnection.init())
     .then((_) => mongoServer = new MongoServer(port, mongoConnection))
     .then((_) => mongoServer.init())
@@ -154,7 +156,7 @@ group('subs_random_test', () {
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close()]);
+    return Future.wait([mongoServer.close(), mongoClient.close(), lockRequestor.close()]);
   });
 
   randomChoice(Iterable iter) {

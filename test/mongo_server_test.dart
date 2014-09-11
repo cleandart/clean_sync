@@ -39,6 +39,7 @@ void run() {
 
     MongoServer server;
     MongoClient client;
+    LockRequestor lockRequestor;
     MongoConnection mongoConnection;
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
@@ -54,7 +55,8 @@ void run() {
       var lockerPort = 27002;
       var host = "127.0.0.1";
       return LockRequestor.connect(host, lockerPort)
-          .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+          .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+          .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
           .then((_) => server = new MongoServer(port, mongoConnection))
           .then((_) => server.init())
@@ -150,7 +152,8 @@ void run() {
       return Future.wait([server.mongoConnection.collection(testCollectionUser).collection.drop(),
           server.mongoConnection.collection(historyCollectionName(testCollectionUser)).collection.drop(),
           client.close()])
-          .then((_) => server.close());
+          .then((_) => server.close())
+          .then((_) => lockRequestor.close());
     });
 
     test("save document", () {

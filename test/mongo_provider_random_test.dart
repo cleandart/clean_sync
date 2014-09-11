@@ -38,6 +38,7 @@ run(count) {
   MongoProvider wholeCollection;
   MongoConnection mongoConnection;
   MongoServer mongoServer;
+  LockRequestor lockRequestor;
 
   setup(selector) {
     var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
@@ -45,7 +46,8 @@ run(count) {
     var msPort = 27001;
     var lockerPort = 27002;
     return LockRequestor.connect(host, lockerPort)
-      .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+      .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
+      .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
       .then((_) => mongoConnection.init())
       .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
       .then((_) => mongoServer.init())
@@ -149,7 +151,7 @@ run(count) {
     }
 
     _teardown() {
-      mongoServer.close();
+      return Future.wait([mongoServer.close(), lockRequestor.close()]);
     };
 
    _test(){
