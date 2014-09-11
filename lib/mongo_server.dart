@@ -77,27 +77,27 @@ class MongoServer {
   int port;
   String mongoUrl;
   Map <String, ServerOperation> operations = {};
-  MongoDatabase db;
+  MongoConnection mongoConnection;
   String userColName;
   List<RawOperationCall> queue;
   List<Socket> clientSockets = [];
   ServerSocket serverSocket;
 
-  MongoServer(this.port, this.db, {this.userColName}){
+  // Assert: MongoConnection is already initialized
+  MongoServer(this.port, this.mongoConnection, {this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
-  Future start() {
+  Future init() {
     queue = [];
-    var socketFuture = ServerSocket.bind("127.0.0.1", port).then(
+    return ServerSocket.bind("127.0.0.1", port).then(
       (ServerSocket server) {
         serverSocket = server;
         serverSocket.listen(handleClient);
       }
     ).catchError((e,s) =>
         print("Caught error: $e, $s"));
-    return Future.wait(db.init..add(socketFuture));
   }
 
   handleOperation(Socket socket, Map req) {
@@ -122,7 +122,7 @@ class MongoServer {
 
   Future close() {
      return Future.wait([
-         db.close(),
+         mongoConnection.close(),
          Future.wait(clientSockets.map((socket) => socket.close())),
          serverSocket.close(),
       ]);
@@ -185,14 +185,14 @@ class MongoServer {
     MongoProvider mongoProvider;
 
     for (String col in opCall.colls) {
-      fullColls.add(db.collection(col));
+      fullColls.add(mongoConnection.collection(col));
     }
 
     _logger.finest('fetching docs ($opCall)');
     int i = -1;
-    return db.withLock(() => Future.forEach(opCall.docs, (doc){
+    return mongoConnection.transact((MongoDatabase mdb) => Future.forEach(opCall.docs, (doc){
       i++;
-      return db.collection(opCall.docs[i][1]).find({'_id': opCall.docs[i][0]}).findOne()
+      return mongoConnection.collection(opCall.docs[i][1]).find({'_id': opCall.docs[i][0]}).findOne()
           .catchError((e,s) => throw new DocumentNotFoundException('$e','$s'))
           .then((fullDoc) => fullDocs.add(fullDoc));
     }).then((_){
@@ -202,7 +202,7 @@ class MongoServer {
         if (userColName == null) {
           throw new Exception('userColName is not set!');
         }
-        return db.collection(userColName).find({'_id': opCall.userId}).findOne();
+        return mongoConnection.collection(userColName).find({'_id': opCall.userId}).findOne();
       } else {
         return null;
       }
@@ -211,7 +211,7 @@ class MongoServer {
       _logger.finer('MS operation - before ($opCall)');
       user = _user != null ? new DataMap.from(_user) : null;
       fOpCall = new ServerOperationCall(opCall.name, docs: fullDocs,
-          colls: fullColls, user: user, args: opCall.args, db: db, author: opCall.author,
+          colls: fullColls, user: user, args: opCall.args, db: mdb, author: opCall.author,
           clientVersion: opCall.clientVersion);
       return Future.forEach(op.before, (opBefore) =>
         // Before callbacks should return either true, false or null
@@ -239,7 +239,7 @@ class MongoServer {
       return op.operation(fOpCall);
     }).then((_) {
       return Future.forEach(fullDocs, (d) {
-        return db.collection(d["__clean_collection"]).change(d["_id"], d,
+        return mongoConnection.collection(d["__clean_collection"]).change(d["_id"], d,
             opCall.author, clientVersion: opCall.clientVersion);
       });
     }).then((_) {

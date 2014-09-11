@@ -39,7 +39,7 @@ void run() {
 
     MongoServer server;
     MongoClient client;
-    MongoDatabase mongodb;
+    MongoConnection mongoConnection;
     IdGenerator idgen = new IdGenerator();
     String testCollectionUser = 'testCollectionUser';
     String lastOperation;
@@ -54,10 +54,11 @@ void run() {
       var lockerPort = 27002;
       var host = "127.0.0.1";
       return LockRequestor.connect(host, lockerPort)
-          .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
-          .then((_) => server = new MongoServer(port, mongodb))
-          .then((_) => server.start())
-          .then((_) => server.db.dropCollection(testCollectionUser))
+          .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+          .then((_) => mongoConnection.init())
+          .then((_) => server = new MongoServer(port, mongoConnection))
+          .then((_) => server.init())
+          .then((_) => server.mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection(testCollectionUser)))
           .then((_) {
 
         client = new MongoClient(host, 27001);
@@ -146,8 +147,8 @@ void run() {
     });
 
     tearDown(() {
-      return Future.wait([server.db.collection(testCollectionUser).collection.drop(),
-          server.db.collection(historyCollectionName(testCollectionUser)).collection.drop(),
+      return Future.wait([server.mongoConnection.collection(testCollectionUser).collection.drop(),
+          server.mongoConnection.collection(historyCollectionName(testCollectionUser)).collection.drop(),
           client.close()])
           .then((_) => server.close());
     });
@@ -160,7 +161,7 @@ void run() {
       )
       .catchError((e,s) => logger.shout("error", e, s))
       .then((_) {
-        expect(server.db.collection(testCollectionUser).find(args).findOne(), completes);
+        expect(server.mongoConnection.collection(testCollectionUser).find(args).findOne(), completes);
       });
     });
 
@@ -168,8 +169,8 @@ void run() {
       // given
       var id = idgen.next();
       var data = {'_id' : '$id', 'name' : 'some name', 'credit' : 5000};
-      return server.db.collection(testCollectionUser).add(data, "").then((_) {
-        return server.db.collection(testCollectionUser).find(data).findOne();
+      return server.mongoConnection.collection(testCollectionUser).add(data, "").then((_) {
+        return server.mongoConnection.collection(testCollectionUser).find(data).findOne();
       }).then((data){
         return client.connected.then((_){
           data['name'] = 'another name';

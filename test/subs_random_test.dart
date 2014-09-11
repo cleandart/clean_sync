@@ -59,7 +59,7 @@ main() {
 run(count, cache, {failProb: 0}) {
   DataSet currCollection;
   DataSet wholeCollection;
-  MongoDatabase mongodb;
+  MongoConnection mongoConnection;
   DataSet colAll;
   DataSet colAll2;
   DataSet colA;
@@ -93,10 +93,11 @@ group('subs_random_test', () {
     var lockerPort = 27002;
     updateLock = new DataReference(false);
     return LockRequestor.connect(url, lockerPort)
-    .then((LockRequestor lockRequestor) => mongodb = new MongoDatabase(mongoUrl, lockRequestor))
-    .then((_) => mongoServer = new MongoServer(port, mongodb))
-    .then((_) => mongoServer.start())
-    .then((_) => mongodb.dropCollection('random'))
+    .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
+    .then((_) => mongoConnection.init())
+    .then((_) => mongoServer = new MongoServer(port, mongoConnection))
+    .then((_) => mongoServer.init())
+    .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random')))
     .then((_) {
         mongoServer.registerBeforeCallback('addAll', allowOperation);
         mongoServer.registerBeforeCallback('change', allowOperation);
@@ -104,21 +105,21 @@ group('subs_random_test', () {
 
         mongoClient = new MongoClient(url, port);
         pub = new Publisher();
-        var versionProvider = mongodb.collection("random");
+        var versionProvider = mongoConnection.collection("random");
         pub.publish('a', (_) {
-          return mongodb.collection("random").find({});
+          return mongoConnection.collection("random").find({});
         });
 
         pub.publish('b', (_) {
-          return mongodb.collection("random").find({'a': 'hello'});
+          return mongoConnection.collection("random").find({'a': 'hello'});
         });
 
         pub.publish('c', (_) {
-          return mongodb.collection("random").find({'a.a': 'hello'});
+          return mongoConnection.collection("random").find({'a.a': 'hello'});
         });
 
         pub.publish('d', (_) {
-          return mongodb.collection("random").find({'noMatch': 'noMatch'});
+          return mongoConnection.collection("random").find({'noMatch': 'noMatch'});
         });
 
 
@@ -321,16 +322,15 @@ group('subs_random_test', () {
     var watch = new Stopwatch()..start();
     var watchTime = 0;
     var watchElems = 0;
-    mongodb.create_collection('random');
+    mongoConnection.transact((MongoDatabase mdb) => mdb.create_collection('random'));
 
     new Timer.periodic(new Duration(seconds: 60), (_){
       var bound = [subAll.version, subAll2.version, subA.version, subAa.version, subNoMatch.version].reduce(min);
-      mongodb.collection('random').deleteHistory(bound);
+      mongoConnection.collection('random').deleteHistory(bound);
     });
 
     return
-    Future.wait(mongodb.init).then((_) =>
-    subAll.initialSync).then((_) =>
+    subAll.initialSync.then((_) =>
     subAll2.initialSync).then((_) =>
     subA.initialSync).then((_) =>
     subAa.initialSync).then((_) =>
