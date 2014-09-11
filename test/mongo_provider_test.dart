@@ -621,5 +621,19 @@ void main() {
       );
     });
 
+    test('performing operation on disposed MongoDatabase should throw', () {
+      bool caught = false;
+      runZoned(() {
+        return mongoConnection.transact((MongoDatabase mdb) {
+          return mongoConnection.transact((MongoDatabase mdb2) {
+            new Future.delayed(new Duration(milliseconds: 500), () => mdb2.create_collection('random name'));
+            return new Future.value(null);
+          });
+        });
+      }, onError: (e,s) => caught = true);
+
+      return new Future.delayed(new Duration(milliseconds: 700), () => expect(caught, isTrue));
+    });
+
   });
 }

@@ -92,6 +92,7 @@ class MongoConnection {
     if (meta == null) {
       // Not in Zone yet => this is the root transact => create MongoDatabase
       mdb = new MongoDatabase(_db, this, cache: cache);
+      shouldDispose = true;
     } else {
       mdb = meta['db'];
     }
@@ -124,14 +125,15 @@ class MongoDatabase {
 
   Future dispose() => Future.wait(operations).then((_) => _disposed = true);
 
-  Future _logFuture(Future f) {
+  Future _logOperation(Future op()) {
     if (_disposed) throw new Exception("MongoDatabase is already disposed, no operations should be executed");
+    Future f = op();
     operations.add(f);
     return f;
   }
 
   Future create_collection(String collectionName) =>
-    _logFuture(_db.createIndex(historyCollectionName(collectionName), key: 'version',
+    _logOperation(() => _db.createIndex(historyCollectionName(collectionName), key: 'version',
         unique: true).then((_) =>
         _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
         unique: true, sparse: true)));
@@ -143,7 +145,7 @@ class MongoDatabase {
    * ensureIndex).
    */
   Future createIndex(String collectionName, Map keys, {unique: false}) {
-    if (keys.isEmpty) return _logFuture(new Future.value(null));
+    if (keys.isEmpty) return _logOperation(() => new Future.value(null));
     Map beforeKeys = {};
     Map afterKeys = {};
     keys.forEach((key, val) {
@@ -152,7 +154,7 @@ class MongoDatabase {
     });
     beforeKeys['version'] = 1;
     afterKeys['version'] = 1;
-    return _logFuture(_db.createIndex(historyCollectionName(collectionName),
+    return _logOperation(() => _db.createIndex(historyCollectionName(collectionName),
             keys: beforeKeys)
         .then((_) => _db.createIndex(historyCollectionName(collectionName),
             keys: afterKeys))
@@ -162,13 +164,13 @@ class MongoDatabase {
   MongoProvider collection(String collectionName) => connection.collection(collectionName);
 
   Future dropCollection(String collectionName) =>
-      _logFuture(Future.wait([
+      _logOperation(() => Future.wait([
       _db.collection(collectionName).drop(),
       _db.collection(historyCollectionName(collectionName)).drop()
     ]));
 
    Future _operation(callback()) =>
-       _logFuture(new Future.sync(callback));
+       _logOperation(() => new Future.sync(callback));
 
 }
 
