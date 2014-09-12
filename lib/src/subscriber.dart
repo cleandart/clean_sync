@@ -11,7 +11,7 @@ final defaultSubscriptionFactory =
 
 final defaultTransactorFactory =
     (connection, updateLock, author, idGenerator) =>
-        new Transactor(connection, updateLock, author, idGenerator);
+        new TransactorClient(connection, updateLock, author, idGenerator);
 /**
  * A control object responsible for managing subscription to server published
  * collections.
@@ -105,7 +105,7 @@ class Subscriber {
     return subscription;
   }
 
-  Transactor createTransactor(){
+  TransactorClient createTransactor(){
     String author = _dataIdGenerator.next();
     return _createTransactor(this._connection, this.updateLock, author, _dataIdGenerator);
   }

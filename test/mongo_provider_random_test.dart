@@ -7,7 +7,7 @@ import 'dart:math';
 import './mongo_provider_test.dart';
 import 'package:useful/useful.dart';
 import 'package:logging/logging.dart';
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_lock/lock_requestor.dart';
 
 
@@ -37,20 +37,19 @@ run(count) {
   MongoProvider currCollection;
   MongoProvider wholeCollection;
   MongoConnection mongoConnection;
-  MongoServer mongoServer;
+  TransactorServer transactorServer;
   LockRequestor lockRequestor;
 
   setup(selector) {
     var mongoUrl = 'mongodb://127.0.0.1/mongoProviderTest';
     var host = "127.0.0.1";
-    var msPort = 27001;
     var lockerPort = 27002;
     return LockRequestor.connect(host, lockerPort)
       .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
       .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
       .then((_) => mongoConnection.init())
-      .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
-      .then((_) => mongoServer.init())
+      .then((_) => transactorServer = new TransactorServer(mongoConnection))
+      .then((_) => transactorServer.init())
       .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random')))
       .then((_){
         wholeCollection = mongoConnection.collection('random');
@@ -151,7 +150,7 @@ run(count) {
     }
 
     _teardown() {
-      return Future.wait([mongoServer.close(), lockRequestor.close()]);
+      return Future.wait([transactorServer.close(), lockRequestor.close(), mongoConnection.close()]);
     };
 
    _test(){

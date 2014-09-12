@@ -12,7 +12,7 @@ class ClientOperationCall extends CommonOperationCall {
   ClientOperationCall(this.name, {this.docs, this.colls, this.args, this.author});
 }
 
-class Transactor {
+class TransactorClient {
   Connection _connection;
   DataReference<bool> updateLock;
   String author;
@@ -21,7 +21,7 @@ class Transactor {
 
   Map<String, ClientOperation> operations = {};
 
-  Transactor(this._connection, this.updateLock, this.author, this._idGenerator) {
+  TransactorClient(this._connection, this.updateLock, this.author, this._idGenerator) {
     defaultOperations.commonOperations.forEach((o) => operations[o.name] = o.toClientOperation());
     clientOperations.operations.forEach((o) => operations[o.name] = o);
     registerArgsDecorator("add", (args) {
@@ -29,7 +29,7 @@ class Transactor {
     });
   }
 
-  Transactor.config(this._connection, this.updateLock, this.author, this._idGenerator);
+  TransactorClient.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
   Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
     if(operations[name] == null) {

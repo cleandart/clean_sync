@@ -10,6 +10,7 @@ import 'operations.dart';
 import 'server_operations.dart' as sOps;
 import 'package:clean_data/clean_data.dart';
 import 'package:useful/socket_jsonizer.dart';
+import 'package:clean_ajax/server.dart';
 
 Logger _logger = new Logger('mongo_wrapper_logger');
 
@@ -54,18 +55,18 @@ class RawOperationCall {
   RawOperationCall(this.name, this.completer, {this.docs, this.colls,
     this.args, this.userId, this.author, this.clientVersion});
 
-  RawOperationCall.fromJson(Map source){
-    name = source['name'];
-    args = source['args'];
-    userId = source['userId'];
-    author = source['author'];
-    clientVersion = source['clientVersion'];
+  RawOperationCall.fromRequest(ServerRequest request){
+    name = request.args['operation'];
+    args = request.args['args'];
+    userId = request.authenticatedUserId;
+    author = request.args['author'];
+    clientVersion = request.args['clientVersion'];
     completer = new Completer();
-    docs = source['docs'];
+    docs = request.args['docs'];
     if (docs == null) {
       docs = [];
     }
-    colls = source['colls'];
+    colls = request.args['colls'];
     if (colls == null) {
       colls = [];
     }
@@ -73,59 +74,36 @@ class RawOperationCall {
 }
 
 
-class MongoServer {
+class TransactorServer {
   int port;
   String mongoUrl;
   Map <String, ServerOperation> operations = {};
   MongoConnection mongoConnection;
   String userColName;
-  List<RawOperationCall> queue;
-  List<Socket> clientSockets = [];
-  ServerSocket serverSocket;
+  List<RawOperationCall> queue = [];
 
   // Assert: MongoConnection is already initialized
-  MongoServer(this.port, this.mongoConnection, {this.userColName}){
+  TransactorServer(this.mongoConnection, {this.userColName}){
     ops.commonOperations.forEach((o) => operations[o.name] = o);
     sOps.operations.forEach((o) => operations[o.name] = o);
   }
 
   Future init() {
-    queue = [];
-    return ServerSocket.bind("127.0.0.1", port).then(
-      (ServerSocket server) {
-        serverSocket = server;
-        serverSocket.listen(handleClient);
-      }
-    ).catchError((e,s) =>
-        print("Caught error: $e, $s"));
+    return new Future.value(null);
   }
 
-  handleOperation(Socket socket, Map req) {
-    List<RawOperationCall> opCalls = new List();
-    var op = new RawOperationCall.fromJson(req);
-    opCalls.add(op);
-    queue.add(op);
-    op.completer.future.then((Map response){
-      response['operationId'] = req['operationId'];
-      writeJSON(socket, response);
-    });
-    _performOne();
-  }
-
-  handleClient(Socket socket){
-    clientSockets.add(socket);
-    socket.done.then((_) => clientSockets.remove(socket));
-    toJsonStream(socket).listen((Map req) {
-      if (req["type"] == "operation") return handleOperation(socket, req["data"]);
-    });
-  }
+  Future handleSyncRequest(ServerRequest request) {
+      _logger.finest("Request-operation: ${request.args}");
+      List<RawOperationCall> opCalls = new List();
+      var op = new RawOperationCall.fromRequest(request);
+      opCalls.add(op);
+      queue.add(op);
+      _performOne();
+      return op.completer.future;
+    }
 
   Future close() {
-     return Future.wait([
-         mongoConnection.close(),
-         Future.wait(clientSockets.map((socket) => socket.close())),
-         serverSocket.close(),
-      ]);
+     return new Future.value(null);
   }
 
   registerOperation(name, {operation, before, after}){

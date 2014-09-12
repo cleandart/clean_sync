@@ -23,7 +23,7 @@ void run() {
   group("Transactor basics", (){
 
     ConnectionMock connection;
-    Transactor transactor;
+    TransactorClient transactorClient;
     DataSet months;
     DataReference updateLock = new DataReference(null);
     DataMap january;
@@ -36,11 +36,11 @@ void run() {
       IdGeneratorMock idGenerator = new IdGeneratorMock();
       idGenerator.when(callsTo("next")).thenReturn("uniqueId");
 
-      transactor = new Transactor(connection, updateLock, 'author', idGenerator );
+      transactorClient = new TransactorClient(connection, updateLock, 'author', idGenerator );
       january = new DataMap.from({'__clean_collection': 'months', '_id': '1', 'name': 'january'});
       february = new DataMap.from({'__clean_collection': 'months', '_id': '2', 'name': 'february'});
 
-      transactor.registerClientOperation('mockOper',
+      transactorClient.registerClientOperation('mockOper',
         operation: (ClientOperationCall coCall) {
           mockOperColls = coCall.colls;
           mockOperArgs = coCall.args;
@@ -63,7 +63,7 @@ void run() {
       });
 
       connection.when(callsTo('send')).alwaysReturn(new Future.value(null));
-      transactor.operation('mockOper', {'args': 'args'}, docs: [january, february],
+      transactorClient.operation('mockOper', {'args': 'args'}, docs: [january, february],
           subs: subs);
       expect(mockOperArgs, equals(args));
       expect(mockOperColls, equals([colors, animals]));

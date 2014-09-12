@@ -14,7 +14,7 @@ import 'dart:async';
 
 
 class IdGeneratorMock extends Mock implements IdGenerator {}
-class TransactorMock extends Mock implements Transactor {}
+class TransactorMock extends Mock implements TransactorClient {}
 
 main(){
   setupDefaultLogHandler();
@@ -27,13 +27,13 @@ run() {
     Connection connection;
     Publisher pub;
     Subscription sub;
-    Transactor transactor;
+    TransactorClient transactor;
     DataReference updateLock;
 
     setUp((){
       updateLock = new DataReference(false);
       mongodb = new MongoDatabase('mongodb://0.0.0.0/mongoProviderTest');
-      transactor = new Transactor(connection, updateLock, 'author', new IdGeneratorMock());
+      transactor = new TransactorClient(connection, updateLock, 'author', new IdGeneratorMock());
       return Future.wait(mongodb.init)
         .then((_) => mongodb.dropCollection('random'))
         .then((_){

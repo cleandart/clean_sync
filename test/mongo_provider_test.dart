@@ -9,7 +9,7 @@ import "package:clean_sync/server.dart";
 import "package:useful/useful.dart";
 import "dart:async";
 import 'package:clean_data/clean_data.dart';
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_lock/lock_requestor.dart';
 
 
@@ -36,7 +36,7 @@ void main() {
     MongoProvider months;
     Future ready;
     MongoConnection mongoConnection;
-    MongoServer mongoServer;
+    TransactorServer mongoServer;
     LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
@@ -68,7 +68,7 @@ void main() {
           .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
           .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
-          .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
+          .then((_) => mongoServer = new TransactorServer(mongoConnection))
           .then((_) => mongoServer.init())
           .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('months')))
           .then((_) => months = mongoConnection.collection('months'));
@@ -76,7 +76,7 @@ void main() {
     });
 
     tearDown(() {
-      return Future.wait([mongoServer.close(), lockRequestor.close()]);
+      return Future.wait([mongoServer.close(), lockRequestor.close(), mongoConnection.close()]);
     });
 
     test('get data. (T01)', () {

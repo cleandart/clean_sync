@@ -39,7 +39,7 @@ class SubscriptionMock extends Mock implements Subscription {
   }
 }
 
-class TransactorMock extends Mock implements Transactor {}
+class TransactorMock extends Mock implements TransactorClient {}
 
 void main(){
   unittestConfiguration.timeout = new Duration(seconds: 5);
@@ -124,7 +124,7 @@ void run() {
 
       return future.then((_) {
         expect(subscriptionFactory.getLogs().first.args,
-            equals(['months', connection, new Transactor(null,null,null,null), updateLock]));
+            equals(['months', connection, new TransactorClient(null,null,null,null), updateLock]));
       });
     });
 
@@ -176,7 +176,7 @@ void run() {
     ConnectionMock connection;
     IdGeneratorMock idGenerator;
     Subscription months;
-    Transactor transactor;
+    TransactorClient transactor;
     DataMap january, february;
     DataSet collection;
     DataReference updateLock;
@@ -219,7 +219,7 @@ void run() {
       mockHandleData = new FunctionMock();
       mockHandleDiff = new FunctionMock();
       updateLock = new DataReference(false);
-      transactor = new Transactor(connection,updateLock, 'author', idGenerator);
+      transactor = new TransactorClient(connection,updateLock, 'author', idGenerator);
       collection = new DataSet();
       collection.addIndex(['_id']);
       months = new Subscription.config('monthsResource','months', collection, connection, idGenerator,

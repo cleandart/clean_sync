@@ -29,7 +29,7 @@ run() {
 
   Connection connection;
   LoopBackTransportStub transport;
-  Transactor transactor;
+  TransactorClient transactor;
   DataReference updateLock;
   Subscription subRandom;
   IdGenerator idgen;
@@ -60,7 +60,7 @@ run() {
 
         updateLock = new DataReference(false);
         idgen = new IdGenerator('random');
-        transactor = new Transactor(connection, updateLock, 'author', idgen);
+        transactor = new TransactorClient(connection, updateLock, 'author', idgen);
 
         subRandom = new Subscription('random', 'author_random', connection,
             idgen, transactor, updateLock);

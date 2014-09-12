@@ -10,8 +10,7 @@ import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_sync/client.dart';
 import "package:clean_sync/server.dart";
-import 'package:clean_sync/mongo_client.dart';
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_sync/id_generator.dart';
 import 'package:clean_lock/lock_requestor.dart';
 
@@ -56,9 +55,8 @@ run() {
   Publisher pub;
 
   DataReference updateLock;
-  Transactor transactor;
-  MongoServer mongoServer;
-  MongoClient mongoClient;
+  TransactorClient transactorClient;
+  TransactorServer transactorServer;
   Subscriber subscriber;
 
 group('collection_modification',() {
@@ -72,20 +70,17 @@ group('collection_modification',() {
       .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
       .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor, cache: cache))
       .then((_) => mongoConnection.init())
-      .then((_) => mongoServer = new MongoServer(27001, mongoConnection))
-      .then((_) => mongoServer.init())
-      .then((_){
-        mongoClient = new MongoClient("127.0.0.1", 27001);
-        return mongoClient.connected;
-      }).catchError((e,s) => print("$e, $s")).then((_){
-        mongoServer.registerBeforeCallback('addAll', allowOperation);
-        mongoServer.registerBeforeCallback('change', allowOperation);
-        mongoServer.registerBeforeCallback('removeAll', allowOperation);
+      .then((_) => transactorServer = new TransactorServer(mongoConnection))
+      .then((_) => transactorServer.init())
+      .catchError((e,s) => print("$e, $s")).then((_){
+        transactorServer.registerBeforeCallback('addAll', allowOperation);
+        transactorServer.registerBeforeCallback('change', allowOperation);
+        transactorServer.registerBeforeCallback('removeAll', allowOperation);
 
         pub = new Publisher();
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerHandler('sync',pub.handleSyncRequest);
-        requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
+        requestHandler.registerHandler('sync-operation', transactorServer.handleSyncRequest);
         connection = createLoopBackConnection(requestHandler);
         updateLock = new DataReference(false);
         subscriber = new Subscriber.config(connection, new IdGenerator(), defaultSubscriptionFactory, defaultTransactorFactory,
@@ -148,9 +143,9 @@ group('collection_modification',() {
     return Future.forEach(itemsToClose, (item) {
       return item.dispose().catchError((e,s) => print("$e, $s"));
     }).then((_) => new Future.delayed(new Duration(milliseconds: 200)))
-      .then((_) => mongoServer.close())
+      .then((_) => transactorServer.close())
       .then((_) => lockRequestor.close())
-      .then((_) => mongoClient.close());
+      .then((_) => mongoConnection.close());
     });
 
   executeSubscriptionActions(List actions) {
@@ -158,8 +153,7 @@ group('collection_modification',() {
     .catchError((e, s){
       print('cannot drop collection, ignoring the error');
     })
-    .then((_) =>
-      mongoClient.connected).then((_) {
+    .then((_) {
       return subAll.initialSync;}).then((_) {
       return subAll2.initialSync;}).then((_) =>
     subA.initialSync).then((_) =>

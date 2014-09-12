@@ -3,9 +3,8 @@ library mongo_server_test;
 
 import 'package:unittest/unittest.dart';
 import 'dart:async';
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_sync/server.dart';
-import 'package:clean_sync/mongo_client.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
 import 'package:clean_data/clean_data.dart';
@@ -37,7 +36,7 @@ void main() {
 void run() {
   group("Mongo Server", () {
 
-    MongoServer server;
+    TransactorServer server;
     MongoClient client;
     LockRequestor lockRequestor;
     MongoConnection mongoConnection;
@@ -58,7 +57,7 @@ void run() {
           .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
           .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
-          .then((_) => server = new MongoServer(port, mongoConnection))
+          .then((_) => server = new TransactorServer(port, mongoConnection))
           .then((_) => server.init())
           .then((_) => server.mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection(testCollectionUser)))
           .then((_) {
