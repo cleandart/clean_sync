@@ -1,6 +1,5 @@
 library transactor_integration_test;
-import 'package:clean_sync/mongo_server.dart';
-import 'package:clean_sync/mongo_client.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_sync/client.dart';
 import 'package:clean_sync/server.dart';
 import 'package:unittest/unittest.dart';
@@ -26,9 +25,8 @@ main() {
 }
 
 run() {
-  Transactor transactor;
-  MongoClient mongoClient;
-  MongoServer mongoServer;
+  TransactorClient transactorClient;
+  TransactorServer transactorServer;
   MongoConnection mongoConnection;
   LockRequestor lockRequestor;
   DataReference updateLock;
@@ -65,38 +63,35 @@ run() {
   setUp(() {
     var mongoUrl = "mongodb://0.0.0.0/mongoProviderTest";
     var host = "127.0.0.1";
-    var msPort = 27001;
     var lockerPort = 27002;
     updateLock = new DataReference(false);
     return LockRequestor.connect(host, lockerPort)
     .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
     .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
     .then((_) => mongoConnection.init())
-    .then((_) => mongoServer = new MongoServer(msPort, mongoConnection))
-    .then((_) => mongoServer.init())
+    .then((_) => transactorServer = new TransactorServer(mongoConnection))
+    .then((_) => transactorServer.init())
     .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection(collectionName)))
     .then((_) {
-      mongoClient = new MongoClient(host, msPort);
-
       MultiRequestHandler requestHandler = new MultiRequestHandler();
-      requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
+      requestHandler.registerHandler('sync-operation', transactorServer.handleSyncRequest);
       connection = new Connection.config(
           new LoopBackTransportStub(requestHandler.handleLoopBackRequest,null));
-      transactor = new Transactor.config(connection, updateLock, "author", new IdGenerator());
+      transactorClient = new TransactorClient.config(connection, updateLock, "author", new IdGenerator());
 
       operations.forEach((e) {
-        mongoServer.operations[e[0].name]= e[0];
-        transactor.operations[e[1].name] = e[1];
+        transactorServer.operations[e[0].name]= e[0];
+        transactorClient.operations[e[1].name] = e[1];
       });
-      mongoServer.registerBeforeCallback('addAll', allowOperation);
-      mongoServer.registerBeforeCallback('change', allowOperation);
-      mongoServer.registerBeforeCallback('removeAll', allowOperation);
-      mongoServer.registerBeforeCallback('send money', allowOperation);
+      transactorServer.registerBeforeCallback('addAll', allowOperation);
+      transactorServer.registerBeforeCallback('change', allowOperation);
+      transactorServer.registerBeforeCallback('removeAll', allowOperation);
+      transactorServer.registerBeforeCallback('send money', allowOperation);
     });
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close(), lockRequestor.close()]);
+    return Future.wait([transactorServer.close(), lockRequestor.close(), mongoConnection.close()]);
   });
 
   _addCollectionName(List<Map> docs, collectionName) => docs..forEach((e) => e["__clean_collection"] = collectionName);
@@ -112,7 +107,7 @@ run() {
     return mongoConnection.collection(collectionName).addAll([first, second],'author')
       .then((_) {
         _addCollectionName([first,second],collectionName);
-        return transactor.operation('send money', args, docs: [first, second], subs:[sub]);
+        return transactorClient.operation('send money', args, docs: [first, second], subs:[sub]);
       })
       .then((_) {
         expect(first["credit"], equals(2000));
@@ -144,7 +139,7 @@ run() {
     return mongoConnection.collection(collectionName).addAll([first, second], 'author')
       .then((_) {
         _addCollectionName([first, second], collectionName);
-        return transactor.operation('send money', args, docs: [first,second], subs:[sub]);
+        return transactorClient.operation('send money', args, docs: [first,second], subs:[sub]);
       })
       .then((_) => mongoConnection.collection(collectionName).find({"_id":"1"}).findOne())
       .then((d) {

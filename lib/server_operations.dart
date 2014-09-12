@@ -1,6 +1,6 @@
 library clean_sync.server_operations;
 
-import 'package:clean_sync/mongo_server.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:logging/logging.dart';
 import 'package:clean_sync/operations.dart';
 

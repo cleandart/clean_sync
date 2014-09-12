@@ -13,8 +13,7 @@ import 'package:clean_ajax/server.dart';
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 import 'package:useful/useful.dart';
-import 'package:clean_sync/mongo_server.dart';
-import 'package:clean_sync/mongo_client.dart';
+import 'package:clean_sync/transactor_server.dart';
 import 'package:clean_sync/id_generator.dart';
 import 'package:clean_lock/lock_requestor.dart';
 
@@ -73,8 +72,7 @@ run(count, cache, {failProb: 0}) {
   Subscription subAa;
   Subscription subNoMatch;
   Subscriber subscriber;
-  MongoServer mongoServer;
-  MongoClient mongoClient;
+  TransactorServer transactorServer;
 
   DataMap data1;
   DataMap data2;
@@ -83,7 +81,7 @@ run(count, cache, {failProb: 0}) {
 
   Publisher pub;
   DataReference updateLock;
-  ftransactorByAuthor(author) => new Transactor(connection, updateLock,
+  ftransactorByAuthor(author) => new TransactorClient(connection, updateLock,
       author, new IdGenerator('f'));
 
 group('subs_random_test', () {
@@ -97,15 +95,14 @@ group('subs_random_test', () {
     .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
     .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
     .then((_) => mongoConnection.init())
-    .then((_) => mongoServer = new MongoServer(port, mongoConnection))
-    .then((_) => mongoServer.init())
+    .then((_) => transactorServer = new TransactorServer(mongoConnection))
+    .then((_) => transactorServer.init())
     .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('random')))
     .then((_) {
-        mongoServer.registerBeforeCallback('addAll', allowOperation);
-        mongoServer.registerBeforeCallback('change', allowOperation);
-        mongoServer.registerBeforeCallback('removeAll', allowOperation);
+        transactorServer.registerBeforeCallback('addAll', allowOperation);
+        transactorServer.registerBeforeCallback('change', allowOperation);
+        transactorServer.registerBeforeCallback('removeAll', allowOperation);
 
-        mongoClient = new MongoClient(url, port);
         pub = new Publisher();
         var versionProvider = mongoConnection.collection("random");
         pub.publish('a', (_) {
@@ -127,7 +124,7 @@ group('subs_random_test', () {
 
         MultiRequestHandler requestHandler = new MultiRequestHandler();
         requestHandler.registerDefaultHandler(pub.handleSyncRequest);
-        requestHandler.registerHandler('sync-operation', mongoClient.handleSyncRequest);
+        requestHandler.registerHandler('sync-operation', transactorServer.handleSyncRequest);
         transport = new LoopBackTransportStub(
             requestHandler.handleLoopBackRequest, null);
         connection = new Connection.config(transport);
@@ -151,12 +148,11 @@ group('subs_random_test', () {
         data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
         data4 = new DataMap.from({'a' : 'hello'});
 
-        return Future.wait([mongoClient.connected]);
     });
   });
 
   tearDown(() {
-    return Future.wait([mongoServer.close(), mongoClient.close(), lockRequestor.close()]);
+    return Future.wait([transactorServer.close(), lockRequestor.close(), mongoConnection.close()]);
   });
 
   randomChoice(Iterable iter) {

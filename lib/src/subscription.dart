@@ -177,7 +177,7 @@ class Subscription {
   String mongoCollectionName;
   DataSet collection;
   Connection _connection;
-  Transactor transactor;
+  TransactorClient transactor;
   final Function _handleData;
   final Function _handleDiff;
   // Used for testing and debugging. If true, data (instead of diff) is

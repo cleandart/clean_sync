@@ -22,5 +22,5 @@ import 'package:clean_sync/id_generator.dart';
 
 part 'src/subscription.dart';
 part 'src/subscriber.dart';
-part 'src/transactor.dart';
+part 'src/transactor_client.dart';
 //part 'src/mongo_comparator.dart';
