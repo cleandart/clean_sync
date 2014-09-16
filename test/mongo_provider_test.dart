@@ -34,7 +34,6 @@ void handleDiff(List<Map> diff, List collection) {
 void main() {
   group('MongoProvider', () {
     MongoProvider months;
-    Future ready;
     MongoConnection mongoConnection;
     TransactorServer mongoServer;
     LockRequestor lockRequestor;
@@ -64,7 +63,7 @@ void main() {
       monthsCol = [january, february, march, april, may, june,
                     july, august, september, october, november, december];
 
-      ready = LockRequestor.connect(host, lockerPort)
+      return LockRequestor.connect(host, lockerPort)
           .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
           .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
@@ -72,7 +71,6 @@ void main() {
           .then((_) => mongoServer.init())
           .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('months')))
           .then((_) => months = mongoConnection.collection('months'));
-      return ready;
     });
 
     tearDown(() {
@@ -81,19 +79,17 @@ void main() {
 
     test('get data. (T01)', () {
       // when
-      return ready.then((_) {
 
         // then
         return months.data().then((Map data) {
           expect(data['data'], equals([]));
           expect(data['version'], equals(0));
         });
-      });
     });
 
     test('add data. (T02)', () {
       // when
-      return ready.then((_) => months.add(clone(january), 'John Doe'))
+      return months.add(clone(january), 'John Doe')
         .then((_) => months.data())
         .then((data){
 
@@ -117,7 +113,7 @@ void main() {
 
     test('add more data at once data. (T02.1)', () {
       // when
-      return ready.then((_) => months.addAll([clone(january), clone(february)], 'John Doe'))
+      return months.addAll([clone(january), clone(february)], 'John Doe')
         .then((_) => months.data())
         .then((data){
 
@@ -151,8 +147,8 @@ void main() {
 
     test('find', () {
       // when
-      return ready.then((_) => months.addAll([clone(january), clone(february),
-                                              clone(march), clone(april)], 'John Doe'))
+      return months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe')
         .then((_) => months.find({'days': 31}).data())
         .then((data){
           data['data'].forEach((v) => v..remove(COLLECTION_NAME));
@@ -162,8 +158,8 @@ void main() {
 
     test('take_fields', () {
       // when
-      return ready.then((_) => months.addAll([clone(january), clone(february),
-                                              clone(march), clone(april)], 'John Doe'))
+      return months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe')
         .then((_) => months.find({'days': 31}).fields(['days']).data())
         .then((data){
           data['data'].forEach((v) => v..remove(COLLECTION_NAME));
@@ -174,8 +170,8 @@ void main() {
 
     test('exclude_fields', () {
       // when
-      return ready.then((_) => months.addAll([clone(january), clone(february),
-                                              clone(march), clone(april)], 'John Doe'))
+      return months.addAll([clone(january), clone(february),
+                                              clone(march), clone(april)], 'John Doe')
       .then((_) => months.find({'days': 31}).excludeFields(['days', 'number', '_id']).data())
         .then((data){
           data['data'].forEach((v) => v..remove(COLLECTION_NAME));
@@ -185,7 +181,7 @@ void main() {
 
     test('exclude_nested', () {
       // when
-      return ready.then((_) => months.addAll([{'a': {'b': 'c', 'd': 'e'}}], 'JD'))
+      return months.addAll([{'a': {'b': 'c', 'd': 'e'}}], 'JD')
       .then((_) => months.find().excludeFields(['_id', 'a.b']).data())
         .then((data){
           data['data'].forEach((v) => v..remove(COLLECTION_NAME));
@@ -200,7 +196,7 @@ void main() {
     skip_test('add data with same _id. (T03)', () {
 // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
+      Future shouldThrow = months.add(clone(january), 'John Doe')
 
       // when
       .then((_) => months.add(clone(january2), 'John Doe'));
@@ -213,7 +209,7 @@ void main() {
     test('addAll data with same _id. (T03.1)', () {
 // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      Future shouldThrow = ready.then((_) => months.addAll([clone(january)], 'John Doe'))
+      Future shouldThrow = months.addAll([clone(january)], 'John Doe')
 
       // when
       .then((_) => months.addAll([clone(january2)], 'John Doe'));
@@ -226,14 +222,14 @@ void main() {
     test('breaking unique index constraint throws', () {
       var catched = false;
       //given
-      mongoConnection.transact((MongoDatabase mdb) {
-        return ready.then((_) => mdb.createIndex('months', {'a':1}, unique: true))
+      return mongoConnection.transact((MongoDatabase mdb) {
+        return mdb.createIndex('months', {'a':1}, unique: true)
          .then((_) =>
             months.change("2", {'a': 'a', 'b': 'b', '_id': "2"}, 'dummy', upsert: true))
          .then((_) =>
             //when
             months.change("1", {'a': 'a', 'b': 'b', '_id': "1"}, 'dummy', upsert: true))
-         .catchError((e){
+         .catchError((e,s){
             //then catch error
             catched = true;
           });
@@ -273,7 +269,7 @@ void main() {
     test('change data. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(clone(january), 'John Doe'))
+      return months.add(clone(january), 'John Doe')
 
       // when
         .then((_) => months.change('january', clone(january2), 'Michael Smith'))
@@ -301,7 +297,7 @@ void main() {
     test('change data with jsonChange. (T04)', () {
       // given
       Map january2 = {'name': 'January2', 'days': 11, 'number': 4, '_id': 'january'};
-      return ready.then((_) => months.add(clone(january), 'John Doe'))
+      return months.add(clone(january), 'John Doe')
 
       // when
         .then((_) => months.changeJson('january', [january, clone(january2)], 'Michael Smith'))
@@ -328,7 +324,7 @@ void main() {
 
     test('change data with bad _id. (T06)', () {
       // given
-      Future shouldThrow = ready.then((_) => months.add(clone(january), 'John Doe'))
+      Future shouldThrow = months.add(clone(january), 'John Doe')
 
       // when
         .then((_) => months.change('january', february, 'Michael Smith'));
@@ -339,7 +335,7 @@ void main() {
 
     test('remove data. (T07)', () {
       // given
-      Future toRemove = ready.then((_) => months.add(clone(january), 'John Doe'))
+      Future toRemove = months.add(clone(january), 'John Doe')
 
       // when
         .then((_) => months.remove('january', 'Michael Smith'));
@@ -363,8 +359,8 @@ void main() {
 
     test('removeAll data. (T07.1)', () {
       // given
-      Future toRemove = ready.then((_) => months.addAll([january, february, march,
-                                                         april], 'John Doe'))
+      Future toRemove = months.addAll([january, february, march,
+                                                         april], 'John Doe')
 
       // when
         .then((_) => months.removeAll({'days': 31}, 'Michael Smith'));
@@ -393,7 +389,7 @@ void main() {
 
     test('remove nonexisting data. (T08)', () {
       // when
-      Future shouldNotThrow = ready.then((_) => months.remove('january', 'Michael Smith'))
+      Future shouldNotThrow = months.remove('january', 'Michael Smith')
           .then(expectAsync((res){
           }));
       // then
@@ -407,7 +403,7 @@ void main() {
       List dataEnd;
 
       Future multipleAccess =
-          ready.then((_) => months.data()).then((data) => dataStart = data['data'] )
+          months.data().then((data) => dataStart = data['data'] )
 
        .then((_) => months.addAll(clone([january, february, march, april]), 'John Doe'))
        .then((_) => months.change('january', january2, 'John Doe'))
@@ -431,8 +427,7 @@ void main() {
 
     test('update data 1.', () {
       //when
-      return ready
-          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
+      return months.addAll(clone(monthsCol), 'John Doe')
           .then((_) => months.update({'days': 28},
             (Map document) {
               document["days"] = 29;
@@ -463,8 +458,7 @@ void main() {
 
     test('update data 2.', () {
       //when
-      return ready
-          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
+      return months.addAll(clone(monthsCol), 'John Doe')
           .then((_) => months.update({'days': 28},
             (Map document) {
               document["days"] = 29;
@@ -483,8 +477,7 @@ void main() {
 
     test('update data with only one changed field. (T14)', () {
       //when
-      return ready
-          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
+      return months.addAll(clone(monthsCol), 'John Doe')
           .then((_) => months.update({'days': 31},
             (Map document) {
               document["number"] = 47;
@@ -512,8 +505,7 @@ void main() {
 
     test('update data and remove one field. (T15)', () {
       //when
-      return ready
-          .then((_) => months.addAll(clone(monthsCol), 'John Doe'))
+      return months.addAll(clone(monthsCol), 'John Doe')
           .then((_) => months.update({'days': 31},
             (Map document) {
               document.remove("number");
@@ -541,8 +533,7 @@ void main() {
     });
 
     test('stateless', (){
-      return ready
-          .then((_) => months.addAll(new List.from(monthsCol.map((e)=> clone(e))), 'John Doe'))
+      return months.addAll(new List.from(monthsCol.map((e)=> clone(e))), 'John Doe')
           .then((_){
             months.find({'days': 31}).limit(1).skip(1).fields(['name']);
             return months.find().data().then((data){
@@ -554,7 +545,7 @@ void main() {
 
     test('findOne with exactly one entry in db. (T16)', () {
       // when
-      return ready.then((_) => months.add(clone(january), 'John Doe'))
+      return months.add(clone(january), 'John Doe')
       .then((_) => months.findOne())
       .then((data) {
         data..remove(COLLECTION_NAME);
@@ -567,7 +558,7 @@ void main() {
 
     test('findOne with exactly zero entries in db. (T16.1)', () {
       // when
-      return ready.then((_) => months.findOne())
+      return months.findOne()
       .then((_) => _)
       // then
       .catchError((error) {
@@ -577,8 +568,8 @@ void main() {
 
     test('findOne with more entries in db. (T16.2)', () {
       // when
-      return ready.then((_) => months.addAll(
-          [clone(january), clone(february), clone(march)], 'John Doe'))
+      return months.addAll(
+          [clone(january), clone(february), clone(march)], 'John Doe')
       .then((_) => months.findOne())
       .then((_) => _)
       // then
@@ -589,7 +580,7 @@ void main() {
 
     test('cache should invalidate when changing the collection', () {
       MongoConnection _mongoConnection;
-      ready = LockRequestor.connect(host, lockerPort)
+      var ready = LockRequestor.connect(host, lockerPort)
                 .then((locker) => _mongoConnection = new MongoConnection('mongodb://127.0.0.1/mongoProviderTest', locker,
                                       cache: new Cache(new Duration(seconds: 1), 1000)))
                 .then((_) => _mongoConnection.init())

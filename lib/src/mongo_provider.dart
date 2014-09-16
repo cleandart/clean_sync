@@ -97,9 +97,8 @@ class MongoConnection {
       mdb = meta['db'];
     }
     return _lockRequestor.withLock(_dbLock,
-        () => (new Future.sync(() => callback(mdb)))
-              .then((_) => shouldDispose ? mdb.dispose() : null),
-        metaData: {'db': mdb});
+        () => callback(mdb), metaData: {'db' : mdb})
+        .whenComplete(() => shouldDispose ? mdb.dispose() : null);
   }
 
   MongoProvider collection(String collectionName) {
@@ -127,9 +126,9 @@ class MongoDatabase {
 
   Future _logOperation(Future op()) {
     if (_disposed) throw new Exception("MongoDatabase is already disposed, no operations should be executed");
-    Future f = op();
-    operations.add(f);
-    return f;
+    Completer completer = new Completer();
+    operations.add(completer.future);
+    return op().whenComplete(() => completer.complete());
   }
 
   Future create_collection(String collectionName) =>
