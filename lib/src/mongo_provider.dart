@@ -132,11 +132,15 @@ class MongoDatabase {
     return op().whenComplete(() => completer.complete());
   }
 
-  Future create_collection(String collectionName) =>
-    _logOperation(() => _db.createIndex(historyCollectionName(collectionName), key: 'version',
-        unique: true).then((_) =>
-        _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
-        unique: true, sparse: true)));
+  Future create_collection(String collectionName) {
+    var histColName = historyCollectionName(collectionName);
+    return _logOperation(
+        () => _db.createIndex(histColName, key: 'version', unique: true)
+        .then((_) => _db.createIndex(histColName, key: 'clientVersion', unique: true, sparse: true))
+        .then((_) => _db.createIndex(histColName, keys: {'before._id': 1, 'version': 1}, unique: true))
+        .then((_) => _db.createIndex(histColName, keys: {'after._id': 1, 'version': 1}, unique: true))
+    );
+  }
 
   /**
    * Creates index on chosen collection and corresponding indexes on collection
