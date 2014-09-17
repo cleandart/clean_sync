@@ -97,8 +97,9 @@ class MongoConnection {
       mdb = meta['db'];
     }
     return _lockRequestor.withLock(_dbLock,
-        () => callback(mdb), metaData: {'db' : mdb})
-        .whenComplete(() => shouldDispose ? mdb.dispose() : null);
+        () => new Future.sync(() => callback(mdb))
+          .whenComplete(() => shouldDispose ? mdb.dispose() : null)
+      , metaData: {'db' : mdb});
   }
 
   MongoProvider collection(String collectionName) {
