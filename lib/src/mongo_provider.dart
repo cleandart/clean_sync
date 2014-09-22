@@ -23,7 +23,9 @@ class MongoException implements Exception {
    final StackTrace stackTrace;
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
    String toString() =>
-       msg == null ? 'MongoError: $mongoError \n Stack trace: $stackTrace' : '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
+       msg == null ?
+           'MongoError: $mongoError \n Stack trace: $stackTrace' :
+           '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
 }
 
 class BreakException {
@@ -61,6 +63,7 @@ class MongoConnection {
   Db _db;
   LockRequestor _lockRequestor;
   Cache cache;
+  bool _initialized = false;
 
   static const _dbLock = "dblock";
 
@@ -82,7 +85,13 @@ class MongoConnection {
         });
   }
 
-  Future init() => _db.open();
+  Future init() {
+    if (_initialized) {
+      throw new Exception('MongoConnection.init was already called.');
+    }
+    _initialized = true;
+    return _db.open();
+  }
 
   Future transact(callback(MongoDatabase _)) {
     Map meta = _lockRequestor.getZoneMetaData();
