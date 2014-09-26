@@ -61,7 +61,7 @@ class ListCursor<V> extends DeepCursor implements List {
   void _addAll(Iterable<V> other) {
     other.forEach((value) {
       if (value is! Persistent) {
-        value = deepPersistent(value);
+        value = persist(value);
       }
       this._change(this.length, value);
     });

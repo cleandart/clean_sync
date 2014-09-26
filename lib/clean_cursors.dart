@@ -12,8 +12,10 @@ part 'src_cursors/reference.dart';
 part 'src_cursors/list_cursor.dart';
 part 'src_cursors/set_cursor.dart';
 
+/*
 DataReference refFromCursor(Cursor cursor) {
   DataReference ref = new DataReference(cursor.value);
   cursor.onChange.listen((_) => ref.value = cursor.value);
   return ref;
 }
+*/

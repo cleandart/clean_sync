@@ -7,7 +7,7 @@ class Reference {
   Map _listeners = {};
   Map _listenersSync = {};
   Reference(this._data);
-  factory Reference.from(data) => new Reference(deepPersistent(data));
+  factory Reference.from(data) => new Reference(persist(data));
 
   Cursor get cursor => cursorForIn([]);
   /*Cursor*/ cursorFor(key, {forPrimitives: true}) =>
@@ -33,7 +33,7 @@ class Reference {
     if(value is Cursor) {
       value = value.value;
     } else {
-      value = deepPersistent(value);
+      value = persist(value);
     }
     if(path.isEmpty) {
       if(_data == value) return;

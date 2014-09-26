@@ -62,7 +62,7 @@ class SetCursor extends Cursor with IterableMixin {
     reference.changeIn(path, (this.value as PersistentMap).withTransient((TransientMap map) {
       toAdd.forEach((add) {
         if(modifyBeforeAdd != null) add = modifyBeforeAdd(add);
-        map.doInsert(add['_id'], deepPersistent(add));
+        map.doInsert(add['_id'], persist(add));
       });
     }));
   }
