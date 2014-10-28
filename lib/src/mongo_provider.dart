@@ -544,6 +544,24 @@ class MongoProvider implements DataProvider {
       )).then((_) => nextVersion);
   }
 
+  updateYielding(selector, Map modifier(Map document), String author,
+                  [int processCount=1]) {
+    return fields(["_id"]).getDataSet()
+        .then((docs) => docs.map((d) => d["_id"]).toList())
+        .then((List ids) {
+      List<List> groups = [];
+      for (var i = 0; i * processCount<ids.length; i++) {
+        var _min = i * processCount;
+        var _max = min((i+1) * processCount, ids.length);
+        groups.add(ids.sublist(_min, _max));
+      }
+      return Future.forEach(groups, (group) {
+        return update({"_id": {IN: group}}, modifier, author);
+      });
+
+    });
+  }
+
   Future update(selector, Map modifier(Map document), String author) {
     cache.invalidate();
     num nextVersion;
