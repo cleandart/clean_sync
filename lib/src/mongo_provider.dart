@@ -64,12 +64,13 @@ class MongoConnection {
   LockRequestor _lockRequestor;
   Cache cache;
   bool _initialized = false;
+  final Duration timeout;
 
   static const _dbLock = "dblock";
 
   Db get rawDb => _db;
 
-  MongoConnection(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache}) {
+  MongoConnection(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache, Duration this.timeout: null}) {
     _db = new Db(url);
   }
 
@@ -108,7 +109,7 @@ class MongoConnection {
     return _lockRequestor.withLock(_dbLock,
         () => new Future.sync(() => callback(mdb))
           .whenComplete(() => shouldDispose ? mdb.dispose() : null)
-      , metaData: {'db' : mdb});
+      , timeout: timeout, metaData: {'db' : mdb});
   }
 
   MongoProvider collection(String collectionName) {
@@ -141,7 +142,7 @@ class MongoDatabase {
     return op().whenComplete(() => completer.complete());
   }
 
-  Future create_collection(String collectionName) {
+  Future createCollection(String collectionName) {
     var histColName = historyCollectionName(collectionName);
     return _logOperation(
         () => _db.createIndex(histColName, key: 'version', unique: true)

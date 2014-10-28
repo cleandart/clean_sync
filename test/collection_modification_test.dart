@@ -55,7 +55,6 @@ run() {
   Publisher pub;
 
   DataReference updateLock;
-  TransactorClient transactorClient;
   TransactorServer transactorServer;
   Subscriber subscriber;
 

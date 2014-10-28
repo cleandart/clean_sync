@@ -22,7 +22,7 @@ setup() {
   .then((LockRequestor lockRequestor) => mongoConnection = new MongoConnection('mongodb://0.0.0.0/benchmark', lockRequestor, cache: cache))
   .then((_) => mongoConnection.init())
   .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('benchmark')))
-  .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.create_collection('benchmark')))
+  .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.createCollection('benchmark')))
   .then((_) => mongoConnection.collection('benchmark'));
 }
 
