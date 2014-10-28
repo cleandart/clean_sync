@@ -238,6 +238,6 @@ class TransactorServer {
         _logger.shout("Some other error occured !",e,s);
         opCall.completer.complete({'error':{'unknown':'$e $s'}});
       }
-    }));
+    }), author: "TransactorServer. Operation name: ${opCall.name}");
   }
 }

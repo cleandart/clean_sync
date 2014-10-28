@@ -70,11 +70,13 @@ class MongoConnection {
 
   Db get rawDb => _db;
 
-  MongoConnection(String url, LockRequestor this._lockRequestor, {Cache this.cache: dummyCache, Duration this.timeout: null}) {
+  MongoConnection(String url, LockRequestor this._lockRequestor,
+      {Cache this.cache: dummyCache, Duration this.timeout: null}) {
     _db = new Db(url);
   }
 
-  static Future<MongoConnection> noLocking(String url, {Cache cache: dummyCache, int port: 27005}) {
+  static Future<MongoConnection> noLocking(String url,
+      {Cache cache: dummyCache, int port: 27005}) {
     Locker locker;
     return
         Locker.bind("127.0.0.1", port)
@@ -94,7 +96,7 @@ class MongoConnection {
     return _db.open();
   }
 
-  Future transact(callback(MongoDatabase _)) {
+  Future transact(callback(MongoDatabase _), {String author: null}) {
     Map meta = _lockRequestor.getZoneMetaData();
     MongoDatabase mdb;
     // Dispose only if this is the root transact
@@ -109,7 +111,7 @@ class MongoConnection {
     return _lockRequestor.withLock(_dbLock,
         () => new Future.sync(() => callback(mdb))
           .whenComplete(() => shouldDispose ? mdb.dispose() : null)
-      , timeout: timeout, metaData: {'db' : mdb});
+      , timeout: timeout, metaData: {'db' : mdb}, author: author);
   }
 
   MongoProvider collection(String collectionName) {
@@ -406,7 +408,7 @@ class MongoProvider implements DataProvider {
         logger.warning('MP update error:', e, s);
           throw new MongoException(e,s);
       }
-      ))).then((_) => nextVersion);
+      )), author: author).then((_) => nextVersion);
   }
 
 
@@ -457,7 +459,7 @@ class MongoProvider implements DataProvider {
         }
       })
       .catchError((e, s) => _processError(e, s))
-      )).then((_) => nextVersion);
+      ), author: author).then((_) => nextVersion);
   }
 
   static ensureId(Map doc, IdGenerator idgen) {
@@ -557,7 +559,7 @@ class MongoProvider implements DataProvider {
         }
       })
       .catchError((e, s) => _processError(e, s))
-      )).then((_) => nextVersion);
+      ), author: author).then((_) => nextVersion);
   }
 
   updateYielding(selector, Map modifier(Map document), String author,
@@ -626,7 +628,7 @@ class MongoProvider implements DataProvider {
             throw e;
           } else throw new MongoException(e,s);
         })
-      )).then((_) => nextVersion);
+      ), author: author).then((_) => nextVersion);
   }
 
   Future removeAll(query, String author) {
@@ -655,7 +657,7 @@ class MongoProvider implements DataProvider {
         logger.warning('MP removeAll error:', e, s);
         throw new MongoException(e,s);
       }
-      ))).then((_) => nextVersion);
+      )), author: author).then((_) => nextVersion);
     }
 
   Future<Map> diffFromVersion(num version) {
