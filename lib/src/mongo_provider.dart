@@ -546,7 +546,7 @@ class MongoProvider implements DataProvider {
 
   updateYielding(selector, Map modifier(Map document), String author,
                   [int processCount=1]) {
-    return fields(["_id"]).getDataSet()
+    return fields(["_id"]).find(selector).getDataSet()
         .then((docs) => docs.map((d) => d["_id"]).toList())
         .then((List ids) {
       List<List> groups = [];
