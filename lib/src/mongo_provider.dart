@@ -59,6 +59,7 @@ const String COLLECTION_NAME = '__clean_collection';
 final Function historyCollectionName =
   (collectionName) => "__clean_${collectionName}_history";
 
+
 class MongoConnection {
   Db _db;
   LockRequestor _lockRequestor;
@@ -358,14 +359,17 @@ class MongoProvider implements DataProvider {
     }
   }
 
+  get selector{
+    var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
+    return createSelector(_rawSelector, __fields, _excludeFields)
+                                   .limit(_limit).skip(_skip);
+  }
+
 
   /**
    * Returns data and version of this data.
    */
   Future<Map> _data({stripVersion: true}) {
-    var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
-    SelectorBuilder selector = createSelector(_rawSelector, __fields, _excludeFields)
-                               .limit(_limit).skip(_skip);
     return collection.find(selector).toList().then((data) {
       num watchID = startWatch('MP data ${collection.collectionName}');
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
@@ -559,25 +563,23 @@ class MongoProvider implements DataProvider {
       )).then((_) => nextVersion);
   }
 
-  updateYielding(selector, Map modifier(Map document), String author,
-                  [int processCount=1]) {
-    return fields(["_id"]).find(selector).getDataSet()
-        .then((docs) => docs.map((d) => d["_id"]).toList())
-        .then((List ids) {
-      List<List> groups = [];
-      for (var i = 0; i * processCount<ids.length; i++) {
-        var _min = i * processCount;
-        var _max = min((i+1) * processCount, ids.length);
-        groups.add(ids.sublist(_min, _max));
-      }
-      return Future.forEach(groups, (group) {
-        return update({"_id": {IN: group}}, modifier, author);
-      });
+  Future updateYielding(selector, void modifier(Map document), String author) {
 
-    });
+    Cursor cursor = collection.find(createSelector(selector, ['_id'], []));
+    Future addNext() {
+      return cursor.nextObject().then((value) {
+        if (value==null) {
+          return new Future.value(null);
+        } else {
+          return update({'_id': value['_id']}, modifier, author)
+               .then((_) => addNext());
+        }
+      });
+    }
+    return addNext();
   }
 
-  Future update(selector, Map modifier(Map document), String author) {
+  Future update(selector, dynamic modifier(Map document), String author) {
     cache.invalidate();
     num nextVersion;
     List oldData;

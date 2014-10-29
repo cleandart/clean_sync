@@ -46,7 +46,6 @@ void main() {
     var lockerPort = 27002;
 
      setUp(() {
-
       january = {'name': 'January', 'days': 31, 'number': 1, '_id': 'january'};
       february = {'name': 'February', 'days': 28, 'number': 2, '_id': 'february'};
       march =  {'name': 'March', 'days': 31, 'number': 3, '_id': 'march'};
@@ -624,6 +623,17 @@ void main() {
       }, onError: (e,s) => caught = true);
 
       return new Future.delayed(new Duration(milliseconds: 700), () => expect(caught, isTrue));
+    });
+
+    test('update yielding', (){
+      return months.addAll(monthsCol, '')
+      .then((_) => months.updateYielding({"days": 31}, (month){month['name']+='renamed';}, ''))
+      .then((_) =>months.getDataSet())
+      .then((data){
+        expect(data.findBy('_id', 'january').first['name'], equals('Januaryrenamed'));
+        expect(data.findBy('_id', 'march').first['name'], equals('Marchrenamed'));
+        expect(data.findBy('_id', 'february').first['name'], equals('February'));
+      });
     });
 
   });
