@@ -24,8 +24,8 @@ class MongoException implements Exception {
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
    String toString() =>
        msg == null ?
-           'MongoError: $mongoError \n Stack trace: $stackTrace' :
-           '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
+           'MongoError: $mongoError\nStack trace: $stackTrace' :
+           '$msg\nMongoError: $mongoError\nStack trace: $stackTrace';
 }
 
 class BreakException {
