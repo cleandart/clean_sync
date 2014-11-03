@@ -23,7 +23,9 @@ class MongoException implements Exception {
    final StackTrace stackTrace;
    const MongoException(this.mongoError, this.stackTrace, [this.msg]);
    String toString() =>
-       msg == null ? 'MongoError: $mongoError \n Stack trace: $stackTrace' : '$msg MongoError: $mongoError \n Stack trace: $stackTrace';
+       msg == null ?
+           'MongoError: $mongoError\nStack trace: $stackTrace' :
+           '$msg\nMongoError: $mongoError\nStack trace: $stackTrace';
 }
 
 class BreakException {
@@ -61,6 +63,7 @@ class MongoConnection {
   Db _db;
   LockRequestor _lockRequestor;
   Cache cache;
+  bool _initialized = false;
 
   static const _dbLock = "dblock";
 
@@ -82,7 +85,13 @@ class MongoConnection {
         });
   }
 
-  Future init() => _db.open();
+  Future init() {
+    if (_initialized) {
+      throw new Exception('MongoConnection.init was already called.');
+    }
+    _initialized = true;
+    return _db.open();
+  }
 
   Future transact(callback(MongoDatabase _)) {
     Map meta = _lockRequestor.getZoneMetaData();
@@ -132,11 +141,15 @@ class MongoDatabase {
     return op().whenComplete(() => completer.complete());
   }
 
-  Future create_collection(String collectionName) =>
-    _logOperation(() => _db.createIndex(historyCollectionName(collectionName), key: 'version',
-        unique: true).then((_) =>
-        _db.createIndex(historyCollectionName(collectionName), key: 'clientVersion',
-        unique: true, sparse: true)));
+  Future create_collection(String collectionName) {
+    var histColName = historyCollectionName(collectionName);
+    return _logOperation(
+        () => _db.createIndex(histColName, key: 'version', unique: true)
+        .then((_) => _db.createIndex(histColName, key: 'clientVersion', unique: true, sparse: true))
+        .then((_) => _db.createIndex(histColName, keys: {'before._id': 1, 'version': 1}, unique: true))
+        .then((_) => _db.createIndex(histColName, keys: {'after._id': 1, 'version': 1}, unique: true))
+    );
+  }
 
   /**
    * Creates index on chosen collection and corresponding indexes on collection
@@ -144,7 +157,8 @@ class MongoDatabase {
    * ascending/descending order (same as the map passed to mongo function
    * ensureIndex).
    */
-  Future createIndex(String collectionName, Map keys, {unique: false}) {
+  Future createIndex(String collectionName, Map keys, {unique: false,
+    sparse: false}) {
     if (keys.isEmpty) return _logOperation(() => new Future.value(null));
     Map beforeKeys = {};
     Map afterKeys = {};
@@ -158,7 +172,8 @@ class MongoDatabase {
             keys: beforeKeys)
         .then((_) => _db.createIndex(historyCollectionName(collectionName),
             keys: afterKeys))
-        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique)));
+        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique,
+            sparse: sparse)));
   }
 
   MongoProvider collection(String collectionName) => connection.collection(collectionName);
