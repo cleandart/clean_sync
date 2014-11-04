@@ -359,7 +359,7 @@ class MongoProvider implements DataProvider {
     }
   }
 
-  get selector{
+  get _selector {
     var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
     return createSelector(_rawSelector, __fields, _excludeFields)
                                    .limit(_limit).skip(_skip);
@@ -370,7 +370,7 @@ class MongoProvider implements DataProvider {
    * Returns data and version of this data.
    */
   Future<Map> _data({stripVersion: true}) {
-    return collection.find(selector).toList().then((data) {
+    return collection.find(_selector).toList().then((data) {
       num watchID = startWatch('MP data ${collection.collectionName}');
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
