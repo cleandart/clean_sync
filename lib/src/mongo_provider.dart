@@ -489,6 +489,15 @@ class MongoProvider implements DataProvider {
     return writeOperation(_id, author, 'remove', {}, clientVersion: null);
   }
 
+  Future removeBySelector(Map selector, String author) {
+    return find(selector).fields(["_id"]).getDataSet()
+        .then((docs) => docs.map((d) => d["_id"]))
+        .then((ids) => Future.forEach(ids,
+            (id) => remove(id, author)
+                // Documents can be removed meanwhile, do not throw in such case
+                .catchError((e) => e, test: (e) => e is BreakException)));
+  }
+
   Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
     cache.invalidate();
 
