@@ -320,7 +320,7 @@ group('subs_random_test', () {
     var watch = new Stopwatch()..start();
     var watchTime = 0;
     var watchElems = 0;
-    mongoConnection.transact((MongoDatabase mdb) => mdb.create_collection('random'));
+    mongoConnection.transact((MongoDatabase mdb) => mdb.createCollection('random'));
 
     new Timer.periodic(new Duration(seconds: 60), (_){
       var bound = [subAll.version, subAll2.version, subA.version, subAa.version, subNoMatch.version].reduce(min);

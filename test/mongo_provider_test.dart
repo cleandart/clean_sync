@@ -35,7 +35,6 @@ void main() {
   group('MongoProvider', () {
     MongoProvider months;
     MongoConnection mongoConnection;
-    TransactorServer mongoServer;
     LockRequestor lockRequestor;
     Map january, february, march, april, may, june, july,
         august, september, october, november, december;
@@ -66,14 +65,12 @@ void main() {
           .then((LockRequestor _lockRequestor) => lockRequestor = _lockRequestor)
           .then((_) => mongoConnection = new MongoConnection(mongoUrl, lockRequestor))
           .then((_) => mongoConnection.init())
-          .then((_) => mongoServer = new TransactorServer(mongoConnection))
-          .then((_) => mongoServer.init())
           .then((_) => mongoConnection.transact((MongoDatabase mdb) => mdb.dropCollection('months')))
           .then((_) => months = mongoConnection.collection('months'));
     });
 
     tearDown(() {
-      return Future.wait([mongoServer.close(), lockRequestor.close(), mongoConnection.close()]);
+      return Future.wait([lockRequestor.close(), mongoConnection.close()]);
     });
 
     test('get data. (T01)', () {
@@ -616,7 +613,7 @@ void main() {
       runZoned(() {
         return mongoConnection.transact((MongoDatabase mdb) {
           return mongoConnection.transact((MongoDatabase mdb2) {
-            new Future.delayed(new Duration(milliseconds: 500), () => mdb2.create_collection('random name'));
+            new Future.delayed(new Duration(milliseconds: 500), () => mdb2.createCollection('random name'));
             return new Future.value(null);
           });
         });

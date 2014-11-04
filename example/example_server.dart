@@ -14,7 +14,7 @@ void main() {
    * url = 'mongodb://clean:clean@127.0.0.1:27017/clean';
    */
   MongoDatabase mongodb = new MongoDatabase('mongodb://127.0.0.1:27017/clean');
-  mongodb.create_collection('persons');
+  mongodb.createCollection('persons');
   mongodb.createIndex('persons', {'name': 1}, unique: true);
   Future.wait(mongodb.init).then((_) {
 
