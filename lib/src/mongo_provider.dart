@@ -743,7 +743,7 @@ class MongoProvider implements DataProvider {
           _excludeFields.add('$prefix.$field');
         }
         if (_fields.isNotEmpty) {
-          _fields.addAll(['version', '_id', 'author', 'action']);
+          _fields.addAll(['version', '_id', 'author', 'action', '$prefix._id']);
         }
         return createSelector(selector, _fields, _excludeFields);
       }
