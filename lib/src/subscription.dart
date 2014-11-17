@@ -134,7 +134,9 @@ num handleDiff(List<Map> diff, Subscription subscription) {
           logger.finer('aplying changes (add)');
           collection.add(change["data"]);
         } else {
-          logger.finer('add discarded; same id already present');
+          logger.finer('id already present and add should be applied => '
+                       'applying changes (add)');
+          applyChange(change["data"], record);
         }
       }
       else if (action == "change" ) {
