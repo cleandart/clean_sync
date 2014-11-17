@@ -702,130 +702,145 @@ class MongoProvider implements DataProvider {
     }
   }
 
-  List _prettify(List diff){
-    Set seen = new Set();
-    var res = [];
-    for (Map change in diff.reversed) {
-      if (change['_id'] is! String) {
-        throw new Exception('prettify: found ID that is not String ${change}');
-      }
-      var id = change['_id']+change['action'];
-      assert(id is String);
-      if (!seen.contains(id)) {
-        res.add(change);
-      }
-      seen.add(id);
-    }
-    return new List.from(res.reversed);
-  }
-
   /// in some case not covered so far throws DiffNotPossibleException
   Future<List> __diffFromVersion(num version) {
-    // selects records that fulfilled _selector before change
-    Map beforeSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
-    // selects records that fulfill _selector after change
-    Map afterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
-    // selects records that fulfill _selector before or after change
-    Map beforeOrAfterSelector = {QUERY : {}, ORDERBY : {"version" : 1}};
-
     if (_limit > NOLIMIT || _skip > NOSKIP) {
       throw new DiffNotPossibleException();
     }
 
-    // {before: {GT: {}}} to handle selectors like {before.age: null}
-    List<Map> _beforeSelector = [{"version" : {GT : version}}, {"before" : {GT: {}}}];
-    List<Map> _afterSelector = [{"version" : {GT : version}}, {"after" : {GT: {}}}];
-    _selectorList.forEach((item) {
-      Map itemB = {};
-      Map itemA = {};
-      item.forEach((key, val) {
-        itemB["before.${key}"] = val;
-        itemA["after.${key}"] = val;
+    return maxVersion.then((maxV) {
+      // {before: {GT: {}}} to handle selectors like {before.age: null}
+      List<Map> _beforeSelector = [{"version" : {GT : version, LTE: maxV}}, {"before" : {GT: {}}}];
+      List<Map> _afterSelector = [{"version" : {GT : version, LTE: maxV}}, {"after" : {GT: {}}}];
+
+      _selectorList.forEach((item) {
+        Map itemB = {};
+        Map itemA = {};
+        item.forEach((key, val) {
+          itemB["before.${key}"] = val;
+          itemA["after.${key}"] = val;
+        });
+        _beforeSelector.add(itemB);
+        _afterSelector.add(itemA);
       });
-      _beforeSelector.add(itemB);
-      _afterSelector.add(itemA);
-    });
-    beforeSelector[QUERY][AND] = _beforeSelector;
-    afterSelector[QUERY][AND] = _afterSelector;
-    beforeOrAfterSelector[QUERY][OR] = [{AND: _beforeSelector},
-                                        {AND: _afterSelector}];
 
-    beforeOrAfterSelector[QUERY]['version'] = {GT: version};
+      // selects records that fulfilled _selector before change
+      Map beforeSelector = {QUERY : {AND: _beforeSelector}, ORDERBY : {"version" : 1}};;
+      // selects records that fulfill _selector after change
+      Map afterSelector = {QUERY : {AND: _afterSelector}, ORDERBY : {"version" : 1}};
 
-    Set before, after;
-    List beforeOrAfter, diff;
-    // if someone wants to select field X this means, we need to select before.X
-    // and after.X, also we need everythoing from the top level (version, _id,
-    // author, action
-    List beforeOrAfterFields = [], beforeOrAfterExcludedFields = [];
-    for (String field in addFieldIfNotEmpty(this._fields, '_id')){
-      beforeOrAfterFields.add('before.$field');
-      beforeOrAfterFields.add('after.$field');
-    }
-    for (String field in this._excludeFields){
-      beforeOrAfterExcludedFields.add('before.$field');
-      beforeOrAfterExcludedFields.add('after.$field');
-    }
-    if (beforeOrAfterFields.isNotEmpty) {
-      beforeOrAfterFields.addAll(['version', '_id', 'author', 'action']);
-    }
-        return _collectionHistory.find(createSelector(beforeOrAfterSelector,
-                           beforeOrAfterFields, beforeOrAfterExcludedFields)).toList()
-        .then((result) {
-          beforeOrAfter = result;
-          if (beforeOrAfter.isEmpty){
-            throw new BreakException([]);
-          } else
-          return Future.wait([
-            _collectionHistory.find(createSelector(beforeSelector, ['_id'], [])).toList(),
-            _collectionHistory.find(createSelector(afterSelector, ['_id'], [])).toList()]);})
+      List before, after;
+
+      _s(selector, fields, excludeFields, prefix) {
+        // if someone wants to select field X this means, we need to select before.X
+        // and after.X, also we need everything from the top level (version, _id,
+        // author, action
+        List _fields = [], _excludeFields = [];
+        for (String field in fields) {
+          _fields.add('$prefix.$field');
+        }
+        for (String field in excludeFields){
+          _excludeFields.add('$prefix.$field');
+        }
+        if (_fields.isNotEmpty) {
+          _fields.addAll(['version', '_id', 'author', 'action']);
+        }
+        return createSelector(selector, _fields, _excludeFields);
+      }
+
+      _prepare(d) {
+        if (d == null) return null;
+        _stripCleanVersion(d);
+        d[COLLECTION_NAME] = this.collection.collectionName;
+        return d;
+      }
+
+      return Future.wait([
+        _collectionHistory.find(_s(beforeSelector, this._fields, this._excludeFields, 'before')).toList(),
+        _collectionHistory.find(_s(afterSelector, this._fields, this._excludeFields, 'after')).toList()])
         .then((results) {
-            before = new Set.from(results[0].map((d) => d['_id']));
-            after = new Set.from(results[1].map((d) => d['_id']));
-            diff = [];
+          before = results[0];
+          after = results[1];
 
-            beforeOrAfter.forEach((record) {
-              assert(record['version']>version);
+          // add dummy stop-records to the end (used to signal when the
+          // iteration should be stopped; not used to produce the diff)
+          before.add({"version": maxV + 1, "stop": true});
+          after.add({"version": maxV + 1, "stop": true});
 
-              _stripCleanVersion(record['before']);
-              _stripCleanVersion(record['after']);
-              record["after"][COLLECTION_NAME] = this.collection.collectionName;
-              record["before"][COLLECTION_NAME] = this.collection.collectionName;
+          var a = 0, b = 0;
+          Map docsBefore = {}, docsAfter = {}, meta = {};
 
-              if(before.contains(record['_id']) && after.contains(record['_id']))
-              {
-                // record was changed
-                diff.add({
-                  "action" : "change",
-                  "_id" : record["before"]["_id"],
-                  "before" : record["before"],
-                  "data" : record["after"],
-                  "version" : record["version"],
-                  "author" : record["author"],
-                });
-              } else if(before.contains(record['_id'])) {
-                // record was removed
-                diff.add({
-                  "action" : "remove",
-                  "_id" : record["before"]["_id"],
-                  "data" : record["before"],
-                  "version" : record["version"],
-                  "author" : record["author"],
-                });
-              } else {
-                // record was added
-                diff.add({
-                  "action" : "add",
-                  "_id" : record["after"]["_id"],
-                  "data" : record["after"],
-                  "version" : record["version"],
-                  "author" : record["author"],
-                });
+          while (true) {
+            var da = after[a];
+            var db = before[b];
+
+            // when both indexes come to the stop document, break
+            if (da["stop"] == true && db["stop"] == true) break;
+
+            if (da["version"] == db["version"]) {
+              // record was changed
+              var id = da["after"]["_id"];
+              if (!docsBefore.keys.contains(id)) {
+                docsBefore[id] = db["before"];
               }
-            });
-            return _prettify(diff);
+              docsAfter[id] = da["after"];
+              meta[id] = {"version": da["version"], "author": da["author"]};
+              a++; b++;
+            } else if (da["version"] > db["version"]) {
+              // record was removed
+              var id = db["before"]["_id"];
+              if (!docsBefore.keys.contains(id)) {
+                docsBefore[id] = db["before"];
+              }
+              docsAfter[id] = null;
+              meta[id] = {"version": db["version"], "author": db["author"]};
+              b++;
+            } else if (da["version"] < db["version"]) {
+              // record was added
+              var id = da["after"]["_id"];
+              if (!docsBefore.keys.contains(id)) {
+                docsBefore[id] = null;
+              }
+              docsAfter[id] = da["after"];
+              meta[id] = {"version": da["version"], "author": da["author"]};
+              a++;
+            } else {
+              throw new Exception("Should not get here; bug in clean_sync?");
+            }
+          }
 
-    }).catchError((e, s) => _processError(e, s));
+          return docsBefore.keys
+              .where((id) => docsBefore[id] != null || docsAfter[id] != null)
+              .map((id) {
+            var a = _prepare(docsAfter[id]);
+            var b = _prepare(docsBefore[id]);
+            var action, data, before = null;
+
+            if (a != null && b != null) {
+              action = "change";
+              data = a;
+              before = b;
+            } else if (a != null) {
+                action = "add";
+                data = a;
+            } else if (b != null) {
+              action = "remove";
+              data = b;
+            }
+
+          var d = {"_id": id,
+                   "action": action,
+                   "data": data,
+                   "version": meta[id]["version"],
+                   "author": meta[id]["author"],
+                  };
+
+          return d;
+
+          }).toList();
+
+      }).catchError((e, s) => _processError(e, s));
+    });
   }
 
   num _defaultCompare(a, b) {
