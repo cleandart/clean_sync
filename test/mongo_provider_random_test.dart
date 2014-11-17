@@ -171,9 +171,9 @@ run(count) {
         }).then((_) => currCollection.data())
           .then((data){ dataEnd = data['data']; })
           .then((_) => currCollection.diffFromVersion(lastVersion))
-          .then((currCollection) {
-            currCollection['diff'].forEach((e) => lastVersion = max(lastVersion, e['version']));
-            handleDiff(currCollection['diff'], dataStart);
+          .then((res) {
+            res['diff'].forEach((e) => lastVersion = max(lastVersion, e['version']));
+            handleDiff(res['diff'], dataStart);
             testLogger.info('${toStringOrdered(dataEnd)}');
             expect(toStringOrdered(dataStart), equals(toStringOrdered(dataEnd)));
           });
