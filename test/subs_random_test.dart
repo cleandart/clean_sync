@@ -292,7 +292,7 @@ group('subs_random_test', () {
           unorderedEquals(colA));
       expect(colAll.where((d) => mongoEquals(d, ['a', 'a'], 'hello')),
           unorderedEquals(colAa));
-      expect(subNoMatch.version == subAll.version, isTrue);
+      expect(subNoMatch.version, equals(subAll.version));
 
     });
     if (checkGetData) {
