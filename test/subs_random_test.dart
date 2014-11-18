@@ -74,11 +74,6 @@ run(count, cache, {failProb: 0}) {
   Subscriber subscriber;
   TransactorServer transactorServer;
 
-  DataMap data1;
-  DataMap data2;
-  DataMap data3;
-  DataMap data4;
-
   Publisher pub;
   DataReference updateLock;
   ftransactorByAuthor(author) => new TransactorClient(connection, updateLock,
@@ -142,11 +137,6 @@ group('subs_random_test', () {
         subAa = subscriber.subscribe('c', 'random')..restart();
         colAa = subAa.collection;
         subNoMatch = subscriber.subscribe('d', 'random')..restart();
-
-        data1 = new DataMap.from({'_id': '0', 'colAll' : 'added from colAll'});
-        data2 = new DataMap.from({'_id': '1', 'colAll2': 'added from colAll2'});
-        data3 = new DataMap.from({'_id': '2', 'a': 'hello'});
-        data4 = new DataMap.from({'a' : 'hello'});
 
     });
   });
