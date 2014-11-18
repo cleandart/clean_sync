@@ -112,6 +112,9 @@ num handleDiff(List<Map> diff, Subscription subscription) {
   try {
     diff.forEach((Map change) {
       var _records = collection.findBy("_id", change["_id"]);
+      if (_records.length > 1) {
+        throw new Exception('id in the coll is not unique ${_records}');
+      }
       DataMap record = _records.isNotEmpty? _records.first : null;
       String action = change["action"];
 
