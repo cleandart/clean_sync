@@ -809,9 +809,7 @@ class MongoProvider implements DataProvider {
             }
           }
 
-          return docsBefore.keys
-              .where((id) => docsBefore[id] != null || docsAfter[id] != null)
-              .map((id) {
+          return docsBefore.keys.map((id) {
             var a = _prepare(docsAfter[id]);
             var b = _prepare(docsBefore[id]);
             var action, data, before = null;
@@ -823,7 +821,7 @@ class MongoProvider implements DataProvider {
             } else if (a != null) {
                 action = "add";
                 data = a;
-            } else if (b != null) {
+            } else {
               action = "remove";
               data = b;
             }
