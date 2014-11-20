@@ -153,7 +153,6 @@ class MongoDatabase {
         .then((_) => _db.createIndex(histColName, keys: {'before._id': 1, 'version': 1}, unique: true))
         .then((_) => _db.createIndex(histColName, keys: {'after._id': 1, 'version': 1}, unique: true))
         .then((_) => expireAfterSeconds != null ? _createTTLIndex(histColName, "timestamp", expireAfterSeconds) : null)
-        .then((_) => print("done"))
     );
   }
 
