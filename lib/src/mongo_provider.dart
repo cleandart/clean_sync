@@ -145,14 +145,34 @@ class MongoDatabase {
     return op().whenComplete(() => completer.complete());
   }
 
-  Future createCollection(String collectionName) {
+  Future createCollection(String collectionName, {Duration expireAfterSeconds}) {
     var histColName = historyCollectionName(collectionName);
     return _logOperation(
         () => _db.createIndex(histColName, key: 'version', unique: true)
         .then((_) => _db.createIndex(histColName, key: 'clientVersion', unique: true, sparse: true))
         .then((_) => _db.createIndex(histColName, keys: {'before._id': 1, 'version': 1}, unique: true))
         .then((_) => _db.createIndex(histColName, keys: {'after._id': 1, 'version': 1}, unique: true))
+        .then((_) => expireAfterSeconds != null ? _createTTLIndex(histColName, "timestamp", expireAfterSeconds) : null)
+        .then((_) => print("done"))
     );
+  }
+
+  ///Creates a TTL type of asc index on a key (doesn't work for multiple keys)
+  Future _createTTLIndex(String collectionName, String key, Duration expireAfterSeconds) {
+    return _logOperation(() {
+
+          Map selector = {"name": "_${key}_1",
+                          "key": { key: 1},
+                          "unique":true,
+                          "expireAfterSeconds": expireAfterSeconds.inSeconds,
+                          'ns' : '${rawDb.databaseName}.$collectionName'};
+
+          // Behaviour copied from Db.createIndex
+          MongoInsertMessage insertMessage = new MongoInsertMessage('${rawDb.databaseName}.${DbCommand.SYSTEM_INDEX_COLLECTION}',[selector]);
+
+          rawDb.executeDbCommand(insertMessage);
+          return rawDb.getLastError();
+    });
   }
 
   /**
