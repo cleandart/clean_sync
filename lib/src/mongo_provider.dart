@@ -167,7 +167,8 @@ class MongoDatabase {
                           'ns' : '${rawDb.databaseName}.$collectionName'};
 
           // Behaviour copied from Db.createIndex
-          MongoInsertMessage insertMessage = new MongoInsertMessage('${rawDb.databaseName}.${DbCommand.SYSTEM_INDEX_COLLECTION}',[selector]);
+          MongoInsertMessage insertMessage = new MongoInsertMessage(
+              '${rawDb.databaseName}.${DbCommand.SYSTEM_INDEX_COLLECTION}',[selector]);
 
           rawDb.executeDbCommand(insertMessage);
           return rawDb.getLastError();
