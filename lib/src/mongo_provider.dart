@@ -167,7 +167,6 @@ class MongoDatabase {
 
           Map selector = {"name": "_${key}_1",
                           "key": { key: 1},
-                          "unique":true,
                           "expireAfterSeconds": expireAfterSeconds.inSeconds,
                           'ns' : '${rawDb.databaseName}.$collectionName'};
 
