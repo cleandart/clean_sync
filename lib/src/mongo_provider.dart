@@ -145,19 +145,24 @@ class MongoDatabase {
     return op().whenComplete(() => completer.complete());
   }
 
-  Future createCollection(String collectionName, {Duration expireAfterSeconds}) {
+  /**
+   * Creates a collection [collectionName] along with its history collection. Creates indexes on
+   * prefered fields on history automatically.
+   * If [expireHistoryAfter] is set, documents in history are only retained for the set duration.
+   */
+  Future createCollection(String collectionName, {Duration expireHistoryAfter}) {
     var histColName = historyCollectionName(collectionName);
     return _logOperation(
         () => _db.createIndex(histColName, key: 'version', unique: true)
         .then((_) => _db.createIndex(histColName, key: 'clientVersion', unique: true, sparse: true))
         .then((_) => _db.createIndex(histColName, keys: {'before._id': 1, 'version': 1}, unique: true))
         .then((_) => _db.createIndex(histColName, keys: {'after._id': 1, 'version': 1}, unique: true))
-        .then((_) => expireAfterSeconds != null ? _createTTLIndex(histColName, "timestamp", expireAfterSeconds) : null)
+        .then((_) => expireHistoryAfter != null ? _createTtlIndex(histColName, "timestamp", expireHistoryAfter) : null)
     );
   }
 
   ///Creates a TTL type of asc index on a key (doesn't work for multiple keys)
-  Future _createTTLIndex(String collectionName, String key, Duration expireAfterSeconds) {
+  Future _createTtlIndex(String collectionName, String key, Duration expireAfterSeconds) {
     return _logOperation(() {
 
           Map selector = {"name": "_${key}_1",
