@@ -112,7 +112,7 @@ class MongoConnection {
     return _lockRequestor.withLock(_dbLock,
         () => new Future.sync(() => callback(mdb))
           .whenComplete(() => shouldDispose ? mdb.dispose() : null)
-      , timeout: timeout, metaData: {'db' : mdb}, author: author);
+      , timeout: timeout, metaData: {'db' : mdb}, safe: false, author: author);
   }
 
   MongoProvider collection(String collectionName) {
