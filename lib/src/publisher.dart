@@ -66,7 +66,7 @@ class Publisher {
 
   Future handleSyncRequest(ServerRequest request) {
     Map data = request.args;
-    logger.finest("REQUEST:  ${data}");
+    logger.finer("REQUEST:  ${data}");
 
     if(data['args'] == null) {
       data['args'] = {};
