@@ -180,28 +180,31 @@ class MongoDatabase {
   }
 
   /**
-   * Creates index on chosen collection and corresponding indexes on collection
-   * history. keys is a map in form {field_name: 1 or -1} with 1/-1 specifying
+   * Creates index on chosen collection and (if argument [history] is set to
+   * [true]) corresponding indexes on collection history.
+   * [keys] is a [Map] in form {field_name: 1 or -1} with 1/-1 specifying
    * ascending/descending order (same as the map passed to mongo function
    * ensureIndex).
    */
   Future createIndex(String collectionName, Map keys, {unique: false,
-    sparse: false}) {
+    sparse: false, history: true}) {
     if (keys.isEmpty) return _logOperation(() => new Future.value(null));
-    Map beforeKeys = {};
-    Map afterKeys = {};
-    keys.forEach((key, val) {
-      beforeKeys['before.$key'] = val;
-      afterKeys['after.$key'] = val;
-    });
-    beforeKeys['version'] = 1;
-    afterKeys['version'] = 1;
-    return _logOperation(() => _db.createIndex(historyCollectionName(collectionName),
-            keys: beforeKeys)
-        .then((_) => _db.createIndex(historyCollectionName(collectionName),
-            keys: afterKeys))
-        .then((_) => _db.createIndex(collectionName, keys: keys, unique: unique,
-            sparse: sparse)));
+    var todo = [() => _db.createIndex(collectionName, keys: keys, unique: unique, sparse: sparse)];
+
+    if (history) {
+      Map beforeKeys = {};
+      Map afterKeys = {};
+      keys.forEach((key, val) {
+        beforeKeys['before.$key'] = val;
+        afterKeys['after.$key'] = val;
+      });
+      beforeKeys['version'] = 1;
+      afterKeys['version'] = 1;
+
+      todo.add(() => _db.createIndex(historyCollectionName(collectionName), keys: beforeKeys));
+      todo.add(() => _db.createIndex(historyCollectionName(collectionName), keys: afterKeys));
+    }
+    return _logOperation(() => Future.forEach(todo, (f) => f()));
   }
 
   MongoProvider collection(String collectionName) => connection.collection(collectionName);
