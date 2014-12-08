@@ -10,6 +10,16 @@ final int prefix_random_part = new Random().nextInt(MAX);
 
 final Logger logger = new Logger('clean_sync');
 
+class InvalidArgsException implements Exception {
+
+  dynamic args;
+
+  InvalidArgsException(this.args);
+
+  String toString() => "Args are invalid: $args";
+
+}
+
 class Version {
   Version();
   num value = 0;
@@ -83,7 +93,11 @@ class Publisher {
     return resource.handleSyncRequest(data).
     catchError((e, s) {
       if(!e.toString().contains("__TEST__")) {
-        logger.shout('handle sync request error:', e, s);
+        if (e is InvalidArgsException) {
+          logger.warning("handle sync request warning: ",e,s);
+        } else {
+          logger.shout('handle sync request error: ', e, s);
+        }
       }
       return new Future.value({
         'error': e.toString(),
