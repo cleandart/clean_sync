@@ -31,8 +31,8 @@ abstract class DataProvider {
    *  was added. In case of 'change', value of 'data' is a [Map] containing new
    *  key-value pairs and/or pairs of already existing keys and updated values.
    */
-  Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false});
   Future<Map> diffFromVersion(num version);
+  Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false});
   Future add(Map data, String author, {String clientVersion : null});
   Future change(String id, Map change, String author, {String clientVersion : null});
   Future remove(String id, String author, {String clientVersion : null});

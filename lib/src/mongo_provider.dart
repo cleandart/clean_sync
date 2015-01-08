@@ -56,8 +56,10 @@ const String VERSION_FIELD_NAME = '__clean_version';
 const String LOCK_COLLECTION_NAME = '__clean_lock';
 const String COLLECTION_NAME = '__clean_collection';
 
-final Function historyCollectionName =
-  (collectionName) => "__clean_${collectionName}_history";
+/// Canonical way of creating name of the history collection from the name of
+/// the collection.
+String historyCollectionName(collectionName) =>
+    "__clean_${collectionName}_history";
 
 
 class MongoConnection {
@@ -71,11 +73,22 @@ class MongoConnection {
 
   Db get rawDb => _db;
 
+  /// Creates a connection to the database specified by [url] (for example
+  /// 'mongodb://0.0.0.0/test:27017'). [LockRequestor] has to be provided to
+  /// ensure transactions in db operations (other than per-document ones that
+  /// are provided by default in mongo). All [MongoConnection] instances that
+  /// work with the same database at the same time should have a [LockRequestor]
+  /// that connects to the same host and port.
+  /// The argument [timeout] specifies how long should one wait for the
+  /// db lock when performing a transaction. (It is passed to
+  /// [LockRequestor.withLock] function as [timeout].)
   MongoConnection(String url, LockRequestor this._lockRequestor,
       {Cache this.cache: dummyCache, Duration this.timeout: null}) {
     _db = new Db(url);
   }
 
+  /// Returns a [Future] of a connection to mongodb that does not lock the
+  /// database (and thus does not guarantee transactions).
   static Future<MongoConnection> noLocking(String url,
       {Cache cache: dummyCache, int port: 27005}) {
     Locker locker;
@@ -89,6 +102,9 @@ class MongoConnection {
         });
   }
 
+  /// Opens the connection to the database. Throws if the connection is open
+  /// already. (Otherwise, several connections could be open and
+  /// [_db.close] would have to be called several times to close all of them).
   Future init() {
     if (_initialized) {
       throw new Exception('MongoConnection.init was already called.');
@@ -97,6 +113,12 @@ class MongoConnection {
     return _db.open();
   }
 
+  /// Performs a database operation specified in [callback] using method
+  /// [LockRequestor.withLock], which ensures that all db operations specified
+  /// in [callback] are executed in one transaction.
+  /// The database lock is specified by the constant string [_dbLock]
+  /// and thus it ensures transactions among all users of lock requestors that
+  /// connect to the same url and port (i.e. to the same [Locker]).
   Future transact(callback(MongoDatabase _), {String author: null}) {
     Map meta = _lockRequestor.getZoneMetaData();
     MongoDatabase mdb;
@@ -115,6 +137,8 @@ class MongoConnection {
       , timeout: timeout, metaData: {'db' : mdb}, safe: false, author: author);
   }
 
+  /// Returns a [MongoProvider] that provides access to collection with name
+  /// [collectionName].
   MongoProvider collection(String collectionName) {
     DbCollection collection = _db.collection(collectionName);
     DbCollection collectionHistory =
@@ -122,6 +146,7 @@ class MongoConnection {
     return new MongoProvider(this, collection, collectionHistory, cache);
   }
 
+  /// Close connection to the database.
   Future close() => _db.close();
 
 }
@@ -134,8 +159,18 @@ class MongoDatabase {
   List<Future> operations = [];
   bool _disposed = false;
 
+  /// Wraps some of mongo_dart functions for managing mongo collections for
+  /// clean_sync purposes. That is, each operation on a mongo collection via
+  /// MongoDatabase results in necessary operations also on the corresponding
+  /// operations on the history collection.
+  ///
+  /// For example, each collection in mongo has automatically index on the _id
+  /// field. When creating the collection via [MongoDatabase.createCollection],
+  /// the history collection is also created and indexes on before._id and
+  /// after._id are created automatically.
   MongoDatabase(Db this._db, MongoConnection this.connection, {Cache this.cache: dummyCache} );
 
+  /// Waits for all operations in progress and then enters a disposed state.
   Future dispose() => Future.wait(operations).then((_) => _disposed = true);
 
   Future _logOperation(Future op()) {
@@ -146,8 +181,8 @@ class MongoDatabase {
   }
 
   /**
-   * Creates a collection [collectionName] along with its history collection. Creates indexes on
-   * prefered fields on history automatically.
+   * Creates a collection [collectionName] along with its history collection.
+   * Creates indexes on prefered fields on history automatically.
    * If [expireHistoryAfter] is set, documents in history are only retained for the set duration.
    */
   Future createCollection(String collectionName, {Duration expireHistoryAfter}) {
@@ -207,8 +242,12 @@ class MongoDatabase {
     return _logOperation(() => Future.forEach(todo, (f) => f()));
   }
 
-  MongoProvider collection(String collectionName) => connection.collection(collectionName);
+  /// Returns a [MongoProvider] that provides data and diffs that are in
+  /// mongodb collection (and corresponding history collection).
+  MongoProvider collection(String collectionName) =>
+      connection.collection(collectionName);
 
+  /// Drops the collection and the corresponding histor collection in mongodb.
   Future dropCollection(String collectionName) =>
       _logOperation(() => Future.wait([
       _db.collection(collectionName).drop(),
@@ -220,7 +259,7 @@ class MongoDatabase {
 
 }
 
-List addFieldIfNotEmpty(List fields, String field){
+List _addFieldIfNotEmpty(List fields, String field){
   if (fields.isNotEmpty) {
     var res = new List.from(fields)..add(field);
     return res;
@@ -229,7 +268,7 @@ List addFieldIfNotEmpty(List fields, String field){
   }
 }
 
-MongoProvider mpClone(MongoProvider source){
+MongoProvider _mpClone(MongoProvider source){
 
   MongoProvider m = new MongoProvider.config(source.mongoConn, source.collection,
       source._collectionHistory, source.cache, source.idgen);
@@ -254,7 +293,7 @@ class MongoProvider implements DataProvider {
   Cache cache;
   IdGenerator idgen;
 
-  //for testing purposes
+  /// This getter is public only for testing purposes, do not use it.
   Future<int> get maxVersion => _maxVersion;
 
   Future<int> get _maxVersion =>
@@ -265,49 +304,103 @@ class MongoProvider implements DataProvider {
   Map get _rawSelector => {QUERY: _selectorList.isEmpty ?
       {} : {AND: _selectorList}, ORDERBY: _sortParams};
 
-  MongoProvider(mongodb, collection, collectionHistory, cache) :
-    this.config(mongodb, collection, collectionHistory, cache,
+  /// Wraps some of mongo_dart functions for operations on mongo collections,
+  /// ensuring that the history of the collection modifications is recorded.
+  ///
+  /// For example, when a document is added to a collection via
+  /// [MongoProvider.add], the corresponding document is added to the history
+  /// collection.
+  ///
+  /// Provided [collection] and [collectionHistory] are the underlying
+  /// mongodb collections used to handle the documents.
+  MongoProvider(MongoConnection mongoConn, DbCollection collection,
+      DbCollection collectionHistory, Cache cache) :
+    this.config(mongoConn, collection, collectionHistory, cache,
         new IdGenerator(getIdPrefix()));
 
-  MongoProvider.config(this.mongoConn, this.collection, this._collectionHistory,
-      this.cache, this.idgen);
+  /// Same as [MongoProvider] with an option to specify custom [IdGenerator].
+  MongoProvider.config(MongoConnection this.mongoConn,
+      DbCollection this.collection, DbCollection this._collectionHistory,
+      Cache this.cache, IdGenerator this.idgen);
 
+  /// Delete all history documents older than version.
   Future deleteHistory(num version) {
     return _collectionHistory.remove({'version': {LT: version}});
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return documents that contain only the specified
+  /// [fields].
+  ///
+  /// Can be combined with [excludeFields], [find], [sort]...
+  ///
+  /// Example:
+  /// Let [mp] be a [MongoProvider] whose collection contains one document
+  /// {"_id":0, "a":1, "b":5}. Then [mp.fields(["a"]).data()] would return
+  /// a Future of {"_id":0, "a":1}.
   MongoProvider fields(List<String> fields) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._fields.addAll(fields);
     return res;
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return documents that exclude the specified
+  /// [excludeFields].
+  ///
+  /// Can be combined with [fields], [find], [sort]...
+  ///
+  /// Example:
+  /// Let [mp] be a [MongoProvider] whose collection contains one document
+  /// {"_id":0, "a":1, "b":5}. Then [mp.excludeFields(["a"]).data()] would
+  /// return a Future of {"_id":0, "b":5}.
   MongoProvider excludeFields(List<String> excludeFields) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._excludeFields.addAll(excludeFields);
     return res;
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return documents that exclude the specified
+  /// [excludeFields].
+  ///
+  /// Can be combined with [excludeFields], [fields], [sort]...
+  ///
+  /// Example:
+  /// Let [mp] be a [MongoProvider] whose collection contains two documents
+  /// {"_id":0, "a":1, "b":5} and {"_id":0, "a":3, "b":1}. Then
+  /// [mp.find({"a": 1}).data()] would return a Future of
+  /// {"_id":0, "a":1, "b":5}.
   MongoProvider find([Map params = const {}]) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._selectorList.add(params);
     return res;
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return document sorted according to [params].
+  /// The form of [params] is analogical to the arguments used for mongodb's
+  /// sort method.
   MongoProvider sort(Map params) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._sortParams.addAll(params);
     return res;
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return only first [value] documents. Can be used
+  /// in combination with [sort], [skip], [fields], ...
   MongoProvider limit(num value) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._limit = value;
     return res;
   }
 
+  /// Returns a MongoProvider whose data-getting methods (for example
+  /// [MongoProvider.data]) return document without the first [value] documents.
+  /// Can be used in combination with [sort], [limit], [fields], ...
   MongoProvider skip(num value) {
-    var res = mpClone(this);
+    var res = _mpClone(this);
     res._skip = value;
     return res;
   }
@@ -316,7 +409,9 @@ class MongoProvider implements DataProvider {
 //    return Tpl();
 //  }
 
-  String get repr{
+  /// Returns string representation of this [MongoProvider] for debug/logging
+  /// purposes.
+  String get repr {
     return '${collection.collectionName}$_selectorList$_sortParams$_limit$_skip$_fields$_excludeFields';
   }
 
@@ -339,15 +434,19 @@ class MongoProvider implements DataProvider {
     });
   }
 
+  /// See [DataProvider.data] specification.
   Future<Map> data({stripVersion: true}) {
     return cache.putIfAbsent('data $repr', () => _data(stripVersion: stripVersion));
   }
 
+  /// Helper function that fetches data from the collection and creates
+  /// clean_data [DataSet] from it.
   Future<DataSet> getDataSet() {
     return data().then((data) => new DataSet.from(data['data'])..addIndex(['_id']));
   }
 
-  createSelector(Map selector, List fields, List excludeFields) {
+
+  _createSelector(Map selector, List fields, List excludeFields) {
     var sel = new SelectorBuilder().raw(selector);
     if (fields.isNotEmpty) {
       sel.fields(fields);
@@ -390,8 +489,8 @@ class MongoProvider implements DataProvider {
   }
 
   get _selector {
-    var __fields = addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
-    return createSelector(_rawSelector, __fields, _excludeFields)
+    var __fields = _addFieldIfNotEmpty(_fields, VERSION_FIELD_NAME);
+    return _createSelector(_rawSelector, __fields, _excludeFields)
                                    .limit(_limit).skip(_skip);
   }
 
@@ -415,6 +514,9 @@ class MongoProvider implements DataProvider {
   }
 
 
+  /// Adds several documents, specified in [data], to the collection and adds
+  /// the corresponding records to its history, specifying [author] as the
+  /// author of the change.
   Future addAll(List<Map> data, String author) {
     for (Map d in data) ensureId(d, idgen);
     cache.invalidate();
@@ -443,7 +545,7 @@ class MongoProvider implements DataProvider {
   }
 
 
-  Future writeOperation(String _id, String author, String action, Map newData,
+  Future _writeOperation(String _id, String author, String action, Map newData,
                         {String clientVersion: null, upsert: false}) {
     cache.invalidate();
     num nextVersion;
@@ -493,32 +595,64 @@ class MongoProvider implements DataProvider {
       ), author: author).then((_) => nextVersion);
   }
 
+  /// If the provided document [doc] does not contain field "_id", modifies
+  /// the document by adding an "_id" field, using [idgen] to generate its
+  /// value.
   static ensureId(Map doc, IdGenerator idgen) {
     if (!doc.containsKey('_id')) doc['_id'] = idgen.next();
   }
 
+  /// If the provided document [doc] contains internal clean_sync meta-field
+  /// [COLLECTION_NAME], removes it from the document.
   static stripCollectionName(Map doc){
     //modifikuje doc
     if (doc.containsKey(COLLECTION_NAME)) doc.remove(COLLECTION_NAME);
     return doc;
   }
 
-  Future change(String _id, Map newData, String author, {clientVersion: null, upsert: false}) {
-    return writeOperation(_id, author, 'change', newData,
+  /// Changes the document with id [_id] to [newData] in the collection and adds
+  /// a new record to the collection history (specifying [author] as the author
+  /// of the change).
+  ///
+  /// Throws if the document with id [_id] is not present in the database and
+  /// [upsert] is [false]. If [upsert] is set to [true], the document [newData]
+  /// with id [_id] is added to the database (and history).
+  ///
+  /// [clientVersion] is used by the client-side clean_sync library and does not
+  /// have to be used when calling this method on server side.
+  Future change(String _id, Map newData, String author, {clientVersion: null,
+    upsert: false}) {
+    return _writeOperation(_id, author, 'change', newData,
         clientVersion: clientVersion, upsert: upsert);      //return _maxVersion.then((version) => {'data': data, 'version': version});
 
   }
 
+  /// Adds document [data] to the collection and the corresponding record to the
+  /// collection history (specifying [author] of the addition).
+  ///
+  /// [clientVersion] is used by the client-side clean_sync library and does not
+  /// have to be used when calling this method on server side.
   Future add(Map data, String author, {clientVersion: null}) {
     ensureId(data, idgen);
-    return writeOperation(data['_id'], author, 'add', data,
+    return _writeOperation(data['_id'], author, 'add', data,
         clientVersion: clientVersion);
   }
 
+  /// Removes the document with id [_id] from the collection and adds the
+  /// corresponding record to the collection history (specifying [author] of the
+  /// removal).
+  ///
+  /// [clientVersion] is used by the client-side clean_sync library and does not
+  /// have to be used when calling this method on server side.
   Future remove(String _id, String author, {clientVersion: null}) {
-    return writeOperation(_id, author, 'remove', {}, clientVersion: null);
+    return _writeOperation(_id, author, 'remove', {}, clientVersion: null);
   }
 
+  /// Removes all documents from collection that fulfill the [selector] using
+  /// [MongoProvider.remove]. This is a helper function.
+  ///
+  /// [selector] is used as an argument to [MongoProvider.find] to find the
+  /// documents to be removed.
   Future removeBySelector(Map selector, String author) {
     return find(selector).fields(["_id"]).getDataSet()
         .then((docs) => docs.map((d) => d["_id"]))
@@ -528,7 +662,19 @@ class MongoProvider implements DataProvider {
                 .catchError((e) => e, test: (e) => e is BreakException)));
   }
 
-  Future changeJson(String _id, jsonData, String author, {clientVersion: null, upsert: false}) {
+  /// Applies an operation encoded in [jsonData] to the mongodb collection
+  /// (and adds the corresponding record to the collection history).
+  ///
+  /// [_id] is the id of the modified document, [author] is author of the
+  /// change. [clientVersion] is used by the client-side clean_sync library and
+  /// does not have to be used when calling this method on server side.
+  /// [jsonData] can be a 2-element [List] or [Map]. In the first case the
+  /// elements are "from" and "to" versions of the data; using
+  /// [CLEAN_UNDEFINED] in the list expresses adds or removes. In the latter
+  /// case, the [Map] is just the "to" version of the data (and the action is
+  /// "change" by convention).
+  Future changeJson(String _id, jsonData, String author, {clientVersion: null,
+    upsert: false}) {
     cache.invalidate();
 
     num nextVersion;
@@ -602,9 +748,14 @@ class MongoProvider implements DataProvider {
       ), author: author).then((_) => nextVersion);
   }
 
+  /// Calls [MongoProvider.update] on all documents that match the [selector].
+  /// This is not performed in one transaction; the function "yields" in
+  /// between each two updates. This is suitable for updates that might take
+  /// a long time; one ensures that the database is not unresponsive for too
+  /// long. [modifier] and [author] are just passed to [MongoProvider.update].
   Future updateYielding(selector, void modifier(Map document), String author) {
 
-    Cursor cursor = collection.find(createSelector(selector, ['_id'], []));
+    Cursor cursor = collection.find(_createSelector(selector, ['_id'], []));
     Future addNext() {
       return cursor.nextObject().then((value) {
         if (value==null) {
@@ -618,6 +769,14 @@ class MongoProvider implements DataProvider {
     return addNext();
   }
 
+  /// For all documents in the collection that match [selector], change the
+  /// document by [modifier] and save the new version of the document instead.
+  /// The corresponding "change" record is added to the collection history,
+  /// [author] is the author of the change.
+  ///
+  /// Caution: [modifier] is used to modify the document (its return value is
+  /// irrelevant, the state of the document after calling [modifier(document)]
+  /// is saved to the database).
   Future update(selector, dynamic modifier(Map document), String author) {
     cache.invalidate();
     num nextVersion;
@@ -669,6 +828,9 @@ class MongoProvider implements DataProvider {
       ), author: author).then((_) => nextVersion);
   }
 
+  /// Remove all documents that match [query] from the database. Add the
+  /// corresponding record to the history collection, specifying [author] as the
+  /// author of the change.
   Future removeAll(query, String author) {
     cache.invalidate();
     num nextVersion;
@@ -698,6 +860,7 @@ class MongoProvider implements DataProvider {
       )), author: author).then((_) => nextVersion);
     }
 
+  /// See [DataProvider.diffFromVersion] specification.
   Future<Map> diffFromVersion(num version) {
     return cache.putIfAbsent('version ${collection.collectionName}', () => _maxVersion)
       .then((maxVer) {
@@ -772,7 +935,7 @@ class MongoProvider implements DataProvider {
         if (_fields.isNotEmpty) {
           _fields.addAll(['version', '_id', 'author', 'action', '$prefix._id']);
         }
-        return createSelector(selector, _fields, _excludeFields);
+        return _createSelector(selector, _fields, _excludeFields);
       }
 
       _prepare(d) {
@@ -1011,21 +1174,5 @@ class MongoProvider implements DataProvider {
     } else {
       data.remove('__clean_version');
     }
-  }
-}
-
-waitingForLocks() {
-  if(Zone.current[#db_lock] == null) return;
-  Zone.current[#db_lock]['count']++;
-  if(Zone.current[#db_lock]['count'] == 1) {
-    (Zone.current[#db_lock]['stopwatch'] as Stopwatch).stop();
-  }
-}
-
-gotLocks() {
-  if(Zone.current[#db_lock] == null) return;
-  Zone.current[#db_lock]['count']--;
-  if(Zone.current[#db_lock]['count'] == 0) {
-    (Zone.current[#db_lock]['stopwatch'] as Stopwatch).start();
   }
 }
