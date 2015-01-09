@@ -100,12 +100,12 @@ class Subscriber {
           " returned by 'init' method has completed.");
     }
     var subscription = _createSubscription(resourceName, mongoCollectionName,
-        _connection, _dataIdGenerator, createTransactor(), updateLock);
+        _connection, _dataIdGenerator, __createTransactor(), updateLock);
     subscriptions.add(subscription);
     return subscription;
   }
 
-  TransactorClient createTransactor(){
+  TransactorClient __createTransactor(){
     String author = _dataIdGenerator.next();
     return _createTransactor(this._connection, this.updateLock, author, _dataIdGenerator);
   }
@@ -114,6 +114,7 @@ class Subscriber {
     subscriptions.removeWhere((sub) => sub.disposed);
   }
 
+  /// Returns string representation of this [Subscriber].
   String toString({data: false}) {
     _pruneSubscriptions();
     String res = "";
@@ -131,6 +132,7 @@ class Subscriber {
     return res;
   }
 
+  /// Returns json representation of this [Subscriber].
   toJson({data: false}) {
     Map res = {};
     subscriptions.forEach((sub) {
