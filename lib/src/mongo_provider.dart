@@ -485,7 +485,7 @@ class MongoProvider implements DataProvider {
     if (e is BreakException) {
       return e.val;
     } else {
-      logger.shout("MP _processError", e, s);
+      _logger.shout("MP _processError", e, s);
       throw e;
     }
   }
@@ -502,7 +502,6 @@ class MongoProvider implements DataProvider {
    */
   Future<Map> _data({stripVersion: true}) {
     return collection.find(_selector).toList().then((data) {
-      num watchID = startWatch('MP data ${collection.collectionName}');
       var version = data.length == 0 ? 0 : data.map((item) => item['__clean_version']).reduce(max);
       if(stripVersion) _stripCleanVersion(data);
       assert(version != null);
@@ -510,7 +509,6 @@ class MongoProvider implements DataProvider {
       data.forEach((e) => e[COLLECTION_NAME] = collection.collectionName);
       return {'data': data, 'version': version};
     }).then((result) {
-      stopWatch(watchID);
       return result;
     });
   }
@@ -540,7 +538,7 @@ class MongoProvider implements DataProvider {
             }).toList(growable: false)),
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        logger.warning('MP update error:', e, s);
+        _logger.warning('MP update error:', e, s);
           throw new MongoException(e,s);
       }
       )), author: author).then((_) => nextVersion);
@@ -822,7 +820,7 @@ class MongoProvider implements DataProvider {
         })
         .catchError( (e,s ) {
           // Errors thrown by MongoDatabase are Map objects with fields err, code,
-          logger.warning('MP update error:', e, s);
+          _logger.warning('MP update error:', e, s);
           if (e is ModifierException) {
             throw e;
           } else throw new MongoException(e,s);
@@ -856,7 +854,7 @@ class MongoProvider implements DataProvider {
       },
       onError: (e,s) {
         // Errors thrown by MongoDatabase are Map objects with fields err, code,
-        logger.warning('MP removeAll error:', e, s);
+        _logger.warning('MP removeAll error:', e, s);
         throw new MongoException(e,s);
       }
       )), author: author).then((_) => nextVersion);
