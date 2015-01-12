@@ -10,6 +10,16 @@ final int prefix_random_part = new Random().nextInt(MAX);
 
 final Logger _logger = new Logger('clean_sync');
 
+/// Exception that should be thrown by the [DataGenerator] when creating
+/// [Future<DataProvider>] from [args], if the form of [args] is invalid
+/// in some way.
+///
+/// The reason for having this special kind of exception is that we would like
+/// to distinguish between errors caused by wrong requests from a client and
+/// "real" bugs or problems on the server. Invalid form of args might be caused
+/// by a client sending a malformed request (intentionally or not).
+/// Therefore, if [InvalidArgsException] is thrown during handling of a sync
+/// request, it is handled as a less serious error than other [Exceptions].
 class InvalidArgsException implements Exception {
 
   dynamic args;
