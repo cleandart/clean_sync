@@ -4,8 +4,6 @@
 
 part of clean_sync.client;
 
-emptyStartup(_){}
-
 /**
  * When subscription is disposed sooner than initialSync is completed, initialSync
  * completes with error (with CancelError). Programmers
@@ -18,10 +16,16 @@ Completer createInitialSync(){
   return res;
 }
 
-final Logger logger = new Logger('clean_sync.subscription');
+final Logger _logger = new Logger('clean_sync.subscription');
 
+/// Applies [data] (which is a response from server to get_data request) to
+/// [subscription], so that the subsribed-to collection is in sync with
+/// received data.
+///
+/// This function is not intended for direct use in production (it is public
+/// only for testing purposes).
 void handleData(List<Map> data, Subscription subscription) {
-  logger.fine('handleData for ${subscription.resourceName}: ${data}');
+  _logger.fine('handleData for ${subscription.resourceName}: ${data}');
   var collection = subscription.collection;
   subscription.updateLock.value = true;
   collection.clear();
@@ -55,6 +59,11 @@ void _applyChangeMap (Map source, DataMap target) {
   }
 }
 
+/// Applies all necessary changes to [target] so that it is in accordance with
+/// [source].
+///
+/// This function is not intended for direct use in production (it is public
+/// only for testing purposes).
 bool applyChange (source, target) {
   if (source is Map && target is Map) {
     _applyChangeMap(source, target);
@@ -70,38 +79,14 @@ bool applyChange (source, target) {
   return false;
 }
 
-void destroyMap(Map m) {
-  m.forEach((k,v){
-    destroyStructure(v);
-  });
-  for (var k in new List.from(m.keys)) {
-    m.remove(k);
-  }
-}
-
-void destroyIterable(var l) {
-  l.forEach((v){
-    destroyStructure(v);
-  });
-  for (var v in new List.from(l)) {
-    l.remove(v);
-  }
-
-}
-
-
-void destroyStructure(s){
-  if (s is Map) {
-    destroyMap(s);
-  } else
-  if (s is Iterable) {
-    destroyIterable(s);
-  } else {}
-
-}
-
+/// Applies [diff] (which is a response from server to get_diff request) to
+/// [subscription], so that the subsribed-to collection is in sync with
+/// received data.
+///
+/// This function is not intended for direct use in production (it is public
+/// only for testing purposes).
 num handleDiff(List<Map> diff, Subscription subscription) {
-  logger.fine('handleDiff: subscription: $subscription'
+  _logger.fine('handleDiff: subscription: $subscription'
               'diffSize: ${diff.length}, diff: $diff');
 
   subscription.updateLock.value = true;
@@ -119,14 +104,14 @@ num handleDiff(List<Map> diff, Subscription subscription) {
       String action = change["action"];
 
 
-      logger.finer('handling change $change');
+      _logger.finer('handling change $change');
   //     it can happen, that we get too old changes
       if (!change.containsKey('version')){
-        logger.warning('change does not contain "version" field. If not testing, '
+        _logger.warning('change does not contain "version" field. If not testing, '
                        'this is probably bug. (change: $change)');
         change['version'] = 0;
       } else if (version == null) {
-        logger.warning('Subscription $subscription version is null. If not testing, '
+        _logger.warning('Subscription $subscription version is null. If not testing, '
                        'this is probably bug.');
       } else if(change['version'] <= version) {
         return;
@@ -134,10 +119,10 @@ num handleDiff(List<Map> diff, Subscription subscription) {
       if (action == "add") {
         res = max(res, change['version']);
         if (record == null) {
-          logger.finer('aplying changes (add)');
+          _logger.finer('aplying changes (add)');
           collection.add(change["data"]);
         } else {
-          logger.finer('id already present and add should be applied => '
+          _logger.finer('id already present and add should be applied => '
                        'applying changes (add)');
           applyChange(change["data"], record);
         }
@@ -146,17 +131,17 @@ num handleDiff(List<Map> diff, Subscription subscription) {
         // TODO check if the record is not currently participating in some running operation
         // would be nice although it is not necessary
         if (record != null) {
-           logger.finer('aplying changes (change)');
+           _logger.finer('aplying changes (change)');
            res = max(res, change['version']);
            applyChange(change["data"], record);
         }
       }
       else if (action == "remove" ) {
-        logger.finer('applying changes (remove');
+        _logger.finer('applying changes (remove');
         res = max(res, change['version']);
         collection.remove(record);
       }
-      logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
+      _logger.finest('applying finished: $subscription ${subscription.collection} ${subscription._version}');
     });
   } catch (e) {
     if (e is Exception) {
@@ -164,8 +149,7 @@ num handleDiff(List<Map> diff, Subscription subscription) {
       throw e;
     }
   }
-  logger.fine('handleDiff ends');
-//  destroyStructure(diff);
+  _logger.fine('handleDiff ends');
   subscription.updateLock.value = false;
   return res;
 }
@@ -216,19 +200,29 @@ class Subscription {
   StreamController _onResyncFinishedController = new StreamController.broadcast();
   StreamController _onFullSyncController = new StreamController.broadcast();
 
+  /// Used in experimental feature "connection recovery".
   Stream get onResyncFinished => _onResyncFinishedController.stream;
+
+  /// Used in experimental feature "connection recovery".
   Stream get onFullSync => _onFullSyncController.stream;
+
+  /// Returns [true] if [dispose] has been called on this.
   bool get disposed => collection == null;
 
 
-  // version exposed only for testing and debugging
+  /// version is exposed only for testing and debugging
   get version => _version;
 
+  /// Returns string representation of this [Subscription].
   String toString() => 'Subscription(ver: ${_version})';
+
   Completer _initialSync;
   List<StreamSubscription> _subscriptions = [];
   StreamController _errorStreamController = new StreamController.broadcast();
   StreamSubscription _periodicDiffRequesting;
+
+  /// Returns a stream of errors that might arise during operation of this
+  /// [Subscription].
   Stream get errorStream {
     if (!_initialSync.isCompleted) throw new StateError("Initial sync not complete yet!");
     return _errorStreamController.stream;
@@ -244,18 +238,41 @@ class Subscription {
     return collection;
   }
 
+  /// Creates a [Subscription], allowing to specify more parameters than the
+  /// other [Subscription] constructor. This should not be called to create
+  /// subscriptions in production code, one should rather use
+  /// [Subscriber.subscribe] for this purpose.
+  ///
+  /// [collection] is the initial collection of data for this [Subscription] to
+  /// start with.
+  /// [_handleData] and [_handleDiff] may be overriden for testing purposes.
+  /// [_forceDataRequesting] set to [true] would make the subscription to
+  /// send only get_data requests (instead of get_diff requests, that are
+  /// usually sufficient), which may be useful for testing purposes.
+  /// Meaning of other arguments is explained in the doc of the other
+  /// [Subscription] constructor.
   Subscription.config(this.resourceName, this.mongoCollectionName, this.collection,
       this._connection, this._idGenerator, this.transactor, this._handleData,
       this._handleDiff, this._forceDataRequesting, this.updateLock) {
     _initialSync = createInitialSync();
   }
 
-  Subscription(resourceName, mongoCollectionName, connection, idGenerator,
-               transactor, updateLock)
+  /// Creates a [Subscription]. This should not be called to create
+  /// subscriptions in production code, one should rather use
+  /// [Subscriber.subscribe] for this purpose.
+  ///
+  /// [resourceName] is the name of resource, that is, the name under which
+  /// the resource is published on server.
+  /// [mongoCollectionName] is the name of mongo collection on which the
+  /// resource is based. (In case there is no [MongoProvider] on the server
+  /// side but some other [DataProvider], this may be null.)
+  /// [TransactorClient] is client-side endpoint for submitting transactions.
+  Subscription(String resourceName, String mongoCollectionName,
+               Connection connection, IdGenerator idGenerator,
+               TransactorClient transactor, DataReference<bool> updateLock)
       : this.config(resourceName, mongoCollectionName, _createNewCollection(),
           connection, idGenerator, transactor, handleData, handleDiff, false,
           updateLock);
-
 
   /**
    * Waits for initialSync of all provided subscriptions.
@@ -268,16 +285,16 @@ class Subscription {
   //TODO MOVE resync to Transactor
 
   void _resync() {
-    logger.info("Resyncing subscription ${this}");
+    _logger.info("Resyncing subscription ${this}");
     if (!_initialSync.isCompleted) {
-      logger.finer("Initial sync is not completed, restarting");
+      _logger.finer("Initial sync is not completed, restarting");
       restart();
       return;
     }
     List<Future> actions = [];
 
     if (_periodicDiffRequesting.isPaused) {
-      logger.fine("Resuming periodic diff requesting");
+      _logger.fine("Resuming periodic diff requesting");
       _periodicDiffRequesting.resume();
     }
 
@@ -286,8 +303,9 @@ class Subscription {
     });
   }
 
+  /// Used in experimental feature "connection recovery".
   void setupConnectionRecovery() {
-    logger.info("Setting up connection recovery for ${this}");
+    _logger.info("Setting up connection recovery for ${this}");
     _subscriptions.add(_connection.onDisconnected.listen((_) {
       _connected = false;
     }));
@@ -299,6 +317,7 @@ class Subscription {
   }
 
 
+  /// This method is public only for testing purposes.
   void setupListeners() {
     var change = new ChangeSet();
     // TODO assign ID to document added
@@ -350,7 +369,7 @@ class Subscription {
   }
 
   _createDataRequest(){
-    logger.finer("${this} sending data request with args ${args}");
+    _logger.finer("${this} sending data request with args ${args}");
 
     return new ClientRequest("sync", {
       "action" : "get_data",
@@ -360,11 +379,11 @@ class Subscription {
   }
 
   _createDiffRequest() {
-    logger.finest("${this} entering createDiffRequest");
+    _logger.finest("${this} entering createDiffRequest");
     if (requestLock || _sentItems.isNotEmpty) {
       return null;
     } else {
-      logger.finest("${this} sending diff request with args ${args}");
+      _logger.finest("${this} sending diff request with args ${args}");
       requestLock = true;
       transactor.operationPerformed = false;
 
@@ -377,9 +396,9 @@ class Subscription {
     }
   }
 
-  Future setupDataRequesting({initialData}) {
+  Future _setupDataRequesting({initialData}) {
     // request initial data; this is also called when restarting subscription
-    logger.info("Setting up data requesting for ${this}");
+    _logger.info("Setting up data requesting for ${this}");
     /// remember initialSync, that was active in thsi moment. Later, when we get
     /// initial data, we check, if this completer is already completed - if so,
     /// it means, the subscription was restarted sooner than initialSync-ed
@@ -387,12 +406,12 @@ class Subscription {
     Future data;
 
     if(initialData != null && initialData['data'] != null) {
-      logger.fine('Initiating ${this.resourceName} with data $initialData');
+      _logger.fine('Initiating ${this.resourceName} with data $initialData');
       data = new Future.value(initialData);
     }
     else {
       data = _connection.send(_createDataRequest);
-      logger.fine('Initiating ${this.resourceName} without data');
+      _logger.fine('Initiating ${this.resourceName} without data');
     }
 
 
@@ -401,7 +420,7 @@ class Subscription {
         return;
       }
       if (response['error'] != null) {
-        logger.warning("Response to 'send' completed with error ${response['error']}");
+        _logger.warning("Response to 'send' completed with error ${response['error']}");
         if (!_initialSync.isCompleted) _initialSync.completeError(new DatabaseAccessError(response['error']));
         else _errorStreamController.add(new DatabaseAccessError(response['error']));
         return;
@@ -410,7 +429,7 @@ class Subscription {
      _handleData(response['data'], this);
       _connected = true;
 
-      logger.info("Got initial data for $resourceName, synced to version ${_version}");
+      _logger.info("Got initial data for $resourceName, synced to version ${_version}");
 
       // TODO remove the check? (restart/dispose should to sth about initialSynd)
       if (!_initialSync.isCompleted) _initialSync.complete();
@@ -420,7 +439,7 @@ class Subscription {
   }
 
   void _setupPeriodicDiffRequesting() {
-    logger.info("Setting up periodic diff requesting for ${this}");
+    _logger.info("Setting up periodic diff requesting for ${this}");
     _periodicDiffRequesting = _connection
         .sendPeriodically(_forceDataRequesting ?
             _createDataRequest : _createDiffRequest)
@@ -453,7 +472,7 @@ class Subscription {
             _periodicDiffRequesting.pause();
           }
           else {
-            logger.shout('', e, s);
+            _logger.shout('', e, s);
             throw e;
           }
         });
@@ -462,20 +481,20 @@ class Subscription {
 
   void _start({initialData}) {
     _started = true;
-    logger.info("${this} starting");
+    _logger.info("${this} starting");
     _errorStreamController.stream.listen((error){
       if(!error.toString().contains("__TEST__")) {
-        logger.shout('errorStreamController error: ${error}');
+        _logger.shout('errorStreamController error: ${error}');
       }
     });
     setupConnectionRecovery();
     setupListeners();
-    setupDataRequesting(initialData: initialData);
+    _setupDataRequesting(initialData: initialData);
   }
 
 
   Future _closeSubs() {
-    logger.info("Closing all stream subscriptions of ${this}");
+    _logger.info("Closing all stream subscriptions of ${this}");
     List subToClose = [];
     _subscriptions.forEach((sub) => subToClose.add(sub.cancel()));
     _subscriptions.clear();
@@ -485,8 +504,12 @@ class Subscription {
         (_) => Future.wait(_sentItems));
   }
 
+  /// Stops syncing [collection] with the published resource in both ways. That
+  /// is, after calling [dispose], new changes on server will not be requested
+  /// by this [Subscription] and changes made on this client will not be
+  /// propagated to server. The value of [collection] is set to null.
   Future dispose(){
-    logger.info("Disposing of ${this}");
+    _logger.info("Disposing of ${this}");
     if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
     return _closeSubs()
       .then((_) {
@@ -497,11 +520,26 @@ class Subscription {
       });
   }
 
+  /// Restarts the syncing of [collection], or starts syncing if it was not
+  /// started. [restart] may be used to change the [args]. The value of [args]
+  /// is propagated to server and it is be passed to [DataGenerator] to create
+  /// the desired [DataProvider].
+  ///
+  /// After [restart] is called, the changes to this resource on server will be
+  /// periodically requested by this [Subscription], received and applied to the
+  /// [collection]. Also, all changes of the collection made on this client
+  /// will be listened to and propagated to server.
+  ///
+  /// If [initialData] is null, get_data request is first sent to server
+  /// to initialize the [collection]. Alternatively, if [initialData] is
+  /// provided it is used to initialize the collection and get_data request is
+  /// not sent. In both cases, the subscription continues with get_diff requests
+  /// after the [collection] has been initialized.
   void restart({Map args: const {}, initialData}) {
-    logger.info("Restarting ${this} with args: ${args}");
+    _logger.info("Restarting ${this} with args: ${args}");
     this.args = args;
     if (!_started) {
-      logger.fine("First restart of subscription");
+      _logger.fine("First restart of subscription");
       _start(initialData: initialData);
     } else {
       if (!_initialSync.isCompleted) _initialSync.completeError(new CanceledException());
