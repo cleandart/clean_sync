@@ -70,13 +70,14 @@ class Resource {
 /// Let us assume we have already access to [MongoProvider] users, which is
 /// associated with some mongo collection of users.
 ///
-/// 1. We may publish resource "users", providing (_) => users as the
-///  corresponding [DataGenerator]. Subscribing to such resource would then
-///  result in having a synced collection of all users on client.
+/// 1. We may publish resource "users" like this:
+///     publisher.publish("users", (_) => users)
+/// Subscribing to such resource would then result in having a synced collection
+/// of all users on client.
 ///
-/// 2. We may publish resource "users-of-age" providing
-/// (args) => users.find({"age": args["age"]}) as the corresponding
-/// [DataGenerator]. Subscribing to this resource, providing arguments
+/// 2. We may publish resource "users-of-age" like this:
+///     publisher.publish("users-of-age", (args) => users.find({"age": args["age"]}))
+/// Subscribing to this resource, providing arguments
 /// containing "age", would result in having a synced collection of all users
 /// with the given age on client. For example,
 /// subscription.restart(args: {"age": 20})) would result in having a collection
