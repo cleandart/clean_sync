@@ -361,10 +361,12 @@ class MongoProvider implements DataProvider {
   }
 
   /// Returns a MongoProvider whose data-getting methods (for example
-  /// [MongoProvider.data]) return documents that exclude the specified
-  /// [excludeFields].
+  /// [MongoProvider.data]) return documents that match [params].
   ///
-  /// Can be combined with [excludeFields], [fields], [sort]...
+  /// [params] should be a map in a form {k1: v1, k2: v2, ...} and a document
+  /// matches if it contains keys k1, k2,... and these are mapped to values
+  /// v1, v2,... respectively. Concatenation of more [find] methods merges
+  /// the [params] maps.
   ///
   /// Example:
   /// Let [mp] be a [MongoProvider] whose collection contains two documents
