@@ -7,6 +7,9 @@ import 'package:clean_sync/operations.dart';
 Logger logger = new Logger('mongo_wrapper_logger');
 
 // First element is ServerOperation, second is equivalent ClientOperation
+/// List of default server operations: add, remove, addAll, removeAll.
+/// The before part is specific for server, the operation part is equivalent to
+/// ClientOperation.
 List operations = [
     new ServerOperation('add',
       before: (ServerOperationCall opCall) {
