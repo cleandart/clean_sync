@@ -3,7 +3,7 @@ library clean_sync.operations;
 import 'package:clean_data/clean_data.dart';
 import 'package:logging/logging.dart';
 
-Logger logger = new Logger('mongo_wrapper_logger');
+Logger _logger = new Logger('mongo_wrapper_logger');
 
 class ValidationException implements Exception {
   final String error;
@@ -12,6 +12,7 @@ class ValidationException implements Exception {
   String toString() => error;
 }
 
+/// Common part of [ServerOperationCall] and [ClientOperationCall].
 abstract class CommonOperationCall {
   String name;
   List docs;
@@ -19,6 +20,8 @@ abstract class CommonOperationCall {
   Map args;
 }
 
+/// Representation of operation on server together with validations and
+/// callbacks.
 class ServerOperation {
   String name;
   List<Function> _before = [];
@@ -72,7 +75,7 @@ List<ServerOperation> commonOperations = [
       try {
         applyJSON(opCall.args, opCall.docs[0]);
       } catch (e, s){
-        logger.warning("could not apply change properly", e, s);
+        _logger.warning("could not apply change properly", e, s);
       }
     })
 ];

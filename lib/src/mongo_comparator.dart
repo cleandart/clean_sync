@@ -3,6 +3,8 @@
 // BSD-style license that can be found in the LICENSE file.
 
 /**
+ * Experimental feature, not yet meant for use in production.
+ *
  * Current implementation works as follows. If the two objects are not lists,
  * then are compared as in the documentation: http://docs.mongodb.org/manual/reference/bson-types/
     1. MinKey (internal type)

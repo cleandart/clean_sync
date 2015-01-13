@@ -3,6 +3,7 @@ part of clean_sync.client;
 // Should have the same registered operations as MongoServer
 // Should apply changes to local collection
 
+/// Representation of client operation call.
 class ClientOperationCall extends CommonOperationCall {
   String name;
   List<Map> docs;
@@ -12,6 +13,7 @@ class ClientOperationCall extends CommonOperationCall {
   ClientOperationCall(this.name, {this.docs, this.colls, this.args, this.author});
 }
 
+/// Client endpoints for performing transactions.
 class TransactorClient {
   Connection _connection;
   DataReference<bool> updateLock;
@@ -31,9 +33,10 @@ class TransactorClient {
 
   TransactorClient.config(this._connection, this.updateLock, this.author, this._idGenerator);
 
+  /// Performs both client and server operation.
   Future operation(String name, Map args, {List<DataMap> docs, List<Subscription> subs}) {
     if(operations[name] == null) {
-      logger.shout('(transcator) Operation "$name" not found!!!');
+      _logger.shout('(transcator) Operation "$name" not found!!!');
       throw new Exception('Operation "$name" not found!!!');
     }
     operationPerformed = true;
@@ -43,6 +46,7 @@ class TransactorClient {
     return performServerOperation(name, args, docs: docs, subs: subs, shouldDecorateArgs: false);
   }
 
+  /// Sends serialized operation to server.
   Future performServerOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}){
     if (shouldDecorateArgs) operations[name].argsDecorator.forEach((f) => f(args));
     List<String> serverColls;
@@ -72,14 +76,15 @@ class TransactorClient {
     }).then((Map value) {
       if(value == null || !value.containsKey('result') ||
           value['result'] != 'ok')
-          logger.warning('Operation "$name" completed with error ($value)');
+          _logger.warning('Operation "$name" completed with error ($value)');
       else
-        logger.fine('Operation "$name": completed correctly');
+        _logger.fine('Operation "$name": completed correctly');
       return value;
     });
 
   }
 
+  /// Performs the operation on client.
   performClientOperation(String name, Map args, {docs, List<Subscription> subs, shouldDecorateArgs: true}) {
     List<DataSet> clientColls = subs != null ? new List.from(subs.map((e) => e.collection)) : null;
     ClientOperation op = operations[name];
@@ -91,7 +96,7 @@ class TransactorClient {
   }
 
   registerClientOperation(name, {operation}){
-    logger.fine("registering operation $name");
+    _logger.fine("registering operation $name");
     operations[name] = new ClientOperation(name, operation: operation);
   }
 
